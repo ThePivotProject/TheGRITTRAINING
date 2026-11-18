@@ -1,0 +1,48 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Barlow:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root{
+  --black:#0F1113;
+  --pine:#2E4038;
+  --pine-deep:#22302A;
+  --champagne:#C9A86A;
+  --champagne-light:#D4B483;
+  --cream:#F2EFE9;
+  --cream-soft:#F2EFE9;
+  --muted:#8A9196;
+  --glass-bg:rgba(242,239,233,0.06);
+  --glass-border:rgba(201,168,106,0.28);
+  --surface:var(--black);
+  --surface-2:var(--pine);
+  --text:var(--cream);
+}
+@media (prefers-color-scheme: dark){
+  :root{ --surface:#0F1113; --surface-2:#2E4038; --text:#F2EFE9; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--black);color:var(--cream);font-family:'Barlow',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+.font-display{font-family:'Oswald','Barlow',sans-serif;letter-spacing:.04em}
+.glass{background:var(--glass-bg);border:1px solid var(--glass-border);backdrop-filter:none !important;-webkit-backdrop-filter:none !important;box-shadow:none !important}
+.glass-strong{background:rgba(242,239,233,0.06);border:1px solid rgba(201,168,106,0.28);backdrop-filter:none !important}
+.champagne{color:var(--champagne)}
+.pine-bg{background:var(--pine)}
+.sprinter-bg{background:transparent}
+.sprinter-lines{background-image:none}
+.sprinter-grid{background-image:none}
+.gold-rule{height:1px;background:linear-gradient(90deg, transparent, rgba(201,168,106,.65), transparent);border:0}
+.no-scrollbar::-webkit-scrollbar{display:none}
+input,textarea,select{font-family:inherit;font-size:16px}
+textarea{resize:vertical}
+button{transition:transform .12s ease, background-color .15s ease}
+button:active{transform:scale(.98)}
+/* Responsive shell: mobile stays a single narrow column; tablet widens; desktop fills the screen. */
+@media (min-width:768px) and (max-width:1023px){
+  .max-w-\[430px\]{max-width:900px !important}
+}
+@media (min-width:1024px){
+  .max-w-\[430px\]{max-width:1440px !important}
+  .max-w-\[340px\]{max-width:520px !important}
+  .max-w-\[300px\]{max-width:420px !important}
+}
