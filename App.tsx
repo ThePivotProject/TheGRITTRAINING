@@ -1,9 +1,8 @@
 import "./index.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { callApi } from "./lib/supabase";
 import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, Users, ShieldCheck, Zap, Brain, Home, Bookmark, ArrowLeft, Save, Target, Medal, CreditCard, Sparkles, Trophy, Search, Copy, Eraser, Flame, Dumbbell, BookOpen, Timer, Star, Mic, MicOff, Share2 } from "lucide-react";
-import bgUrl from "./assets/sprinter.webp";
-import gritIconUrl from "./assets/grit-icon.webp";
+import bgUrl from "./sprinter.webp";
+import gritIconUrl from "./grit-icon.webp";
 
 function GritIcon({ size = 44, rounded = 10 }: { size?: number; rounded?: number }) {
   return (
@@ -46,6 +45,37 @@ type GritCard = { id?: string; fromId: string; fromName: string; toId: string; t
 type HomeworkRec = { id?: string; athleteId: string; athleteName: string; week: string; text: string; createdAt: string };
 type ApiResp = { data?: any; error?: string };
 
+// Vercel-ready store: same callApi interface as before, but backed by
+// browser localStorage instead of the private preview "actions" backend
+// (which does not exist on Vercel / GitHub Pages and caused the black screen).
+// Data persists on each device. Supabase settings in the Coaches tab are kept
+// for your Supabase SQL / connection display.
+type StoredRecord = { id: string; value: any };
+function readCollection(collection: string): StoredRecord[] {
+  try { const raw = localStorage.getItem(`grit:${collection}`); return raw ? JSON.parse(raw) : []; } catch { return []; }
+}
+function writeCollection(collection: string, records: StoredRecord[]) {
+  try { localStorage.setItem(`grit:${collection}`, JSON.stringify(records)); } catch {}
+}
+async function callApi(action: string, args: any): Promise<any> {
+  const collection = String(args?.collection || "");
+  if (action === "records.list") return { records: readCollection(collection) };
+  if (action === "records.create") {
+    const records = readCollection(collection);
+    const rec = { id: safeId(), value: args?.value ?? {} };
+    records.push(rec); writeCollection(collection, records); return rec;
+  }
+  if (action === "records.replace") {
+    const records = readCollection(collection);
+    const i = records.findIndex((r) => r.id === args?.id);
+    if (i >= 0) { records[i] = { id: args.id, value: args?.value ?? {} }; writeCollection(collection, records); return records[i]; }
+    const rec = { id: args?.id || safeId(), value: args?.value ?? {} }; records.push(rec); writeCollection(collection, records); return rec;
+  }
+  if (action === "records.delete") {
+    writeCollection(collection, readCollection(collection).filter((r) => r.id !== args?.id)); return { ok: true };
+  }
+  throw new Error(`Unknown action: ${action}`);
+}
 const SECTIONS = ["Dynamic Stretch |","Core |","Main Lift |","Speed and Agility |"];
 const DEFAULT_MINUTES: Record<string,string> = {"Dynamic Stretch |":"","Core |":"","Main Lift |":"","Speed and Agility |":""};
 const emptySections = () => Object.fromEntries(SECTIONS.map(s=>[s,""]));
