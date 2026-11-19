@@ -193,6 +193,12 @@ export default function App(){
   const [editingCardId,setEditingCardId]=useState<string|null>(null);
   const [expandedCardId,setExpandedCardId]=useState<string|null>(null);
   const [spotlightId,setSpotlightId]=useState("");
+  // Home — We Are Built Different: 3 boxes (saved to this device)
+  const [homeBoxes,setHomeBoxes]=useState<any>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:homeBoxes")||"null") || { aowId:"", aowNote:"", aowVideo:"", aowVideoName:"", challengeTitle:"", challengeDesc:"", challengePoints:"", newsText:"", newsItems:[] }; }catch{ return { aowId:"", aowNote:"", aowVideo:"", aowVideoName:"", challengeTitle:"", challengeDesc:"", challengePoints:"", newsText:"", newsItems:[] }; } });
+  const [newsDraft,setNewsDraft]=useState("");
+  useEffect(()=>{ try{ localStorage.setItem("grit:homeBoxes", JSON.stringify(homeBoxes)); }catch{} },[homeBoxes]);
+  const aowAthlete = athletes.find(a=>a.id===homeBoxes.aowId) || null;
+  const latestChallenge = (typeof challenges!=="undefined" && challenges[0]) || null;
   const [reactions,setReactions]=useState<Record<string,"fire">>({});
   const [celebrated,setCelebrated]=useState("");
   const [homeworkDone,setHomeworkDone]=useState<Record<string,boolean>>({});
@@ -474,6 +480,18 @@ export default function App(){
       updated = { ...athlete, trainingSections:{...(athlete.trainingSections||{}), [dest]: join(athlete.trainingSections?.[dest]||"")} };
     } else if(dest==="focus"){
       updated = { ...athlete, focus: join(athlete.focus||"") };
+    } else if(dest==="homework"){
+      updated = { ...athlete, homework: join(athlete.homework||"") };
+    } else if(dest==="mindset"){
+      updated = { ...athlete, mindset: join(athlete.mindset||"") };
+    } else if(dest==="nonneg"){
+      updated = { ...athlete, nonNegotiables: join(athlete.nonNegotiables||"") };
+    } else if(dest==="remember"){
+      updated = { ...athlete, remember: join(athlete.remember||"") };
+    } else if(dest==="gratitude"){
+      updated = { ...athlete, gratitude: join(athlete.gratitude||"") };
+    } else if(dest==="notes"){
+      updated = { ...athlete, progress_notes: join(athlete.progress_notes||"") };
     } else if(dest==="progress"){
       updated = { ...athlete, progress_notes: join(athlete.progress_notes||"") };
     } else if(dest==="questions"){
@@ -957,10 +975,37 @@ export default function App(){
             <section className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
               <h2 className="font-display text-[28px] leading-none">We Are Built <span className="text-[#C9A86A]">Different</span></h2>
               <p className="mt-3 text-[15px] leading-relaxed text-white/90">This is not a highlight reel. It is the work behind it — Dynamic Stretch, Core, Main Lift, Speed, Agility, Explode, mindset, homework, and the reminder that carries into the next day.</p>
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                {[{i:<Zap size={20}/>,t:"Train With Intent",d:"Every block has a purpose."},{i:<Users size={20}/>,t:"Built Together",d:"The GRIT holds the standard."},{i:<Brain size={20}/>,t:"Mindset First",d:"Strong mind, strong finish."},{i:<ShieldCheck size={20}/>,t:"Earn It Daily",d:"Consistency over noise."}].map(x=>(
-                  <div key={x.t} className="rounded-2xl border border-white/10 bg-[#2E4038]/90 p-3"><div className="text-[#C9A86A]">{x.i}</div><h3 className="font-display font-semibold mt-2 leading-tight">{x.t}</h3><p className="text-[13px] text-white/75 mt-1">{x.d}</p></div>
-                ))}
+              <div className="space-y-3 mt-4">
+                {/* BOX 1 — ATHLETE OF THE WEEK */}
+                <div className="rounded-2xl border border-[#C9A86A]/40 bg-[#2E4038]/90 p-4">
+                  <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">1 • ATHLETE OF THE WEEK</p>
+                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">CHOOSE ATHLETE<select value={homeBoxes.aowId} onChange={e=>setHomeBoxes((p:any)=>({...p,aowId:e.target.value}))} className="mt-1 w-full min-h-[48px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[16px] text-white normal-case tracking-normal font-normal"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
+                  {aowAthlete && <div className="mt-3 text-center"><p className="font-display text-2xl leading-tight">{aowAthlete.name}</p><p className="text-sm text-white/75 mt-1">{aowAthlete.sport||""}{aowAthlete.position?` • ${aowAthlete.position}`:""}</p><button onClick={()=>openAthlete(aowAthlete.id)} className="mt-2 min-h-[44px] border border-white/30 px-4 py-2 rounded-full text-sm font-semibold">Open Their GRIT Profile</button></div>}
+                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">WHY THEY EARNED IT<textarea value={homeBoxes.aowNote} onChange={e=>setHomeBoxes((p:any)=>({...p,aowNote:e.target.value}))} rows={3} placeholder="What did they do this week?" className="mt-1 w-full bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px] text-white normal-case tracking-normal font-normal" /></label>
+                  <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-3">VIDEO OF THEM</p>
+                  {homeBoxes.aowVideo ? <video key={homeBoxes.aowVideo} src={homeBoxes.aowVideo} controls playsInline className="mt-2 w-full rounded-xl bg-black max-h-[320px]" /> : <p className="text-sm text-white/70 mt-2">No video yet — upload one below.</p>}
+                  <label className="mt-2 block min-h-[48px] rounded-full border border-[#C9A86A]/60 px-4 py-3 text-center text-sm font-bold cursor-pointer">Upload Video<input type="file" accept="video/*" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(!f) return; const url=URL.createObjectURL(f); setHomeBoxes((p:any)=>({...p,aowVideo:url,aowVideoName:f.name})); }} /></label>
+                  {homeBoxes.aowVideoName && <p className="text-xs text-white/60 mt-1 text-center">{homeBoxes.aowVideoName}</p>}
+                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-2">OR PASTE VIDEO LINK<input value={homeBoxes.aowVideo && homeBoxes.aowVideo.startsWith("http") ? homeBoxes.aowVideo : ""} onChange={e=>setHomeBoxes((p:any)=>({...p,aowVideo:e.target.value}))} placeholder="https://…" className="mt-1 w-full min-h-[44px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2 text-[14px]" /></label>
+                  {homeBoxes.aowVideo && <button onClick={()=>setHomeBoxes((p:any)=>({...p,aowVideo:"",aowVideoName:""}))} className="mt-2 min-h-[44px] w-full border border-white/25 rounded-full text-sm font-semibold">Remove Video</button>}
+                  <p className="text-xs text-white/60 mt-2">Saved on this device. Tip: keep clips short so they load fast on phones.</p>
+                </div>
+                {/* BOX 2 — GRIT CHALLENGE */}
+                <div className="rounded-2xl border border-white/10 bg-[#2E4038]/90 p-4">
+                  <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">2 • GRIT CHALLENGE</p>
+                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">THIS WEEK'S CHALLENGE<input value={homeBoxes.challengeTitle} onChange={e=>setHomeBoxes((p:any)=>({...p,challengeTitle:e.target.value}))} placeholder="e.g. 5 GRIT Cards this week" className="mt-1 w-full min-h-[48px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]" /></label>
+                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">DETAILS<textarea value={homeBoxes.challengeDesc} onChange={e=>setHomeBoxes((p:any)=>({...p,challengeDesc:e.target.value}))} rows={3} placeholder="What do they have to do? How do they earn it?" className="mt-1 w-full bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]" /></label>
+                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">POINTS / REWARD<input value={homeBoxes.challengePoints} onChange={e=>setHomeBoxes((p:any)=>({...p,challengePoints:e.target.value}))} placeholder="e.g. 10 points" className="mt-1 w-full min-h-[48px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]" /></label>
+                  {latestChallenge && <p className="text-sm text-white/75 mt-3">Latest saved challenge: <strong className="text-white">{latestChallenge.title}</strong>{latestChallenge.description?` — ${latestChallenge.description}`:""}</p>}
+                  <button onClick={()=>goTab("impact")} className="mt-3 min-h-[48px] w-full bg-[#C9A86A] text-[#0F1113] font-bold px-4 py-3 rounded-full text-sm">Open GRIT Challenge / Impact</button>
+                </div>
+                {/* BOX 3 — WE ARE BUILT / NEWS */}
+                <div className="rounded-2xl border border-white/10 bg-[#2E4038]/90 p-4">
+                  <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">3 • WE ARE BUILT — NEWS & UPDATES</p>
+                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">NEWS & UPDATES<textarea value={homeBoxes.newsText} onChange={e=>setHomeBoxes((p:any)=>({...p,newsText:e.target.value}))} rows={3} placeholder="Practice change, big win, upcoming event…" className="mt-1 w-full bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]" /></label>
+                  <div className="mt-3 flex gap-2"><input value={newsDraft} onChange={e=>setNewsDraft(e.target.value)} placeholder="Add a quick update…" className="flex-1 min-h-[48px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]" /><button onClick={()=>{ if(!newsDraft.trim()) return; setHomeBoxes((p:any)=>({...p,newsItems:[{text:newsDraft.trim(),date:new Date().toLocaleDateString()},...(p.newsItems||[])]})); setNewsDraft(""); }} className="min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 rounded-full text-sm shrink-0">Add</button></div>
+                  {(homeBoxes.newsItems||[]).length>0 && <ul className="mt-3 space-y-2">{homeBoxes.newsItems.map((n:any,i:number)=>(<li key={i} className="flex justify-between gap-2 text-[14px] leading-relaxed border-b border-white/10 pb-2 last:border-0"><span>{n.text}</span><span className="text-xs text-white/60 shrink-0">{n.date}</span></li>))}</ul>}
+                </div>
               </div>
             </section>
 
@@ -1138,6 +1183,7 @@ export default function App(){
                     <button disabled={busy} onClick={saveAthlete} className="min-h-[52px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px] disabled:opacity-50"><Save size={16}/> {busy?"Saving…":"Save Profile"}</button>
                     <button onClick={handleShare} className="flex min-h-[52px] items-center justify-center gap-2 border border-white/30 px-5 py-3 rounded-full text-[15px] font-semibold active:bg-white/10"><Share2 size={16}/> Share</button>
                     {shareStatus && <p className="text-sm font-bold text-[#D4B483] text-center" role="status">{shareStatus}</p>}
+                    <button onClick={()=>{setDictAthleteId(selectedAthlete.id); setDictOpen(true);}} className="min-h-[48px] bg-[#C9A86A] text-[#0F1113] font-bold px-5 py-3 rounded-full text-sm">🎙 Dictate for {selectedAthlete.name}</button>
                     <button onClick={()=>{setTrainingAthleteId(selectedAthlete.id); goTab("training");}} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Open This Athlete’s Training</button>
                     <button onClick={()=>{setTrainingAthleteId(selectedAthlete.id); goTab("homework");}} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Open Homework</button>
                     <button onClick={()=>goTab("impact")} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Send Them a GRIT Card</button>
@@ -1398,6 +1444,12 @@ export default function App(){
                 <option value="focus">Your GRIT Focus and Why</option>
                 <option value="progress">Progress Notes</option>
                 <option value="questions">Questions / Progress Notes</option>
+                <option value="homework">Homework</option>
+                <option value="mindset">Mindset</option>
+                <option value="nonneg">Non-Negotiables</option>
+                <option value="remember">Remember, You Are</option>
+                <option value="gratitude">Gratitude</option>
+                <option value="notes">Notes</option>
               </select>
               {dictDestination==="questions" && (
                 <><label className="block text-xs font-bold tracking-widest text-[#C9A86A] mt-4">TRAINING BLOCK</label>
