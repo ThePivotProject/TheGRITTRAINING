@@ -85,7 +85,7 @@ const placeholderAthletes = (): AthleteProfile[] => {
   return [...ROSTER_NAMES].sort((a,b)=>a.localeCompare(b)).map((name,i)=>({ id:`local-${i+1}`, name, sport:"", position:"", lookUp:"", ageGroup:"", motto:"", remember:"", homework:"", mindset:"", gratitude:"", nonNegotiables:"", disciplineDone:[], pin:"", focus:"", createdAt:new Date().toISOString(), startDate:"", program:"", trainingSections:emptySections(), trainingMinutes:{...DEFAULT_MINUTES}, trainingNotes:{}, progress_doc_url:"", progress_notes:"", progress_notes_last_synced:"" }));
 };
 
-type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact";
+type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become";
 const TABS: {id:View; label:string; icon:any}[] = [
   {id:"athletes", label:"Your GRIT Profile", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
@@ -193,12 +193,6 @@ export default function App(){
   const [editingCardId,setEditingCardId]=useState<string|null>(null);
   const [expandedCardId,setExpandedCardId]=useState<string|null>(null);
   const [spotlightId,setSpotlightId]=useState("");
-  // Home — We Are Built Different: 3 boxes (saved to this device)
-  const [homeBoxes,setHomeBoxes]=useState<any>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:homeBoxes")||"null") || { aowId:"", aowNote:"", aowVideo:"", aowVideoName:"", challengeTitle:"", challengeDesc:"", challengePoints:"", newsText:"", newsItems:[] }; }catch{ return { aowId:"", aowNote:"", aowVideo:"", aowVideoName:"", challengeTitle:"", challengeDesc:"", challengePoints:"", newsText:"", newsItems:[] }; } });
-  const [newsDraft,setNewsDraft]=useState("");
-  useEffect(()=>{ try{ localStorage.setItem("grit:homeBoxes", JSON.stringify(homeBoxes)); }catch{} },[homeBoxes]);
-  const aowAthlete = athletes.find(a=>a.id===homeBoxes.aowId) || null;
-  const latestChallenge = (typeof challenges!=="undefined" && challenges[0]) || null;
   const [reactions,setReactions]=useState<Record<string,"fire">>({});
   const [celebrated,setCelebrated]=useState("");
   const [homeworkDone,setHomeworkDone]=useState<Record<string,boolean>>({});
@@ -212,12 +206,82 @@ export default function App(){
   const [supabaseStatus,setSupabaseStatus]=useState<"Not Connected"|"Connected">("Not Connected");
   const [supabaseLastChecked,setSupabaseLastChecked]=useState("");
   const [supabaseNote,setSupabaseNote]=useState("");
+  const [paypalLink,setPaypalLink]=useState("");
+  const [stripeLink,setStripeLink]=useState("");
+  const [payNote,setPayNote]=useState("GRIT Training — please include the athlete's name in the payment note.");
+  const [becomeContent,setBecomeContent]=useState("");
+  const [becomeVideos,setBecomeVideos]=useState<any[]>([]);
+  const [becomeRecordId,setBecomeRecordId]=useState<string|null>(null);
+  const [becomeDraft,setBecomeDraft]=useState("");
+  const [becomeDraftVideos,setBecomeDraftVideos]=useState<any[]>([]);
+  const [becomePreview,setBecomePreview]=useState(false);
+  const [becomeVideoUrl,setBecomeVideoUrl]=useState("");
+  const [becomeVideoCaption,setBecomeVideoCaption]=useState("");
+  const [quoteText,setQuoteText]=useState("Expect Nothing. Appreciate Everything.");
+  const [quoteAuthor,setQuoteAuthor]=useState("The Pivot Project");
+  const [quoteRecordId,setQuoteRecordId]=useState<string|null>(null);
+  const [quoteDraftText,setQuoteDraftText]=useState("");
+  const [quoteDraftAuthor,setQuoteDraftAuthor]=useState("");
   const [supabaseRecordId,setSupabaseRecordId]=useState<string|null>(null);
   const [showSql,setShowSql]=useState(false);
   const [sqlCopied,setSqlCopied]=useState(false);
   const [calendarLastChecked,setCalendarLastChecked]=useState("");
   const [calendarSyncOn,setCalendarSyncOn]=useState(true);
   const [calendarSyncMsg,setCalendarSyncMsg]=useState("");
+  const [calendarEvents,setCalendarEvents]=useState<any[]>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:calendarEvents")||"[]"); }catch{ return []; } });
+  const [calendarFeedUrl,setCalendarFeedUrl]=useState(()=>{ try{ return localStorage.getItem("grit:calendarFeedUrl")||""; }catch{ return ""; } });
+  const [calendarIcsText,setCalendarIcsText]=useState("");
+  const [nextSessionAthleteId,setNextSessionAthleteId]=useState("");
+  const [nextSessionDate,setNextSessionDate]=useState("");
+  const [nextSessionTime,setNextSessionTime]=useState("");
+  const [nextSessionTitle,setNextSessionTitle]=useState("");
+  useEffect(()=>{ try{ localStorage.setItem("grit:calendarEvents", JSON.stringify(calendarEvents)); }catch{} },[calendarEvents]);
+  useEffect(()=>{ try{ localStorage.setItem("grit:calendarFeedUrl", calendarFeedUrl); }catch{} },[calendarFeedUrl]);
+  function parseIcs(text:string){
+    const events:any[]=[]; const blocks=String(text||"").split("BEGIN:VEVENT").slice(1);
+    for(const b of blocks){
+      const get=(k:string)=>{ const m=b.match(new RegExp(k+":([^\r\n]+)")); return m?m[1].trim():""; };
+      const dt=get("DTSTART;TZID=[^:]+")||get("DTSTART");
+      const summary=get("SUMMARY")||"GRIT Session"; const desc=get("DESCRIPTION")||"";
+      let iso=""; const dm=dt.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
+      if(dm) iso=`${dm[1]}-${dm[2]}-${dm[3]}T${dm[4]}:${dm[5]}:00`;
+      else if(/^\d{8}$/.test(dt)) iso=`${dt.slice(0,4)}-${dt.slice(4,6)}-${dt.slice(6,8)}T00:00:00`;
+      if(iso) events.push({ id:`ics-${iso}-${summary}`.replace(/[^a-zA-Z0-9-]/g,""), title:summary, desc, start:iso, source:"iCal" });
+    }
+    return events;
+  }
+  function importIcsText(text:string){
+    const evs=parseIcs(text);
+    if(!evs.length){ setCalendarSyncMsg("No events found in that .ics — check you pasted the whole file."); return; }
+    setCalendarEvents((prev:any[])=>{ const seen=new Set(prev.map((e:any)=>e.id)); const add=evs.filter((e:any)=>!seen.has(e.id)); return [...add, ...prev].sort((a:any,b:any)=>String(a.start).localeCompare(String(b.start))); });
+    setCalendarSyncMsg(`${evs.length} calendar event(s) imported on this device. For all phones, use the backend sync (Edge Function) — see CALENDAR-SYNC-README.md.`);
+    flashSaved();
+  }
+  async function fetchCalendarFeed(){
+    if(!calendarFeedUrl.trim()){ setCalendarSyncMsg("Paste your public iCal link first (Google Calendar > Settings > Integrate calendar > Public address in iCal format)."); return; }
+    setBusy(true);
+    try{ const res=await fetch(calendarFeedUrl.trim()); if(!res.ok) throw new Error(`Calendar returned ${res.status}`); const text=await res.text(); importIcsText(text); }
+    catch(e:any){ setCalendarSyncMsg(`Could not fetch that link from this browser (Google often blocks it). Workaround: open the link, copy all the text, paste it into “Paste .ics text” below and tap Import. ${e.message||""}`); }
+    setBusy(false);
+  }
+  async function addManualNextSession(){
+    const a=athletes.find(x=>x.id===nextSessionAthleteId); if(!a){ setCalendarSyncMsg("Pick an athlete for the next session first."); return; }
+    if(!nextSessionDate){ setCalendarSyncMsg("Pick a date for the next session first."); return; }
+    const start=`${nextSessionDate}T${nextSessionTime||"16:00"}:00`;
+    const ev={ id:`manual-${Date.now()}`, title:nextSessionTitle.trim()||`GRIT Session — ${a.name}`, desc:"", start, source:"Manual", athleteId:a.id, athleteName:a.name };
+    setCalendarEvents((prev:any[])=>[...prev, ev].sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start))));
+    try{ await callApi("records.create",{collection:"grit_next_sessions", value:ev}); }catch{}
+    setCalendarSyncMsg(`Next session saved for ${a.name} — ${new Date(start).toLocaleString()} — and synced to Supabase so all phones see it.`);
+    setNextSessionTitle(""); flashSaved();
+  }
+  const nextSessionForAthlete = (athleteId?:string)=>{
+    if(!athleteId) return null;
+    const a=athletes.find(x=>x.id===athleteId); if(!a) return null;
+    const now=new Date();
+    const fromCal=calendarEvents.filter((e:any)=>{ const d=new Date(e.start); if(isNaN(d.getTime())||d<now) return false; const hay=`${e.title||""} ${e.desc||""} ${e.athleteName||""}`.toLowerCase(); return !e.athleteId || e.athleteId===athleteId || hay.includes(a.name.toLowerCase()) || hay.includes("grit"); }).sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start)))[0];
+    if(fromCal) return { ...fromCal, sourceLabel: fromCal.source==="Manual" ? "Calendar • Added in app" : "Calendar • Synced" };
+    return null;
+  };
   const [publishVersion,setPublishVersion]=useState(1);
   const [lastSavedAt,setLastSavedAt]=useState("");
   const [lastPublishedAt,setLastPublishedAt]=useState("");
@@ -313,6 +377,28 @@ export default function App(){
       const c = await callApi("records.list",{collection:"grit_calendar"});
       const conn = (c?.records||[]).find((r:any)=>r.value?.connected);
       setCalendarConnected(!!conn); setCalendarRecordId(conn?.id||null);
+      try{
+        const ns = await callApi("records.list",{collection:"grit_next_sessions"});
+        const fromCloud = (ns?.records||[]).map((r:any)=>({ id:r.id, ...(r.value||{}) })).filter((e:any)=>e.start);
+        if(fromCloud.length){
+          setCalendarEvents((prev:any[])=>{
+            const manual = prev.filter((e:any)=>e.source==="Manual");
+            const seen = new Set<string>(); const merged:any[] = [];
+            for(const e of [...manual, ...fromCloud]){ const k = `${e.title||""}|${e.start||""}|${e.athleteName||""}`; if(seen.has(k)) continue; seen.add(k); merged.push(e); }
+            return merged.sort((a:any,b:any)=>String(a.start).localeCompare(String(b.start)));
+          });
+        }
+      }catch{}
+      try{
+        const bp = await callApi("records.list",{collection:"grit_become"});
+        const first = (bp?.records||[])[0];
+        if(first?.value){ setBecomeContent(first.value.content||""); setBecomeVideos(first.value.videos||[]); setBecomeRecordId(first.id||null); }
+      }catch{}
+      try{
+        const qp = await callApi("records.list",{collection:"grit_quote"});
+        const first = (qp?.records||[])[0];
+        if(first?.value){ setQuoteText(first.value.text||""); setQuoteAuthor(first.value.author||""); setQuoteRecordId(first.id||null); }
+      }catch{}
       const a = await callApi("records.list",{collection:"grit_athletes"});
       const savedAthletes = (a?.records||[]).map((r:any)=>({id:r.id, ...(r.value||{}), sport:r.value?.sport||"", position:r.value?.position||"", lookUp:r.value?.lookUp||"", ageGroup:r.value?.ageGroup||"", gratitude:r.value?.gratitude||"", disciplineDone:r.value?.disciplineDone||[], pin:r.value?.pin||"", focus:r.value?.focus||"", trainingSections:r.value?.trainingSections||emptySections(), trainingMinutes:r.value?.trainingMinutes||{...DEFAULT_MINUTES}, trainingNotes:r.value?.trainingNotes||{}, progress_doc_url:r.value?.progress_doc_url||"", progress_notes:r.value?.progress_notes||"", progress_notes_last_synced:r.value?.progress_notes_last_synced||""})).filter((x:any)=>x.name);
       if(savedAthletes.length){
@@ -344,6 +430,9 @@ export default function App(){
           setSupabaseStatus(settings.value.supabaseStatus||"Not Connected");
           setSupabaseLastChecked(settings.value.supabaseLastChecked||"");
           setSupabaseNote(settings.value.supabaseNote||"");
+          setPaypalLink(settings.value.paypalLink||"");
+          setStripeLink(settings.value.stripeLink||"");
+          setPayNote(settings.value.payNote||"GRIT Training — please include the athlete's name in the payment note.");
           setSupabaseRecordId(settings.id||null);
           setCalendarLastChecked(settings.value.calendarLastChecked||"");
           setCalendarSyncOn(settings.value.calendarSyncOn!==false);
@@ -480,18 +569,6 @@ export default function App(){
       updated = { ...athlete, trainingSections:{...(athlete.trainingSections||{}), [dest]: join(athlete.trainingSections?.[dest]||"")} };
     } else if(dest==="focus"){
       updated = { ...athlete, focus: join(athlete.focus||"") };
-    } else if(dest==="homework"){
-      updated = { ...athlete, homework: join(athlete.homework||"") };
-    } else if(dest==="mindset"){
-      updated = { ...athlete, mindset: join(athlete.mindset||"") };
-    } else if(dest==="nonneg"){
-      updated = { ...athlete, nonNegotiables: join(athlete.nonNegotiables||"") };
-    } else if(dest==="remember"){
-      updated = { ...athlete, remember: join(athlete.remember||"") };
-    } else if(dest==="gratitude"){
-      updated = { ...athlete, gratitude: join(athlete.gratitude||"") };
-    } else if(dest==="notes"){
-      updated = { ...athlete, progress_notes: join(athlete.progress_notes||"") };
     } else if(dest==="progress"){
       updated = { ...athlete, progress_notes: join(athlete.progress_notes||"") };
     } else if(dest==="questions"){
@@ -740,6 +817,70 @@ export default function App(){
   }
   function startEditCard(c:GritCard){ setCardFrom(c.fromId); setCardTo(c.toId); setCardMessage(c.message); setEditingCardId(c.id||null); setResult(`Editing GRIT Card: ${c.fromName} → ${c.toName}`); window.scrollTo({top:0, behavior:"smooth"}); }
 
+  function renderBecomeText(text:string){
+    const lines = String(text||"").split("\n");
+    const out:any[] = [];
+    lines.forEach((raw, i)=>{
+      const line = raw.replace(/\r$/, "");
+      if(!line.trim()){ out.push(<div key={i} className="h-3" />); return; }
+      if(line.startsWith("## ")){ out.push(<h3 key={i} className="font-display text-[22px] leading-tight mt-4 first:mt-0">{line.slice(3)}</h3>); return; }
+      if(line.startsWith("# ")){ out.push(<h2 key={i} className="font-display text-[28px] leading-tight mt-4 first:mt-0">{line.slice(2)}</h2>); return; }
+      if(line.startsWith("- ")){ out.push(<p key={i} className="mt-1 pl-4 text-[15px] leading-relaxed text-white/85">• {renderInline(line.slice(2))}</p>); return; }
+      out.push(<p key={i} className="mt-2 text-[15px] leading-relaxed text-white/85">{renderInline(line)}</p>);
+    });
+    return out;
+  }
+  function renderInline(text:string){
+    const parts = String(text).split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((p, i)=> p.startsWith("**") && p.endsWith("**") ? <strong key={i} className="text-[#F2EFE9]">{p.slice(2, -2)}</strong> : <span key={i}>{p}</span>);
+  }
+  function renderBecomeVideos(videos:any[]){
+    if(!videos || !videos.length) return null;
+    return (<div className="mt-4 space-y-4">{videos.map((v:any, i:number)=>(
+      <div key={v.id||i}>
+        {v.caption ? <p className="mb-1 text-sm font-bold text-[#C9A86A]">{v.caption}</p> : null}
+        {String(v.url||"").includes("youtube.com") || String(v.url||"").includes("youtu.be") ? (
+          <a href={v.url} target="_blank" rel="noreferrer" className="block rounded-xl border border-[#C9A86A]/50 bg-black/40 px-4 py-4 text-center text-sm font-bold">▶ Watch how-to video →</a>
+        ) : (
+          <video controls playsInline preload="metadata" src={v.url} className="w-full rounded-xl border border-white/15 bg-black" />
+        )}
+      </div>
+    ))}</div>);
+  }
+  async function saveBecomePage(){
+    const content = becomeDraft; const videos = becomeDraftVideos;
+    try{
+      if(becomeRecordId) await callApi("records.replace",{collection:"grit_become", id:becomeRecordId, value:{ content, videos, updatedAt:new Date().toISOString() }});
+      else { const created = await callApi("records.create",{collection:"grit_become", value:{ content, videos, updatedAt:new Date().toISOString() }}); if(created?.id) setBecomeRecordId(created.id); }
+      setBecomeContent(content); setBecomeVideos(videos);
+      setResult("“How do I become…” page saved — every phone sees it now.");
+      flashSaved();
+    }catch(e:any){ setResult(e.message||"Could not save that page."); }
+  }
+  function handleBecomeVideoFile(file:any){
+    if(!file) return;
+    if(file.size > 10*1024*1024){ setResult("That video is over 10MB — trim it to a short clip (under ~30 seconds) and try again."); return; }
+    const reader = new FileReader();
+    reader.onload = ()=>{ setBecomeDraftVideos((prev:any[])=>[...prev, { id:`vid-${Date.now()}`, url:String(reader.result||""), caption:becomeVideoCaption.trim()||file.name, name:file.name }]); setBecomeVideoCaption(""); };
+    reader.readAsDataURL(file);
+  }
+  function addBecomeVideoUrl(){
+    const url = becomeVideoUrl.trim(); if(!url){ setResult("Paste a video link first, or pick a video file to upload."); return; }
+    setBecomeDraftVideos((prev:any[])=>[...prev, { id:`vid-${Date.now()}`, url, caption:becomeVideoCaption.trim()||"How-to video" }]);
+    setBecomeVideoUrl(""); setBecomeVideoCaption("");
+  }
+  async function saveQuote(){
+    const text = quoteDraftText.trim(); if(!text){ setResult("Type the quote first."); return; }
+    const value = { text, author: quoteDraftAuthor.trim(), updatedAt:new Date().toISOString() };
+    try{
+      if(quoteRecordId) await callApi("records.replace",{collection:"grit_quote", id:quoteRecordId, value});
+      else { const created = await callApi("records.create",{collection:"grit_quote", value}); if(created?.id) setQuoteRecordId(created.id); }
+      setQuoteText(text); setQuoteAuthor(quoteDraftAuthor.trim());
+      setResult("Quote of the Day saved — it now shows on the homepage.");
+      flashSaved();
+    }catch(e:any){ setResult(e.message||"Could not save that quote."); }
+  }
+
   const goTab = (v:View)=>{ setView(v); window.scrollTo({top:0, behavior:"smooth"}); };
   function handleUnlock(){
     const athlete = selectedAthlete;
@@ -755,7 +896,7 @@ export default function App(){
   async function saveTrainingFocus(){ await saveFocus(); }
   function handleShare(){ shareIconOnly(); }
   async function persistSettings(patch: Record<string, any>){
-    const value = { supabaseUrl, supabaseKey, supabaseStatus, supabaseLastChecked, supabaseNote, calendarLastChecked, calendarSyncOn, publishVersion, lastSavedAt, lastPublishedAt, published, ...patch };
+    const value = { supabaseUrl, supabaseKey, supabaseStatus, supabaseLastChecked, supabaseNote, paypalLink, stripeLink, payNote, calendarLastChecked, calendarSyncOn, publishVersion, lastSavedAt, lastPublishedAt, published, ...patch };
     try{
       if(supabaseRecordId) await callApi("records.replace",{collection:"grit_settings", id:supabaseRecordId, value});
       else { const created = await callApi("records.create",{collection:"grit_settings", value, idempotency_key:safeId()}); if(created?.id) setSupabaseRecordId(created.id); }
@@ -933,96 +1074,29 @@ export default function App(){
           <div className="md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
             <section className="pt-5 md:col-span-1 lg:col-span-2">
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
-                <p className="text-center font-display font-semibold text-[clamp(20px,5.6vw,26px)] leading-[1.25] text-[#F2EFE9]">TO GIVE ANYTHING LESS THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
-                <h1 className="font-display font-bold leading-[0.88] mt-3 text-[clamp(56px,15vw,84px)]">THE GRIT<span className="text-[#C9A86A]">.</span></h1>
-                <div className="mt-5 flex flex-col gap-2">
-                  <button onClick={()=>document.getElementById("workouts")?.scrollIntoView({behavior:"smooth"})} className="min-h-[48px] bg-[#C9A86A] text-[#0F1113] font-bold px-5 py-3 rounded-full text-[15px] active:scale-[0.98]">GRIT This Week</button>
-                  <button onClick={()=>goTab("training")} className="min-h-[48px] border border-white/30 px-5 py-3 rounded-full text-[15px] font-semibold active:bg-white/10">Your GRIT Training</button>
-                  <button onClick={()=>goTab("athletes")} className="min-h-[48px] border border-white/30 px-5 py-3 rounded-full text-[15px] font-semibold active:bg-white/10">GRIT Athletes</button>
+                <p className="text-center font-display font-semibold text-[clamp(32px,8.5vw,44px)] leading-[1.15] text-[#F2EFE9]">TO GIVE ANYTHING LESS THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
+                <h1 className="grit-distressed font-display font-bold leading-[0.95] mt-3 text-[clamp(34px,9vw,48px)]">THE GRIT<span className="text-[#C9A86A]">.</span></h1>
+                <div className="mt-5 flex justify-center">
+                  <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
                 </div>
-                <div className="mt-4 flex flex-wrap justify-center gap-1.5">
-                  <span className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-black/45 border border-white/15 px-3 text-xs font-semibold"><Flame size={13} className="text-[#C9A86A]"/> {workoutWeeks} week{workoutWeeks===1?"":"s"} of work</span>
-                  <span className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-black/45 border border-white/15 px-3 text-xs font-semibold"><Trophy size={13} className="text-[#C9A86A]"/> {completions.length} challenges done</span>
-                  <span className="inline-flex min-h-[32px] items-center gap-1 rounded-full bg-black/45 border border-white/15 px-3 text-xs font-semibold">{cards.length} GRIT Cards</span>
+                <div className="mt-6 text-center">
+                  <p className="font-display font-bold leading-[0.95] text-[clamp(44px,13vw,72px)] text-[#F2EFE9]">We Are <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
+                  <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
                 </div>
-              </div>
-            </section>
-
-            <section className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
-              <div className="flex items-end justify-between gap-2"><h2 className="font-display text-[28px] leading-none">Athlete <span className="text-[#C9A86A]">Spotlight</span></h2><span className="text-xs text-white/70 shrink-0">{athletes.length} Athletes</span></div>
-              {!spotlightAthlete ? (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-[#2E4038]/90 p-4">
-                  <p className="font-display text-xl">Select an athlete</p>
-                  <p className="text-sm text-white/70 mt-1">Choose an athlete to spotlight.</p>
-                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-4">SELECT ATHLETE<select value={spotlightId} onChange={e=>setSpotlightId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[16px] text-white normal-case tracking-normal font-normal"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
-                </div>
-              ) : (
-                <div className="mt-4 rounded-2xl border border-white/10 bg-[#2E4038]/90 p-4 text-center">
-                  <div className="mx-auto flex h-[120px] w-[120px] items-center justify-center rounded-2xl border border-[#C9A86A]/40 bg-[#0F1113]" aria-hidden="true"><span className="font-display text-[44px] font-bold leading-none text-[#C9A86A]">{spotlightAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span></div>
-                  <h3 className="font-display text-2xl mt-3 leading-tight">{spotlightAthlete.name}</h3>
-                  <p className="text-sm text-white/75 mt-1">{spotlightAthlete.sport || ""}{spotlightAthlete.position ? ` • ${spotlightAthlete.position}` : ""}</p>
-                  <p className="mt-3 text-[15px] leading-relaxed text-white/90"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A] block">MINDSET</span>{spotlightAthlete.mindset ? `“${spotlightAthlete.mindset}”` : ""}</p>
-                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-4">CHOOSE SPOTLIGHT ATHLETE<select value={spotlightAthlete.id} onChange={e=>setSpotlightId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[16px] text-white normal-case tracking-normal font-normal"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
-                  <div className="mt-3 flex flex-col gap-2">
-                    <button onClick={()=>{ const idx = athletes.findIndex(a=>a.id===spotlightAthlete.id); setSpotlightId(athletes[(idx+1)%athletes.length]?.id || ""); }} className="min-h-[48px] bg-[#C9A86A] text-[#0F1113] font-bold px-5 py-3 rounded-full text-[15px] active:scale-[0.98]">Next Spotlight</button>
-                    <button onClick={()=>openAthlete(spotlightAthlete.id)} className="min-h-[48px] border border-white/30 px-5 py-3 rounded-full text-[15px] font-semibold active:bg-white/10">Open Their GRIT Profile</button>
+                {quoteText ? (
+                  <div className="mt-5 px-2 text-center">
+                    <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">QUOTE OF THE DAY</p>
+                    <p className="mt-1 font-display text-[19px] leading-snug text-[#F2EFE9]">“{quoteText}”</p>
+                    {quoteAuthor ? <p className="mt-1 text-[12px] text-white/60">— {quoteAuthor}</p> : null}
                   </div>
-                </div>
-              )}
-              <p className="text-[15px] text-white/85 mt-4 leading-relaxed">One athlete, one story at a time. Rotate the spotlight to meet the rest of the team.</p>
-            </section>
-
-            <section className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
-              <h2 className="font-display text-[28px] leading-none">We Are Built <span className="text-[#C9A86A]">Different</span></h2>
-              <p className="mt-3 text-[15px] leading-relaxed text-white/90">This is not a highlight reel. It is the work behind it — Dynamic Stretch, Core, Main Lift, Speed, Agility, Explode, mindset, homework, and the reminder that carries into the next day.</p>
-              <div className="space-y-3 mt-4">
-                {/* BOX 1 — ATHLETE OF THE WEEK */}
-                <div className="rounded-2xl border border-[#C9A86A]/40 bg-[#2E4038]/90 p-4">
-                  <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">1 • ATHLETE OF THE WEEK</p>
-                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">CHOOSE ATHLETE<select value={homeBoxes.aowId} onChange={e=>setHomeBoxes((p:any)=>({...p,aowId:e.target.value}))} className="mt-1 w-full min-h-[48px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[16px] text-white normal-case tracking-normal font-normal"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
-                  {aowAthlete && <div className="mt-3 text-center"><p className="font-display text-2xl leading-tight">{aowAthlete.name}</p><p className="text-sm text-white/75 mt-1">{aowAthlete.sport||""}{aowAthlete.position?` • ${aowAthlete.position}`:""}</p><button onClick={()=>openAthlete(aowAthlete.id)} className="mt-2 min-h-[44px] border border-white/30 px-4 py-2 rounded-full text-sm font-semibold">Open Their GRIT Profile</button></div>}
-                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">WHY THEY EARNED IT<textarea value={homeBoxes.aowNote} onChange={e=>setHomeBoxes((p:any)=>({...p,aowNote:e.target.value}))} rows={3} placeholder="What did they do this week?" className="mt-1 w-full bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px] text-white normal-case tracking-normal font-normal" /></label>
-                  <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-3">VIDEO OF THEM</p>
-                  {homeBoxes.aowVideo ? <video key={homeBoxes.aowVideo} src={homeBoxes.aowVideo} controls playsInline className="mt-2 w-full rounded-xl bg-black max-h-[320px]" /> : <p className="text-sm text-white/70 mt-2">No video yet — upload one below.</p>}
-                  <label className="mt-2 block min-h-[48px] rounded-full border border-[#C9A86A]/60 px-4 py-3 text-center text-sm font-bold cursor-pointer">Upload Video<input type="file" accept="video/*" className="hidden" onChange={e=>{ const f=e.target.files?.[0]; if(!f) return; const url=URL.createObjectURL(f); setHomeBoxes((p:any)=>({...p,aowVideo:url,aowVideoName:f.name})); }} /></label>
-                  {homeBoxes.aowVideoName && <p className="text-xs text-white/60 mt-1 text-center">{homeBoxes.aowVideoName}</p>}
-                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-2">OR PASTE VIDEO LINK<input value={homeBoxes.aowVideo && homeBoxes.aowVideo.startsWith("http") ? homeBoxes.aowVideo : ""} onChange={e=>setHomeBoxes((p:any)=>({...p,aowVideo:e.target.value}))} placeholder="https://…" className="mt-1 w-full min-h-[44px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2 text-[14px]" /></label>
-                  {homeBoxes.aowVideo && <button onClick={()=>setHomeBoxes((p:any)=>({...p,aowVideo:"",aowVideoName:""}))} className="mt-2 min-h-[44px] w-full border border-white/25 rounded-full text-sm font-semibold">Remove Video</button>}
-                  <p className="text-xs text-white/60 mt-2">Saved on this device. Tip: keep clips short so they load fast on phones.</p>
-                </div>
-                {/* BOX 2 — GRIT CHALLENGE */}
-                <div className="rounded-2xl border border-white/10 bg-[#2E4038]/90 p-4">
-                  <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">2 • GRIT CHALLENGE</p>
-                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">THIS WEEK'S CHALLENGE<input value={homeBoxes.challengeTitle} onChange={e=>setHomeBoxes((p:any)=>({...p,challengeTitle:e.target.value}))} placeholder="e.g. 5 GRIT Cards this week" className="mt-1 w-full min-h-[48px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]" /></label>
-                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">DETAILS<textarea value={homeBoxes.challengeDesc} onChange={e=>setHomeBoxes((p:any)=>({...p,challengeDesc:e.target.value}))} rows={3} placeholder="What do they have to do? How do they earn it?" className="mt-1 w-full bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]" /></label>
-                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">POINTS / REWARD<input value={homeBoxes.challengePoints} onChange={e=>setHomeBoxes((p:any)=>({...p,challengePoints:e.target.value}))} placeholder="e.g. 10 points" className="mt-1 w-full min-h-[48px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]" /></label>
-                  {latestChallenge && <p className="text-sm text-white/75 mt-3">Latest saved challenge: <strong className="text-white">{latestChallenge.title}</strong>{latestChallenge.description?` — ${latestChallenge.description}`:""}</p>}
-                  <button onClick={()=>goTab("impact")} className="mt-3 min-h-[48px] w-full bg-[#C9A86A] text-[#0F1113] font-bold px-4 py-3 rounded-full text-sm">Open GRIT Challenge / Impact</button>
-                </div>
-                {/* BOX 3 — WE ARE BUILT / NEWS */}
-                <div className="rounded-2xl border border-white/10 bg-[#2E4038]/90 p-4">
-                  <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">3 • WE ARE BUILT — NEWS & UPDATES</p>
-                  <label className="block text-left text-xs font-bold tracking-widest text-[#C9A86A] mt-3">NEWS & UPDATES<textarea value={homeBoxes.newsText} onChange={e=>setHomeBoxes((p:any)=>({...p,newsText:e.target.value}))} rows={3} placeholder="Practice change, big win, upcoming event…" className="mt-1 w-full bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]" /></label>
-                  <div className="mt-3 flex gap-2"><input value={newsDraft} onChange={e=>setNewsDraft(e.target.value)} placeholder="Add a quick update…" className="flex-1 min-h-[48px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]" /><button onClick={()=>{ if(!newsDraft.trim()) return; setHomeBoxes((p:any)=>({...p,newsItems:[{text:newsDraft.trim(),date:new Date().toLocaleDateString()},...(p.newsItems||[])]})); setNewsDraft(""); }} className="min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 rounded-full text-sm shrink-0">Add</button></div>
-                  {(homeBoxes.newsItems||[]).length>0 && <ul className="mt-3 space-y-2">{homeBoxes.newsItems.map((n:any,i:number)=>(<li key={i} className="flex justify-between gap-2 text-[14px] leading-relaxed border-b border-white/10 pb-2 last:border-0"><span>{n.text}</span><span className="text-xs text-white/60 shrink-0">{n.date}</span></li>))}</ul>}
-                </div>
+                ) : null}
+                <button onClick={()=>goTab("become")} className="mt-5 w-full rounded-2xl border border-[#C9A86A]/50 bg-black/40 px-4 py-3 text-left active:bg-white/10">
+                  <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">HOW DO I BECOME…</p>
+                  <p className="mt-1 text-[14px] leading-snug text-[#F2EFE9]">Faster? Swing harder? Quicker off the bases? Block the D-line better? Change speed &amp; direction quicker? <span className="font-bold text-[#C9A86A]">Tap to find out →</span></p>
+                </button>
               </div>
             </section>
 
-            <section id="workouts" className="pt-6 md:col-span-2 lg:col-span-3">
-              <div className="flex items-end justify-between gap-2"><div><p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">THE GRIT</p><h2 className="font-display text-[32px] mt-1 leading-none">Published Workouts</h2></div><span className="text-sm text-white/80 shrink-0">{loading?"Loading…":`${workouts.length} saved`}</span></div>
-              {apiNote && <p className="mt-3 text-sm text-[#D4B483] bg-[#2E4038]/90 border border-[#C9A86A]/30 rounded-xl px-3 py-2">{apiNote}</p>}
-              {workouts.length===0 && !loading && <div className="rounded-2xl border border-white/15 bg-black/35 p-5 mt-4 text-center"><p className="font-display text-xl">No workout on The GRIT yet.</p></div>}
-              <div className="space-y-3 mt-4">
-                {workouts.map(w=>(
-                  <article key={w.id} className="rounded-2xl overflow-hidden border border-white/15 bg-black/35">
-                    <div className="bg-[#2E4038]/95 px-4 py-3 flex justify-between gap-2"><div className="min-w-0"><p className="font-display text-lg leading-tight truncate">{w.athlete}</p><p className="text-xs text-white/70 mt-0.5">{w.week} • {new Date(w.createdAt).toLocaleDateString()}</p></div><span className={`text-[10px] h-fit px-2 py-1 rounded-full font-bold shrink-0 text-center ${w.calendar==="synced"?"bg-[#C9A86A] text-black":"bg-white/10 text-[#D4B483]"}`}>{w.calendar==="synced"?"SYNCED":"QUEUED"}</span></div>
-                    <div className="p-4 space-y-3">{Object.entries(w.sections||{}).map(([s,v])=>String(v||"").trim() ? <div key={s}><p className="text-[11px] tracking-widest text-[#C9A86A] font-bold">{s.toUpperCase()} {w.minutes?.[s]?`• ${w.minutes[s]}`:""}</p><p className="text-[15px] leading-relaxed whitespace-pre-wrap mt-0.5">{String(v)}</p></div>:null)}{w.homework?.trim() ? <div><p className="text-[11px] tracking-widest text-[#C9A86A] font-bold">HOMEWORK</p><p className="text-[15px] whitespace-pre-wrap">{w.homework}</p></div>:null}</div>
-                    <div className="px-4 pb-3 flex justify-end"><button onClick={()=>removeWorkout(w.id)} className="min-h-[44px] inline-flex items-center gap-1 text-xs text-white/70 hover:text-white px-2"><Trash2 size={13}/> Remove</button></div>
-                  </article>
-                ))}
-              </div>
-            </section>
           </div>
         ) : view==="training" ? (
           <section className="pt-5">
@@ -1048,6 +1122,7 @@ export default function App(){
               </div>
             ) : (
               <>
+              {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"short", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
               <p className="text-center font-display text-[clamp(30px,8vw,40px)] font-bold leading-none mt-5">{unlockedAthlete?.name}</p>
               <p className="text-center text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-3">TRAINING PROGRAM • 4 BLOCKS</p>
               <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
@@ -1183,7 +1258,6 @@ export default function App(){
                     <button disabled={busy} onClick={saveAthlete} className="min-h-[52px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px] disabled:opacity-50"><Save size={16}/> {busy?"Saving…":"Save Profile"}</button>
                     <button onClick={handleShare} className="flex min-h-[52px] items-center justify-center gap-2 border border-white/30 px-5 py-3 rounded-full text-[15px] font-semibold active:bg-white/10"><Share2 size={16}/> Share</button>
                     {shareStatus && <p className="text-sm font-bold text-[#D4B483] text-center" role="status">{shareStatus}</p>}
-                    <button onClick={()=>{setDictAthleteId(selectedAthlete.id); setDictOpen(true);}} className="min-h-[48px] bg-[#C9A86A] text-[#0F1113] font-bold px-5 py-3 rounded-full text-sm">🎙 Dictate for {selectedAthlete.name}</button>
                     <button onClick={()=>{setTrainingAthleteId(selectedAthlete.id); goTab("training");}} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Open This Athlete’s Training</button>
                     <button onClick={()=>{setTrainingAthleteId(selectedAthlete.id); goTab("homework");}} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Open Homework</button>
                     <button onClick={()=>goTab("impact")} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Send Them a GRIT Card</button>
@@ -1307,19 +1381,50 @@ export default function App(){
               </div>
             </div>
           </section>
+        ) : view==="become" ? (
+          <div>
+            <section className="pt-5">
+              <button onClick={()=>goTab("wall")} className="min-h-[44px] px-2 text-sm font-bold text-[#C9A86A]">← Back</button>
+              <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-2">HOW DO I BECOME…</p>
+              <h2 className="font-display text-[36px] leading-none mt-2">Faster. Stronger.<br/>Built.</h2>
+              <div className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
+                {becomeContent ? renderBecomeText(becomeContent) : (
+                  <div>
+                    <h3 className="font-display text-[22px] leading-tight">Faster?</h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-white/85">Speed is built, not born. Show up, do the work, and the times drop.</p>
+                    <h3 className="font-display text-[22px] leading-tight mt-4">Swing harder?</h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-white/85">Stronger legs, faster hands, and a swing you repeat a thousand times.</p>
+                    <h3 className="font-display text-[22px] leading-tight mt-4">Quicker off the bases?</h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-white/85">First-step quickness and reading the ball — both are trainable.</p>
+                    <h3 className="font-display text-[22px] leading-tight mt-4">Block the D-line better?</h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-white/85">Low, strong, and first to the spot. Angles beat size.</p>
+                    <h3 className="font-display text-[22px] leading-tight mt-4">Change speed &amp; direction quicker?</h3>
+                    <p className="mt-2 text-[15px] leading-relaxed text-white/85">Decelerate, plant, go. The stop is the start.</p>
+                    <p className="mt-4 text-[13px] text-white/60">Your coach is building this page out — check back soon.</p>
+                  </div>
+                )}
+                {renderBecomeVideos(becomeVideos)}
+              </div>
+              <button onClick={()=>goTab("formats")} className="mt-4 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Formats | Payment →</button>
+            </section>
+          </div>
         ) : view==="formats" ? (
           <section className="pt-5">
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">FORMATS | PAYMENT</p>
             <h2 className="font-display text-[36px] leading-none mt-2">Formats | Payment</h2>
-            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">Choose how you train. Payment is coming soon — nothing is charged here.</p>
+            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">Choose how you train. Tap a button below to pay — you leave the app for PayPal / Stripe checkout, then come back. No card details are ever typed into, stored by, or seen by the GRIT app.</p>
             <div className="space-y-3 mt-4">
               {[{t:"1:1 Training",d:"One athlete. One plan. Full attention."},{t:"Small Group",d:"Train with your crew. Same standard."},{t:"Team Training",d:"Built together, session by session."}].map(x=>(
                 <div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-display text-xl">{x.t}</h3><span className="text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-[#C9A86A] text-black shrink-0">COMING SOON!</span></div><p className="text-[15px] text-white/80 mt-2">{x.d}</p><p className="text-xs text-white/60 mt-2">Details and scheduling — Coming Soon!</p></div>
               ))}
             </div>
-            <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3"><CreditCard size={22} className="text-[#C9A86A] shrink-0"/><div><h3 className="font-display text-xl">Payment</h3><p className="text-sm text-white/80">Payment — Coming Soon!</p></div></div>
-              <span className="text-[11px] font-bold px-3 py-1.5 rounded-full bg-white/10 text-[#D4B483] shrink-0">COMING SOON!</span>
+            <div className="rounded-2xl border border-[#C9A86A]/50 bg-black/35 p-4 mt-3">
+              <div className="flex items-center gap-3"><CreditCard size={22} className="text-[#C9A86A] shrink-0"/><div><h3 className="font-display text-xl">Pay for GRIT</h3><p className="text-sm text-white/80">{payNote}</p></div></div>
+              <div className="mt-3 space-y-2">
+                {paypalLink ? <a href={paypalLink} target="_blank" rel="noreferrer" className="block min-h-[48px] rounded-full bg-[#C9A86A] px-4 py-3 text-center text-[15px] font-bold text-black active:scale-[0.98]">Pay with PayPal / Card →</a> : <p className="rounded-xl bg-black/40 px-3 py-2.5 text-sm text-white/70">PayPal link not set yet — your coach adds it in Coaches → Payment Links.</p>}
+                {stripeLink ? <a href={stripeLink} target="_blank" rel="noreferrer" className="block min-h-[48px] rounded-full border border-white/30 px-4 py-3 text-center text-[15px] font-bold active:bg-white/10">Pay with Card (Stripe) →</a> : null}
+                {!paypalLink && !stripeLink ? <p className="text-xs text-white/60">Until a link is set, no payment button shows here — nothing can be charged by mistake.</p> : <p className="text-xs text-white/60">You pay on PayPal / Stripe's secure page. The GRIT app never sees or stores your card.</p>}
+              </div>
             </div>
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3"><h3 className="font-display text-xl flex items-center gap-2"><Sparkles size={18} className="text-[#C9A86A]"/> What stays the same</h3><p className="text-[15px] text-white/80 mt-2 leading-relaxed">Every format runs on the same wall: Dynamic Stretch, Core, Main Lift, Speed, Agility, Explode, mindset, homework, and the reminder.</p></div>
             <button onClick={()=>goTab("wall")} className="mt-4 w-full min-h-[48px] border border-white/25 rounded-full text-sm font-semibold">Back to The GRIT</button>
@@ -1370,6 +1475,21 @@ export default function App(){
               <p className="text-xs text-white/60 mt-1">Last checked: {calendarLastChecked || "Not checked yet"}</p>
               <label className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#2E4038]/90 border border-white/10 px-3 py-3 text-sm font-semibold"><span>Sync GRIT Sessions to Calendar</span><button role="switch" aria-checked={calendarSyncOn} onClick={toggleCalendarSync} className={`min-h-[32px] min-w-[56px] rounded-full px-2 text-xs font-bold ${calendarSyncOn?"bg-[#C9A86A] text-black":"bg-white/15 text-white"}`}>{calendarSyncOn?"On":"Off"}</button></label>
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={checkCalendar} className="flex-1 min-h-[48px] border border-white/25 px-3 py-2.5 rounded-full text-sm font-semibold">Check Google Calendar Connection</button><button disabled={busy} onClick={syncCalendarSessions} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-3 py-2.5 rounded-full text-sm disabled:opacity-50">Sync GRIT Sessions</button></div>
+              <div className="mt-4 border-t border-white/10 pt-3">
+                <p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNC FROM GOOGLE CALENDAR — BACKEND SYNC</p>
+                <p className="text-sm text-white/75 mt-1">Backend sync runs on Supabase (Edge Function / sync script) every 30 minutes and writes to Supabase — all phones read the same sessions. The options below are for one-off imports and manual adds.</p>
+                <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — SYNCED TO ALL PHONES</p>
+                <label className="block text-sm mt-2">Athlete<select value={nextSessionAthleteId} onChange={e=>setNextSessionAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
+                <div className="flex gap-2 mt-2"><label className="flex-1 text-sm">Date<input type="date" value={nextSessionDate} onChange={e=>setNextSessionDate(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label><label className="flex-1 text-sm">Time<input type="time" value={nextSessionTime} onChange={e=>setNextSessionTime(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label></div>
+                <label className="block text-sm mt-2">Title (optional)<input value={nextSessionTitle} onChange={e=>setNextSessionTitle(e.target.value)} placeholder="GRIT Session" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
+                <button onClick={addManualNextSession} className="mt-2 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Save Next Session to Supabase</button>
+                <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ONE-OFF IMPORT (THIS DEVICE ONLY)</p>
+                <label className="block text-sm mt-2">Public iCal link<input value={calendarFeedUrl} onChange={e=>setCalendarFeedUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+                <button disabled={busy} onClick={fetchCalendarFeed} className="mt-2 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">Sync from iCal Link</button>
+                <label className="block text-sm mt-3">Or paste .ics text<textarea value={calendarIcsText} onChange={e=>setCalendarIcsText(e.target.value)} rows={4} placeholder="BEGIN:VCALENDAR…" className="mt-1 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[13px] font-mono"/></label>
+                <button onClick={()=>importIcsText(calendarIcsText)} className="mt-2 w-full min-h-[48px] border border-white/25 px-4 py-2.5 rounded-full text-sm font-semibold">Import Pasted .ics</button>
+                {calendarEvents.length>0 && <div className="mt-3"><p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNCED EVENTS ({calendarEvents.length})</p><ul className="mt-2 space-y-2">{calendarEvents.slice(0,6).map((e:any)=>(<li key={e.id} className="flex justify-between gap-2 text-[13px] border-b border-white/10 pb-2 last:border-0"><span className="min-w-0"><span className="font-semibold">{e.title}</span><span className="block text-xs text-white/60">{new Date(e.start).toLocaleString()} • {e.source}</span></span><button onClick={async()=>{ setCalendarEvents((p:any[])=>p.filter((x:any)=>x.id!==e.id)); try{ await callApi("records.delete",{collection:"grit_next_sessions", id:e.id}); }catch{} }} className="text-xs text-white/60 shrink-0 px-2">Remove</button></li>))}</ul></div>}
+              </div>
               {calendarSyncMsg && <p className="mt-2 text-sm text-[#D4B483]">{calendarSyncMsg}</p>}
               <button disabled={busy} onClick={toggleCalendar} className="mt-3 w-full min-h-[48px] border border-white/25 px-4 py-2.5 rounded-full text-sm font-semibold">{calendarConnected?"Disconnect Google Calendar":"Connect Google Calendar"}</button>
               <p className="text-xs text-white/60 mt-2">{queued>0 && !calendarConnected ? `${queued} workout${queued>1?"s":""} queued.` : ""} Sync status reflects the saved connection.</p>
@@ -1399,6 +1519,64 @@ export default function App(){
               {checkResults && <ul className="mt-3 space-y-2">{checkResults.map(c=>(<li key={c.label} className="text-sm"><span className="flex items-center justify-between gap-2"><span>{c.label}</span><span className={`font-bold ${c.ok?"text-[#C9A86A]":"text-white"}`}>{c.ok?"● Green":"● Red"} <span className="font-normal text-white/60">— {c.detail}</span></span></span><span className="mt-0.5 block text-xs text-white/60">Last synced: {c.synced}</span></li>))}</ul>}
               <button onClick={()=>setDictOpen(true)} className="mt-4 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-[#2E4038] border border-[#C9A86A]/50 px-4 py-2.5 rounded-full text-sm font-bold">Open Dictation <ChevronRight size={16}/></button>
               <div className="mt-3 flex flex-col gap-2"><button onClick={()=>goTab("training")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Training Program</button><button onClick={()=>goTab("athletes")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">GRIT Athletes</button><button onClick={()=>goTab("impact")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Impact</button><button onClick={()=>goTab("formats")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Formats | Payment</button></div>
+            </div>
+            <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
+              <h3 className="font-display text-xl">Quote of the Day</h3>
+              <p className="text-sm text-white/75 mt-1">This shows on the homepage under “We Are Built.” — Midland MI. Change it any time. Athletes only see the quote, never this editor.</p>
+              <label className="block text-sm mt-3">Quote<textarea value={quoteDraftText} onChange={e=>setQuoteDraftText(e.target.value)} rows={2} placeholder="Expect Nothing. Appreciate Everything." className="mt-1 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+              <label className="block text-sm mt-2">Said by (optional)<input value={quoteDraftAuthor} onChange={e=>setQuoteDraftAuthor(e.target.value)} placeholder="The Pivot Project" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+              <div className="mt-2 flex gap-2">
+                <button onClick={()=>{ setQuoteDraftText(quoteText); setQuoteDraftAuthor(quoteAuthor); }} className="flex-1 min-h-[44px] rounded-full border border-white/25 px-3 py-2 text-sm font-semibold">Load Current Quote</button>
+                <button onClick={saveQuote} className="flex-1 min-h-[44px] rounded-full bg-[#C9A86A] px-3 py-2 text-sm font-bold text-black">Save Quote</button>
+              </div>
+              <p className="text-xs text-white/60 mt-2">Tip: one short line hits hardest. Keep it to a sentence or two.</p>
+            </div>
+            <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
+              <h3 className="font-display text-xl">Payment Links</h3>
+              <p className="text-sm text-white/75 mt-1">Paste your PayPal Payment Link and/or Stripe Payment Link. They show as buttons on Formats | Payment for every athlete. Change them here any time — no redeploy needed. The links live in Supabase (grit_settings).</p>
+              <label className="block text-sm mt-3">PayPal Payment Link<input value={paypalLink} onChange={e=>setPaypalLink(e.target.value)} placeholder="https://www.paypal.com/ncp/payment/…" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+              <label className="block text-sm mt-2">Stripe Payment Link (card)<input value={stripeLink} onChange={e=>setStripeLink(e.target.value)} placeholder="https://buy.stripe.com/…" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+              <label className="block text-sm mt-2">Payment note shown to families<textarea value={payNote} onChange={e=>setPayNote(e.target.value)} rows={2} className="mt-1 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+              <button onClick={async()=>{ await persistSettings({ paypalLink, stripeLink, payNote }); setResult("Payment links saved — they now show on Formats | Payment."); flashSaved(); }} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Payment Links</button>
+              <p className="text-xs text-white/60 mt-2">How to get the links: PayPal → Send & Request → Payment Links → Create (set amount or let them enter it). Stripe Dashboard → Payment Links → Create (set amount, card + Apple/Google Pay on). Both are free to set up — you only pay a fee per payment. See PAYMENTS-README.md in the zip.</p>
+            </div>
+            <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
+              <h3 className="font-display text-xl">Edit “How do I become…” Page</h3>
+              <p className="text-sm text-white/75 mt-1">This is the ONLY place the edit instructions live — athletes never see this box. What you save here is what every athlete sees on the homepage page.</p>
+              <div className="mt-3 rounded-xl bg-black/40 border border-white/10 p-3 text-[13px] leading-relaxed text-white/75">
+                <p className="font-bold text-[#C9A86A]">HOW TO EDIT / FORMAT (coaches only)</p>
+                <p className="mt-1">Type plain text. Press Enter twice for a new paragraph.</p>
+                <p>• <span className="text-white">Big heading:</span> start a line with <span className="font-mono text-white"># </span> then your words — <span className="font-mono text-white"># How do I become faster?</span></p>
+                <p>• <span className="text-white">Smaller heading:</span> start a line with <span className="font-mono text-white">## </span> — <span className="font-mono text-white">## Speed</span></p>
+                <p>• <span className="text-white">Bullet:</span> start a line with <span className="font-mono text-white">- </span> — <span className="font-mono text-white">- Sprint 2x a week</span></p>
+                <p>• <span className="text-white">Bold:</span> wrap words in <span className="font-mono text-white">**two stars**</span> — <span className="font-mono text-white">**Show up.**</span></p>
+                <p>• Leave a line blank between sections so it breathes. Tap Preview to see it exactly as athletes will see it, then Save.</p>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <button onClick={()=>{ setBecomeDraft(becomeContent); setBecomeDraftVideos(becomeVideos); setBecomePreview(false); }} className="flex-1 min-h-[44px] rounded-full border border-white/25 px-3 py-2 text-sm font-semibold">Start Editing (loads current page)</button>
+                <button onClick={()=>setBecomePreview(!becomePreview)} className="flex-1 min-h-[44px] rounded-full border border-[#C9A86A]/60 px-3 py-2 text-sm font-bold text-[#C9A86A]">{becomePreview ? "Back to Editing" : "Preview as Athletes See It"}</button>
+              </div>
+              {becomePreview ? (
+                <div className="mt-3 rounded-xl border border-[#C9A86A]/40 bg-black/40 p-4">
+                  <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">PREVIEW — HOW DO I BECOME…</p>
+                  <div className="mt-2">{renderBecomeText(becomeDraft)}</div>
+                  {renderBecomeVideos(becomeDraftVideos)}
+                </div>
+              ) : (
+                <textarea value={becomeDraft} onChange={e=>setBecomeDraft(e.target.value)} rows={14} placeholder={"# How do I become faster?\n\n**Show up.** Speed is built, not born.\n\n## Speed\n- Sprint 2x a week\n- …"} className="mt-3 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px] leading-relaxed font-mono" />
+              )}
+              <div className="mt-4 border-t border-white/10 pt-3">
+                <p className="text-xs font-bold tracking-widest text-[#C9A86A]">HOW-TO VIDEOS ON THIS PAGE</p>
+                <p className="text-sm text-white/75 mt-1">Short clips only — film it on your phone, trim to under ~30 seconds, then upload here. They play right on the page for every athlete. YouTube links work too.</p>
+                <label className="block text-sm mt-3">Video caption (what it shows)<input value={becomeVideoCaption} onChange={e=>setBecomeVideoCaption(e.target.value)} placeholder="e.g. First-step quickness drill" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+                <label className="block text-sm mt-2">Upload a short video file (under 10MB)<input type="file" accept="video/*" onChange={e=>{ const f=(e.target as HTMLInputElement).files?.[0]; handleBecomeVideoFile(f); (e.target as HTMLInputElement).value=""; }} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+                <label className="block text-sm mt-2">Or paste a video link (YouTube / mp4)<input value={becomeVideoUrl} onChange={e=>setBecomeVideoUrl(e.target.value)} placeholder="https://…" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+                <button onClick={addBecomeVideoUrl} className="mt-2 w-full min-h-[44px] rounded-full border border-white/25 px-3 py-2 text-sm font-semibold">Add Video Link</button>
+                {becomeDraftVideos.length>0 && <ul className="mt-3 space-y-2">{becomeDraftVideos.map((v:any)=>(<li key={v.id} className="flex items-center justify-between gap-2 rounded-xl bg-black/40 px-3 py-2 text-[13px]"><span className="min-w-0 truncate">{v.caption||v.name||"Video"}</span><button onClick={()=>setBecomeDraftVideos((p:any[])=>p.filter((x:any)=>x.id!==v.id))} className="shrink-0 px-2 text-white/60">Remove</button></li>))}</ul>}
+                <p className="text-xs text-white/60 mt-2">Videos save with the page — same Save button below. If a clip won't upload, it's almost always over 10MB: trim it shorter in Photos first.</p>
+              </div>
+              <button onClick={saveBecomePage} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save “How do I become…” Page</button>
+              <p className="text-xs text-white/60 mt-2">Saved to Supabase (grit_become) — every phone sees the new version the next time it opens. Nothing on the athlete side says “edit” or shows these instructions.</p>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">Reset a Player&rsquo;s PIN</h3>
@@ -1444,12 +1622,6 @@ export default function App(){
                 <option value="focus">Your GRIT Focus and Why</option>
                 <option value="progress">Progress Notes</option>
                 <option value="questions">Questions / Progress Notes</option>
-                <option value="homework">Homework</option>
-                <option value="mindset">Mindset</option>
-                <option value="nonneg">Non-Negotiables</option>
-                <option value="remember">Remember, You Are</option>
-                <option value="gratitude">Gratitude</option>
-                <option value="notes">Notes</option>
               </select>
               {dictDestination==="questions" && (
                 <><label className="block text-xs font-bold tracking-widest text-[#C9A86A] mt-4">TRAINING BLOCK</label>

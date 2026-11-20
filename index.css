@@ -46,3 +46,6 @@ button:active{transform:scale(.98)}
   .max-w-\[340px\]{max-width:520px !important}
   .max-w-\[300px\]{max-width:420px !important}
 }
+
+/* GRIT logo — chic font, slightly distressed / rugged edge */
+.grit-distressed{ color:#C9A86A; letter-spacing:-0.01em; text-shadow:0 1px 0 #8A6F3A, 0 -1px 0 rgba(255,255,255,.18), 2px 2px 0 rgba(0,0,0,.55), -1px 1px 0 rgba(0,0,0,.45), 1px -1px 0 rgba(0,0,0,.35); -webkit-text-stroke:0.4px rgba(138,111,58,.55); }
