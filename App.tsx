@@ -2,6 +2,7 @@ import "./index.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, Users, ShieldCheck, Zap, Brain, Home, Bookmark, ArrowLeft, Save, Target, Medal, CreditCard, Sparkles, Trophy, Search, Copy, Eraser, Flame, Dumbbell, BookOpen, Timer, Star, Mic, MicOff, Share2 } from "lucide-react";
 import bgUrl from "./sprinter.webp";
+import fieldNightUrl from "./field-night.webp";
 import gritIconUrl from "./grit-icon.webp";
 
 function GritIcon({ size = 44, rounded = 10 }: { size?: number; rounded?: number }) {
@@ -90,8 +91,7 @@ const TABS: {id:View; label:string; icon:any}[] = [
   {id:"athletes", label:"Your GRIT Profile", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
   {id:"homework", label:"Homework", icon: BookOpen},
-  {id:"pillars", label:"Mindset", icon: Brain},
-  {id:"impact", label:"Impact", icon: Trophy},
+  {id:"pillars", label:"Mindset & Impact", icon: Brain},
   {id:"coach", label:"Coaches", icon: ShieldCheck},
 ];
 const SUPABASE_SQL = `-- GRIT Supabase setup — run the WHOLE file at once in Supabase > SQL Editor.
@@ -136,11 +136,12 @@ create policy "grit_write" on public.progress_notes for all using (true) with ch
 create policy "grit_read" on public.grit_cards for select using (true);
 create policy "grit_write" on public.grit_cards for all using (true) with check (true);`;
 
-function PhotoBackground(){
+function PhotoBackground({ view }: { view?: string }){
+  const bg = view === "wall" ? fieldNightUrl : bgUrl;
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
-      <img src={bgUrl} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
-      <img src={bgUrl} alt="" className="absolute inset-0 h-full w-full object-contain bg-[#0F1113] lg:object-cover lg:object-center" />
+      <img src={bg} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
+      <img src={bg} alt="" className="absolute inset-0 h-full w-full object-contain bg-[#0F1113] lg:object-cover lg:object-center" />
       <div className="absolute inset-0" style={{background:"linear-gradient(90deg, rgba(15,17,19,.72) 0%, rgba(15,17,19,.08) 18%, rgba(15,17,19,0) 50%, rgba(15,17,19,.08) 82%, rgba(15,17,19,.72) 100%), linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
     </div>
   );
@@ -217,11 +218,6 @@ export default function App(){
   const [becomePreview,setBecomePreview]=useState(false);
   const [becomeVideoUrl,setBecomeVideoUrl]=useState("");
   const [becomeVideoCaption,setBecomeVideoCaption]=useState("");
-  const [quoteText,setQuoteText]=useState("Expect Nothing. Appreciate Everything.");
-  const [quoteAuthor,setQuoteAuthor]=useState("The Pivot Project");
-  const [quoteRecordId,setQuoteRecordId]=useState<string|null>(null);
-  const [quoteDraftText,setQuoteDraftText]=useState("");
-  const [quoteDraftAuthor,setQuoteDraftAuthor]=useState("");
   const [supabaseRecordId,setSupabaseRecordId]=useState<string|null>(null);
   const [showSql,setShowSql]=useState(false);
   const [sqlCopied,setSqlCopied]=useState(false);
@@ -282,6 +278,12 @@ export default function App(){
     if(fromCal) return { ...fromCal, sourceLabel: fromCal.source==="Manual" ? "Calendar • Added in app" : "Calendar • Synced" };
     return null;
   };
+  const [quoteText,setQuoteText]=useState("");
+  const [quoteRecordId,setQuoteRecordId]=useState<string|null>(null);
+  const [quoteDraft,setQuoteDraft]=useState("");
+  const [dailyContent,setDailyContent]=useState("");
+  const [dailyRecordId,setDailyRecordId]=useState<string|null>(null);
+  const [dailyDraft,setDailyDraft]=useState("");
   const [publishVersion,setPublishVersion]=useState(1);
   const [lastSavedAt,setLastSavedAt]=useState("");
   const [lastPublishedAt,setLastPublishedAt]=useState("");
@@ -397,7 +399,12 @@ export default function App(){
       try{
         const qp = await callApi("records.list",{collection:"grit_quote"});
         const first = (qp?.records||[])[0];
-        if(first?.value){ setQuoteText(first.value.text||""); setQuoteAuthor(first.value.author||""); setQuoteRecordId(first.id||null); }
+        if(first?.value){ setQuoteText(first.value.text||""); setQuoteDraft(first.value.text||""); setQuoteRecordId(first.id||null); }
+      }catch{}
+      try{
+        const dp = await callApi("records.list",{collection:"grit_daily"});
+        const first = (dp?.records||[])[0];
+        if(first?.value){ setDailyContent(first.value.content||""); setDailyDraft(first.value.content||""); setDailyRecordId(first.id||null); }
       }catch{}
       const a = await callApi("records.list",{collection:"grit_athletes"});
       const savedAthletes = (a?.records||[]).map((r:any)=>({id:r.id, ...(r.value||{}), sport:r.value?.sport||"", position:r.value?.position||"", lookUp:r.value?.lookUp||"", ageGroup:r.value?.ageGroup||"", gratitude:r.value?.gratitude||"", disciplineDone:r.value?.disciplineDone||[], pin:r.value?.pin||"", focus:r.value?.focus||"", trainingSections:r.value?.trainingSections||emptySections(), trainingMinutes:r.value?.trainingMinutes||{...DEFAULT_MINUTES}, trainingNotes:r.value?.trainingNotes||{}, progress_doc_url:r.value?.progress_doc_url||"", progress_notes:r.value?.progress_notes||"", progress_notes_last_synced:r.value?.progress_notes_last_synced||""})).filter((x:any)=>x.name);
@@ -857,6 +864,26 @@ export default function App(){
       flashSaved();
     }catch(e:any){ setResult(e.message||"Could not save that page."); }
   }
+  async function saveQuote(){
+    const text = quoteDraft.trim();
+    try{
+      if(quoteRecordId) await callApi("records.replace",{collection:"grit_quote", id:quoteRecordId, value:{ text, updatedAt:new Date().toISOString() }});
+      else { const created = await callApi("records.create",{collection:"grit_quote", value:{ text, updatedAt:new Date().toISOString() }}); if(created?.id) setQuoteRecordId(created.id); }
+      setQuoteText(text);
+      setResult("Quote saved — it shows on the homepage with no label.");
+      flashSaved();
+    }catch(e:any){ setResult(e.message||"Could not save that quote."); }
+  }
+  async function saveDaily(){
+    const content = dailyDraft;
+    try{
+      if(dailyRecordId) await callApi("records.replace",{collection:"grit_daily", id:dailyRecordId, value:{ content, updatedAt:new Date().toISOString() }});
+      else { const created = await callApi("records.create",{collection:"grit_daily", value:{ content, updatedAt:new Date().toISOString() }}); if(created?.id) setDailyRecordId(created.id); }
+      setDailyContent(content);
+      setResult("“Motivation vs. Discipline | You vs. You” daily list saved — it now shows on the Training page.");
+      flashSaved();
+    }catch(e:any){ setResult(e.message||"Could not save that page."); }
+  }
   function handleBecomeVideoFile(file:any){
     if(!file) return;
     if(file.size > 10*1024*1024){ setResult("That video is over 10MB — trim it to a short clip (under ~30 seconds) and try again."); return; }
@@ -868,17 +895,6 @@ export default function App(){
     const url = becomeVideoUrl.trim(); if(!url){ setResult("Paste a video link first, or pick a video file to upload."); return; }
     setBecomeDraftVideos((prev:any[])=>[...prev, { id:`vid-${Date.now()}`, url, caption:becomeVideoCaption.trim()||"How-to video" }]);
     setBecomeVideoUrl(""); setBecomeVideoCaption("");
-  }
-  async function saveQuote(){
-    const text = quoteDraftText.trim(); if(!text){ setResult("Type the quote first."); return; }
-    const value = { text, author: quoteDraftAuthor.trim(), updatedAt:new Date().toISOString() };
-    try{
-      if(quoteRecordId) await callApi("records.replace",{collection:"grit_quote", id:quoteRecordId, value});
-      else { const created = await callApi("records.create",{collection:"grit_quote", value}); if(created?.id) setQuoteRecordId(created.id); }
-      setQuoteText(text); setQuoteAuthor(quoteDraftAuthor.trim());
-      setResult("Quote of the Day saved — it now shows on the homepage.");
-      flashSaved();
-    }catch(e:any){ setResult(e.message||"Could not save that quote."); }
   }
 
   const goTab = (v:View)=>{ setView(v); window.scrollTo({top:0, behavior:"smooth"}); };
@@ -1041,31 +1057,26 @@ export default function App(){
 
   return (
     <div data-safe-area-inset-root="" className="min-h-[100dvh] bg-[#0F1113] text-[#F2EFE9] overflow-x-clip" style={{boxSizing: 'border-box', paddingTop: 'var(--safe-area-inset-top)'}}>
-      <PhotoBackground />
-      <header data-safe-area-sticky-top className="sticky z-40 bg-[#0F1113] border-b border-[#C9A86A]/40" style={{top:"var(--safe-area-inset-top)"}}>
-        <div className="mx-auto max-w-[430px] px-3 py-2 lg:px-8">
-          <div className="flex items-center justify-between gap-2">
-            <button onClick={()=>goTab("wall")} className="flex min-h-[44px] min-w-0 items-center gap-2" aria-label="The GRIT home">
-              <GritIcon size={36} rounded={9} />
-              <span className="font-display font-bold text-[17px] leading-none tracking-[0.12em] whitespace-nowrap">THE GRIT<span className="text-[#C9A86A]">.</span></span>
+      <PhotoBackground view={view} />
+      {/* Top: GRIT icon + THE GRIT + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
+      <div className="relative z-10 mx-auto max-w-[430px] px-3 pt-2">
+        <div className="flex items-center justify-between gap-2">
+          <button onClick={()=>goTab("wall")} className="flex min-h-[44px] min-w-0 items-center gap-2" aria-label="The GRIT home">
+            <GritIcon size={36} rounded={9} />
+            <span className="font-display font-bold text-[17px] leading-none tracking-[0.12em] whitespace-nowrap">THE GRIT<span className="text-[#C9A86A]">.</span></span>
+          </button>
+          {savedFlash && <span className="inline-flex min-h-[28px] shrink-0 items-center gap-1 rounded-full bg-[#C9A86A] px-2.5 text-[11px] font-bold text-black" role="status">Saved</span>}
+          <div className="flex shrink-0 items-center gap-1.5">
+            <button onClick={shareIconOnly} className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-full border border-[#C9A86A]/50 px-2.5 text-[12px] font-bold text-[#C9A86A] active:bg-white/10" aria-label="Share GRIT icon"><Share2 size={16}/><span>Share</span></button>
+            <button onClick={()=>goTab("coach")} className="min-h-[44px] min-w-[52px] border border-[#8A9196]/40 bg-transparent text-[#8A9196] rounded-full px-2.5 py-1.5 text-[11px] font-semibold tracking-wide active:bg-white/10 shrink-0">
+              Coaches
             </button>
-            {savedFlash && <span className="inline-flex min-h-[28px] shrink-0 items-center gap-1 rounded-full bg-[#C9A86A] px-2.5 text-[11px] font-bold text-black" role="status">Saved</span>}
-            <div className="flex shrink-0 items-center gap-1.5">
-              <button onClick={shareIconOnly} className="flex min-h-[44px] min-w-[44px] items-center justify-center gap-1.5 rounded-full border border-[#C9A86A]/50 px-2.5 text-[12px] font-bold text-[#C9A86A] active:bg-white/10" aria-label="Share GRIT icon"><Share2 size={16}/><span>Share</span></button>
-              <button onClick={()=>goTab("coach")} className="min-h-[44px] min-w-[52px] border border-[#8A9196]/40 bg-transparent text-[#8A9196] rounded-full px-2.5 py-1.5 text-[11px] font-semibold tracking-wide active:bg-white/10 shrink-0">
-                Coaches
-              </button>
-            </div>
           </div>
-          {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
         </div>
-      </header>
-
-      <div aria-hidden="true" className="relative z-10 border-b-2 border-[#C9A86A] bg-[#2E4038]">
-        <div className="mx-auto flex max-w-[430px] items-center justify-center gap-2 px-3 py-1.5">
-          <span className="h-px flex-1 bg-[#C9A86A]/60" />
-          <span className="font-display text-[10px] font-semibold tracking-[0.32em] text-[#F2EFE9]">We. Are. <span className="text-[#C9A86A]">Built.</span></span>
-          <span className="h-px flex-1 bg-[#C9A86A]/60" />
+        {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
+        <div className="pt-2 text-center">
+          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9]">We Are <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
+          <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
         </div>
       </div>
 
@@ -1074,33 +1085,46 @@ export default function App(){
           <div className="md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
             <section className="pt-5 md:col-span-1 lg:col-span-2">
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
-                <p className="text-center font-display font-semibold text-[clamp(32px,8.5vw,44px)] leading-[1.15] text-[#F2EFE9]">TO GIVE ANYTHING LESS THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
-                <h1 className="grit-distressed font-display font-bold leading-[0.95] mt-3 text-[clamp(34px,9vw,48px)]">THE GRIT<span className="text-[#C9A86A]">.</span></h1>
+                <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
+                <div className="grit-logo-big mt-4 flex justify-center"><GritIcon size={230} rounded={34} /></div>
+                <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(30px,8.5vw,42px)]">THE GRIT<span className="text-[#C9A86A]">.</span></p>
                 <div className="mt-5 flex justify-center">
                   <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
                 </div>
-                <div className="mt-6 text-center">
-                  <p className="font-display font-bold leading-[0.95] text-[clamp(44px,13vw,72px)] text-[#F2EFE9]">We Are <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
-                  <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
-                </div>
-                {quoteText ? (
-                  <div className="mt-5 px-2 text-center">
-                    <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">QUOTE OF THE DAY</p>
-                    <p className="mt-1 font-display text-[19px] leading-snug text-[#F2EFE9]">“{quoteText}”</p>
-                    {quoteAuthor ? <p className="mt-1 text-[12px] text-white/60">— {quoteAuthor}</p> : null}
-                  </div>
-                ) : null}
-                <button onClick={()=>goTab("become")} className="mt-5 w-full rounded-2xl border border-[#C9A86A]/50 bg-black/40 px-4 py-3 text-left active:bg-white/10">
-                  <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">HOW DO I BECOME…</p>
-                  <p className="mt-1 text-[14px] leading-snug text-[#F2EFE9]">Faster? Swing harder? Quicker off the bases? Block the D-line better? Change speed &amp; direction quicker? <span className="font-bold text-[#C9A86A]">Tap to find out →</span></p>
-                </button>
               </div>
             </section>
 
+            {quoteText ? (
+              <section className="mt-6 px-2 text-center">
+                <p className="text-[17px] italic leading-relaxed text-white/90">“{quoteText}”</p>
+              </section>
+            ) : null}
+            <section className="mt-6">
+              <button onClick={()=>goTab("become")} className="block w-full rounded-[26px] border-2 border-[#C9A86A] bg-[#2E4038] px-5 py-6 text-left active:bg-[#35493F]">
+                <p className="font-display font-bold leading-[1.05] text-[clamp(30px,8.5vw,40px)] text-[#F2EFE9]">HOW DO I<br/>BECOME<span className="text-[#C9A86A]">…</span></p>
+                <p className="mt-3 text-[16px] leading-relaxed text-white/90">Faster? Swing harder? Quicker off the bases? Block the D-line better? Change speed &amp; direction quicker?</p>
+                <p className="mt-4 text-[15px] font-bold text-[#C9A86A]">Tap to find out →</p>
+              </button>
+            </section>
+            <section className="mt-6 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
+              <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">THE MONTHLY CHALLENGE • {week.toUpperCase()}</p>
+              {currentChallenge ? <><h3 className="font-display text-[26px] leading-tight mt-2">{currentChallenge.title}</h3><p className="text-[15px] text-white/85 mt-2 leading-relaxed">{currentChallenge.description}</p>
+              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width:`${challengeProgress}%`}} /></div>
+              <p className="mt-1.5 text-xs text-white/75">{challengeProgress}% of the team in — {challengeDoneCount} of {athletes.length} • {currentChallenge.points} pts</p>
+              <button onClick={()=>goTab("pillars")} className="mt-4 w-full min-h-[48px] rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Mark It Complete →</button></> : <p className="text-[15px] text-white/85 mt-2">No challenge set yet — your coach sets one on Mindset &amp; Impact.</p>}
+            </section>
           </div>
         ) : view==="training" ? (
           <section className="pt-5">
             <h2 className="font-display text-center font-bold leading-[1.15] break-words text-[clamp(24px,6.8vw,36px)]">WE COMPETE LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER LOST</span> AND TRAIN LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER WON</span></h2>
+            {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return null; if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
+            <section className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
+              <h3 className="font-display font-bold leading-[1.1] text-[clamp(24px,7vw,32px)]">Motivation vs. Discipline <span className="text-[#C9A86A]">|</span> You vs. You</h3>
+              <p className="mt-1 text-[12px] font-bold tracking-widest text-white/60">EVERY SINGLE DAY</p>
+              <div className="mt-3 rounded-2xl border border-white/15 bg-[#2E4038]/90 px-4 py-4">
+                {dailyContent ? renderBecomeText(dailyContent) : <p className="text-[15px] leading-relaxed text-white/85">Your coach is laying out what you should be doing every single day — check back soon.</p>}
+              </div>
+            </section>
             {!loggedInAthleteId ? (
               <div>
                 <button onClick={()=>goTab("athletes")} className="mt-5 w-full min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px]">Unlock Your Profile</button>
@@ -1122,7 +1146,6 @@ export default function App(){
               </div>
             ) : (
               <>
-              {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"short", month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
               <p className="text-center font-display text-[clamp(30px,8vw,40px)] font-bold leading-none mt-5">{unlockedAthlete?.name}</p>
               <p className="text-center text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-3">TRAINING PROGRAM • 4 BLOCKS</p>
               <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
@@ -1260,7 +1283,7 @@ export default function App(){
                     {shareStatus && <p className="text-sm font-bold text-[#D4B483] text-center" role="status">{shareStatus}</p>}
                     <button onClick={()=>{setTrainingAthleteId(selectedAthlete.id); goTab("training");}} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Open This Athlete’s Training</button>
                     <button onClick={()=>{setTrainingAthleteId(selectedAthlete.id); goTab("homework");}} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Open Homework</button>
-                    <button onClick={()=>goTab("impact")} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Send Them a GRIT Card</button>
+                    <button onClick={()=>goTab("pillars")} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Send Them a GRIT Card</button>
                   </div>
                   {result && <p className="mt-3 text-sm text-[#D4B483]">{result}</p>}
                   <div className="mt-6 border-t border-white/10 pt-4">
@@ -1288,9 +1311,10 @@ export default function App(){
             )}
           </section>
         ) : view==="pillars" ? (
+          <>
           <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">PILLARS OF GRIT • MINDSET + DISCIPLINE</p>
-            <h2 className="font-display text-[36px] leading-none mt-2">Mindset + Discipline</h2>
+            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">MINDSET &amp; IMPACT • ONE PAGE</p>
+            <h2 className="font-display text-[36px] leading-none mt-2">Mindset &amp; Impact</h2>
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed">Mindset + Discipline. Your Discipline is the daily proof — write it, then save it.</p>
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
               <label className="block text-xs font-bold tracking-widest text-[#C9A86A]">WEEKLY MINDSET PROMPT • {week.toUpperCase()}</label>
@@ -1315,15 +1339,18 @@ export default function App(){
               {[{i:<Zap size={20}/>,t:"Show Up",d:"Every session counts."},{i:<ShieldCheck size={20}/>,t:"Do The Work",d:"No shortcuts."},{i:<Medal size={20}/>,t:"Rise Together",d:"Built different, together."}].map(x=>(<div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-3"><div className="text-[#C9A86A]">{x.i}</div><h3 className="font-display font-semibold mt-2 leading-tight text-[15px]">{x.t}</h3><p className="text-[13px] text-white/75 mt-1">{x.d}</p></div>))}
             </div>
           </section>
-        ) : view==="impact" ? (
+<div className="mt-8 border-t-2 border-[#C9A86A]/40 pt-6">
+              <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">IMPACT • THE MONTHLY CHALLENGE • LEADERBOARD • GRIT CARDS</p>
+              <h2 className="font-display text-[36px] leading-none mt-2">Impact</h2>
+
           <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">IMPACT • WEEKLY CHALLENGE • LEADERBOARD • GRIT CARDS</p>
+            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">THE MONTHLY CHALLENGE • LEADERBOARD • GRIT CARDS</p>
             <h2 className="font-display text-[36px] leading-none mt-2">Impact</h2>
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed">One challenge a week. Points for challenges, workouts, and GRIT Cards received. One GRIT Card per athlete per week — to show how one other athlete made them better.</p>
             <section className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
-              <div className="flex items-end justify-between gap-2"><h2 className="font-display text-[28px] leading-none">This Week on <span className="text-[#C9A86A]">Impact</span></h2><span className="text-xs text-white/70 shrink-0">{week}</span></div>
+              <div className="flex items-end justify-between gap-2"><h2 className="font-display text-[28px] leading-none">This Month on <span className="text-[#C9A86A]">Impact</span></h2><span className="text-xs text-white/70 shrink-0">{week}</span></div>
               <div className="mt-4 rounded-2xl border border-white/10 bg-[#2E4038]/90 p-4">
-                <p className="text-[11px] tracking-widest text-[#C9A86A] font-bold">WEEKLY CHALLENGE • {week.toUpperCase()}</p>
+                <p className="text-[11px] tracking-widest text-[#C9A86A] font-bold">THE MONTHLY CHALLENGE • {week.toUpperCase()}</p>
                 {currentChallenge ? <><h3 className="font-display text-xl mt-1 leading-tight">{currentChallenge.title}</h3><p className="text-[15px] text-white/85 mt-1 leading-relaxed">{currentChallenge.description}</p>
                 <div className="mt-3 flex items-center gap-2 text-xs"><Timer size={14} className="text-[#C9A86A]"/><span className="font-bold">{daysLeft===null ? "This week" : daysLeft>=0 ? `${daysLeft} day${daysLeft===1?"":"s"} left` : "Due — still counts"}</span><span className="text-white/70">• {currentChallenge.points} pts • {challengeDoneCount} complete</span></div>
                 <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width:`${challengeProgress}%`}} /></div><p className="mt-1 text-xs text-white/70">{challengeProgress}% of the team in</p></> : <p className="text-[15px] text-white/80 mt-1">No challenge set for this week yet. Coach sets ONE challenge per week on Impact.</p>}
@@ -1336,7 +1363,7 @@ export default function App(){
               <span className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-black/40 border border-white/15 px-3 text-xs font-bold">{cards.length} GRIT Cards sent</span>
             </div>
             <div className="rounded-[22px] border border-[#C9A86A]/40 bg-black/35 p-4 mt-4">
-              <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold">THIS WEEK’S CHALLENGE • {week.toUpperCase()}</p>
+              <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold">THE MONTHLY CHALLENGE • {week.toUpperCase()}</p>
               {currentChallenge ? <><h3 className="font-display text-[28px] mt-2 leading-tight">{currentChallenge.title}</h3><p className="text-white/85 mt-2 leading-relaxed text-[15px]">{currentChallenge.description}</p>
               <div className="mt-3 flex flex-wrap items-center gap-2"><span className="inline-flex min-h-[36px] items-center gap-1 rounded-full bg-[#C9A86A] text-black px-3 text-xs font-bold"><Timer size={14}/> {daysLeft===null ? "This week" : daysLeft>=0 ? `${daysLeft} day${daysLeft===1?"":"s"} left` : "Due — still counts"}</span><span className="text-sm text-[#D4B483] font-bold">{currentChallenge.points} pts • {challengeDoneCount} athletes complete</span></div>
               <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width:`${challengeProgress}%`}} /></div><p className="mt-1.5 text-xs text-white/75">{challengeProgress}% of the team in — {challengeDoneCount} of {athletes.length}</p></> : <p className="mt-2 text-white/85 text-[15px]">No challenge for this week yet — coach sets ONE below.</p>}
@@ -1381,6 +1408,8 @@ export default function App(){
               </div>
             </div>
           </section>
+            </div>
+          </>
         ) : view==="become" ? (
           <div>
             <section className="pt-5">
@@ -1518,18 +1547,7 @@ export default function App(){
               <div className="flex flex-col gap-2 mt-3"><button disabled={busy} onClick={saveSite} className="min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px] disabled:opacity-50">Save Site</button><button disabled={busy} onClick={publishSite} className="min-h-[52px] border border-[#C9A86A] px-5 py-3 rounded-full text-[15px] font-bold disabled:opacity-50">Publish Site</button><button onClick={checkEverything} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Check Everything</button></div>
               {checkResults && <ul className="mt-3 space-y-2">{checkResults.map(c=>(<li key={c.label} className="text-sm"><span className="flex items-center justify-between gap-2"><span>{c.label}</span><span className={`font-bold ${c.ok?"text-[#C9A86A]":"text-white"}`}>{c.ok?"● Green":"● Red"} <span className="font-normal text-white/60">— {c.detail}</span></span></span><span className="mt-0.5 block text-xs text-white/60">Last synced: {c.synced}</span></li>))}</ul>}
               <button onClick={()=>setDictOpen(true)} className="mt-4 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-[#2E4038] border border-[#C9A86A]/50 px-4 py-2.5 rounded-full text-sm font-bold">Open Dictation <ChevronRight size={16}/></button>
-              <div className="mt-3 flex flex-col gap-2"><button onClick={()=>goTab("training")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Training Program</button><button onClick={()=>goTab("athletes")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">GRIT Athletes</button><button onClick={()=>goTab("impact")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Impact</button><button onClick={()=>goTab("formats")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Formats | Payment</button></div>
-            </div>
-            <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
-              <h3 className="font-display text-xl">Quote of the Day</h3>
-              <p className="text-sm text-white/75 mt-1">This shows on the homepage under “We Are Built.” — Midland MI. Change it any time. Athletes only see the quote, never this editor.</p>
-              <label className="block text-sm mt-3">Quote<textarea value={quoteDraftText} onChange={e=>setQuoteDraftText(e.target.value)} rows={2} placeholder="Expect Nothing. Appreciate Everything." className="mt-1 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
-              <label className="block text-sm mt-2">Said by (optional)<input value={quoteDraftAuthor} onChange={e=>setQuoteDraftAuthor(e.target.value)} placeholder="The Pivot Project" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
-              <div className="mt-2 flex gap-2">
-                <button onClick={()=>{ setQuoteDraftText(quoteText); setQuoteDraftAuthor(quoteAuthor); }} className="flex-1 min-h-[44px] rounded-full border border-white/25 px-3 py-2 text-sm font-semibold">Load Current Quote</button>
-                <button onClick={saveQuote} className="flex-1 min-h-[44px] rounded-full bg-[#C9A86A] px-3 py-2 text-sm font-bold text-black">Save Quote</button>
-              </div>
-              <p className="text-xs text-white/60 mt-2">Tip: one short line hits hardest. Keep it to a sentence or two.</p>
+              <div className="mt-3 flex flex-col gap-2"><button onClick={()=>goTab("training")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Training Program</button><button onClick={()=>goTab("athletes")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">GRIT Athletes</button><button onClick={()=>goTab("pillars")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Impact</button><button onClick={()=>goTab("formats")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Formats | Payment</button></div>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">Payment Links</h3>
@@ -1539,6 +1557,23 @@ export default function App(){
               <label className="block text-sm mt-2">Payment note shown to families<textarea value={payNote} onChange={e=>setPayNote(e.target.value)} rows={2} className="mt-1 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
               <button onClick={async()=>{ await persistSettings({ paypalLink, stripeLink, payNote }); setResult("Payment links saved — they now show on Formats | Payment."); flashSaved(); }} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Payment Links</button>
               <p className="text-xs text-white/60 mt-2">How to get the links: PayPal → Send & Request → Payment Links → Create (set amount or let them enter it). Stripe Dashboard → Payment Links → Create (set amount, card + Apple/Google Pay on). Both are free to set up — you only pay a fee per payment. See PAYMENTS-README.md in the zip.</p>
+            </div>
+            <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
+              <h3 className="font-display text-xl">Quote</h3>
+              <p className="text-sm text-white/75 mt-1">Type the quote here. On the homepage it shows as just the words in quotes — no heading, no label, nothing calling it anything. Change it any time; every phone sees the new one.</p>
+              <textarea value={quoteDraft} onChange={e=>setQuoteDraft(e.target.value)} rows={3} placeholder="Write the quote exactly as you want it to read…" className="mt-3 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px] leading-relaxed" />
+              <button onClick={saveQuote} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Quote</button>
+              {quoteText ? <p className="mt-3 text-center text-[15px] italic text-white/85">“{quoteText}”</p> : null}
+            </div>
+            <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
+              <h3 className="font-display text-xl">“Motivation vs. Discipline | You vs. You” — Daily List</h3>
+              <p className="text-sm text-white/75 mt-1">This is what shows on the Training page, right under the next session, in the box with that heading. Lay out what they should be doing every single day. Same formatting as the Become page: <span className="font-mono"># </span> big heading, <span className="font-mono">## </span> smaller heading, <span className="font-mono">- </span> bullet, <span className="font-mono">**bold**</span>.</p>
+              <div className="mt-3 flex gap-2">
+                <button onClick={()=>{ setDailyDraft(dailyContent); }} className="flex-1 min-h-[44px] rounded-full border border-white/25 px-3 py-2 text-sm font-semibold">Start Editing (loads current list)</button>
+              </div>
+              <textarea value={dailyDraft} onChange={e=>setDailyDraft(e.target.value)} rows={14} placeholder={"## Every single day\n- 10 minutes of footwork\n- 20 swings off the tee\n- …\n\n**No days off from the standard.**"} className="mt-3 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px] leading-relaxed font-mono" />
+              <button onClick={saveDaily} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Daily List</button>
+              <p className="text-xs text-white/60 mt-2">Saved to Supabase (grit_daily) — every phone sees it on the Training page.</p>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">Edit “How do I become…” Page</h3>
