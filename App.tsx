@@ -1414,8 +1414,8 @@ export default function App(){
           <div>
             <section className="pt-5">
               <button onClick={()=>goTab("wall")} className="min-h-[44px] px-2 text-sm font-bold text-[#C9A86A]">← Back</button>
-              <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-2">HOW DO I BECOME…</p>
-              <h2 className="font-display text-[36px] leading-none mt-2">Faster. Stronger.<br/>Built.</h2>
+              <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-normal mt-2">HOW DO I BECOME…</p>
+              <h2 className="font-display font-bold text-[36px] leading-none mt-2">Faster. Harder.<br/>QUICKER.</h2>
               <div className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
                 {becomeContent ? renderBecomeText(becomeContent) : (
                   <div>
