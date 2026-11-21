@@ -94,6 +94,8 @@ const TABS: {id:View; label:string; icon:any}[] = [
   {id:"programs", label:"Programs", icon: Trophy},
   {id:"coach", label:"Coaches", icon: ShieldCheck},
 ];
+// Nav bar tabs: Home + the main tabs. Defined here (not inline in JSX) so the build never has to parse a type cast inside the markup.
+const NAV_TABS: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, ...TABS];
 const SUPABASE_SQL = `-- GRIT Supabase setup — run the WHOLE file at once in Supabase > SQL Editor.
 -- Idempotent: safe to re-run. Athletes is created FIRST, before anything that references it.
 create table if not exists public.athletes (id uuid primary key default gen_random_uuid(), name text not null unique, sport text default '', position text default '', mindset text default '', grateful text default '', look_up_to_you text default '', focus text default '', focus_why text default '', pin text not null default '1234', doc_url text default '', homework text default '', created_at timestamptz not null default now(), updated_at timestamptz not null default now());
@@ -1080,7 +1082,7 @@ export default function App(){
         )}
         {/* Origin-style glass nav bar below the header — one solid bar, no borders, white font. */}
         <nav aria-label="Main navigation" className="glass-nav no-scrollbar mt-3 flex items-center gap-1 overflow-x-auto px-1.5 py-1.5">
-          {([{id:"wall", label:"Home", icon:Home} as {id:View; label:string; icon:any}), ...TABS].map(t=>{
+          {NAV_TABS.map(t=>{
             const active = view===t.id || (t.id==="pillars" && (view==="pillars" || view==="impact"));
             const Icon = t.icon;
             return <button key={t.id} onClick={()=>goTab(t.id)} aria-current={active?"page":undefined} className={`flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold whitespace-nowrap ${active?"bg-[#C9A86A] text-black":"text-white/85"}`}><Icon size={15}/>{t.label}</button>;
