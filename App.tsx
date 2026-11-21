@@ -11,6 +11,13 @@ function GritIcon({ size = 44, rounded = 10 }: { size?: number; rounded?: number
     </span>
   );
 }
+// The GRIT Logo — the wordmark used everywhere on the site. Rugged champagne G, RIT in cream, champagne period.
+// The square GritIcon artwork below is NOT used on the site — it lives on as the home-screen app icon and the shared icon image.
+function GritLogo({ size = 17, className = "" }: { size?: number; className?: string }) {
+  return (
+    <span className={`grit-logo font-display font-bold leading-none tracking-[0.12em] whitespace-nowrap ${className}`} style={{ fontSize: size }} aria-label="The GRIT">THE&nbsp;<span className="text-[#C9A86A]">G</span>RIT<span className="text-[#C9A86A]">.</span></span>
+  );
+}
 async function croppedGritPng(size = 1024): Promise<Blob> {
   const img = new Image();
   img.src = gritIconUrl;
@@ -252,7 +259,7 @@ export default function App(){
     const evs=parseIcs(text);
     if(!evs.length){ setCalendarSyncMsg("No events found in that .ics — check you pasted the whole file."); return; }
     setCalendarEvents((prev:any[])=>{ const seen=new Set(prev.map((e:any)=>e.id)); const add=evs.filter((e:any)=>!seen.has(e.id)); return [...add, ...prev].sort((a:any,b:any)=>String(a.start).localeCompare(String(b.start))); });
-    setCalendarSyncMsg(`${evs.length} calendar event(s) imported on this device. For all phones, use the backend sync (Edge Function) — see CALENDAR-SYNC-README.md.`);
+    setCalendarSyncMsg(`${evs.length} calendar event(s) pulled from Google Calendar. Every phone pulls the same feed when the app opens.`);
     flashSaved();
   }
   async function fetchCalendarFeed(){
@@ -269,7 +276,7 @@ export default function App(){
     const ev={ id:`manual-${Date.now()}`, title:nextSessionTitle.trim()||`GRIT Session — ${a.name}`, desc:"", start, source:"Manual", athleteId:a.id, athleteName:a.name };
     setCalendarEvents((prev:any[])=>[...prev, ev].sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start))));
     try{ await callApi("records.create",{collection:"grit_next_sessions", value:ev}); }catch{}
-    setCalendarSyncMsg(`Next session saved for ${a.name} — ${new Date(start).toLocaleString()} — and synced to Supabase so all phones see it.`);
+    setCalendarSyncMsg(`Next session saved for ${a.name} — ${new Date(start).toLocaleString()} — on this device. For all phones, sessions come from the Google Calendar iCal feed below.`);
     setNextSessionTitle(""); flashSaved();
   }
   const nextSessionForAthlete = (athleteId?:string)=>{
@@ -460,6 +467,9 @@ export default function App(){
     setLoading(false);
   }
   useEffect(()=>{ reloadRecords(); },[]);
+  // Calendar sync that actually reaches every phone: on every app open, pull the saved public iCal feed
+  // straight from Google Calendar. Sessions used to live only in this phone's localStorage, so athletes never saw them.
+  useEffect(()=>{ if(calendarFeedUrl.trim() && calendarSyncOn) fetchCalendarFeed(); },[]);
   useEffect(()=>{ setDictSupported(typeof window!=="undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition)); },[]);
 
   const queued = useMemo(()=>workouts.filter(w=>w.calendar==="queued").length,[workouts]);
@@ -959,7 +969,7 @@ export default function App(){
         updated++;
       }
       await reloadRecords();
-      setCalendarSyncMsg(updated ? `${updated} session${updated===1?"":"s"} marked synced to Google Calendar.` : "All sessions are already marked synced.");
+      setCalendarSyncMsg(updated ? `${updated} session${updated===1?"":"s"} marked synced (local list only — live sessions come from the iCal feed below).` : "All sessions are already marked synced.");
       flashSaved();
     }catch(e:any){ setCalendarSyncMsg(e.message||"Could not sync sessions."); }
     setBusy(false);
@@ -1061,12 +1071,11 @@ export default function App(){
   return (
     <div data-safe-area-inset-root="" className="min-h-[100dvh] bg-[#0F1113] text-[#F2EFE9] overflow-x-clip" style={{boxSizing: 'border-box', paddingTop: 'var(--safe-area-inset-top)'}}>
       <PhotoBackground />
-      {/* Top: GRIT icon + THE GRIT + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
+      {/* Top: GRIT logo + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
       <div className="relative z-10 mx-auto max-w-[430px] px-3 pt-2">
         <div className="flex items-center justify-between gap-2">
           <button onClick={()=>goTab("wall")} className="flex min-h-[44px] min-w-0 items-center gap-2" aria-label="The GRIT home">
-            <GritIcon size={36} rounded={9} />
-            <span className="font-display font-bold text-[17px] leading-none tracking-[0.12em] whitespace-nowrap">THE GRIT<span className="text-[#C9A86A]">.</span></span>
+            <GritLogo size={20} />
           </button>
           {savedFlash && <span className="inline-flex min-h-[28px] shrink-0 items-center gap-1 rounded-full bg-[#C9A86A] px-2.5 text-[11px] font-bold text-black" role="status">Saved</span>}
           <div className="flex shrink-0 items-center gap-1.5">
@@ -1100,8 +1109,10 @@ export default function App(){
             <section className="pt-5 md:col-span-1 lg:col-span-2">
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
                 <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
-                <div className="grit-logo-big mt-4 flex justify-center"><GritIcon size={230} rounded={34} /></div>
-                <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(30px,8.5vw,42px)]">THE GRIT<span className="text-[#C9A86A]">.</span></p>
+                <div className="mt-5 text-center">
+                  <span className="grit-logo font-display font-bold leading-none tracking-[0.06em] text-[clamp(44px,12vw,60px)]">THE&nbsp;<span className="text-[#C9A86A]">G</span>RIT<span className="text-[#C9A86A]">.</span></span>
+                  <p className="mt-3 text-[11px] font-bold tracking-[0.34em] text-white/60">WE ARE BUILT • MIDLAND MI</p>
+                </div>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   <button onClick={()=>goTab("programs")} className="min-h-[40px] rounded-full bg-[#C9A86A] px-5 py-2 text-[13px] font-bold text-black active:scale-[0.98]">Explore Programs →</button>
                   {athleteMode ? (
@@ -1304,6 +1315,12 @@ export default function App(){
               <button onClick={addAthlete} className="mt-3 w-full min-h-[44px] inline-flex items-center justify-center gap-2 border border-white/25 px-4 py-2 rounded-full text-sm font-semibold"><Plus size={15}/> Add Athlete / Roster Spot</button>
             </div>
             <div className="gold-rule mt-4" aria-hidden="true" />
+            {isProfileUnlocked && selectedAthlete && (()=>{
+              const ns = nextSessionForAthlete(selectedAthlete.id);
+              if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — your coach adds it from Google Calendar.</p>;
+              const d = new Date(ns.start);
+              return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>;
+            })()}
             {!selectedAthlete ? (
               <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-4 text-center">
                 <p className="font-display text-2xl">Select your profile</p>
@@ -1587,12 +1604,12 @@ export default function App(){
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={checkCalendar} className="flex-1 min-h-[48px] border border-white/25 px-3 py-2.5 rounded-full text-sm font-semibold">Check Google Calendar Connection</button><button disabled={busy} onClick={syncCalendarSessions} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-3 py-2.5 rounded-full text-sm disabled:opacity-50">Sync GRIT Sessions</button></div>
               <div className="mt-4 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNC FROM GOOGLE CALENDAR — BACKEND SYNC</p>
-                <p className="text-sm text-white/75 mt-1">Backend sync runs on Supabase (Edge Function / sync script) every 30 minutes and writes to Supabase — all phones read the same sessions. The options below are for one-off imports and manual adds.</p>
-                <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — SYNCED TO ALL PHONES</p>
+                <p className="text-sm text-white/75 mt-1">Every phone pulls the public iCal feed straight from Google Calendar when the app opens — paste the feed link below once and every athlete sees the same sessions. Manual adds below stay on this device only.</p>
+                <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — THIS DEVICE ONLY</p>
                 <label className="block text-sm mt-2">Athlete<select value={nextSessionAthleteId} onChange={e=>setNextSessionAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
                 <div className="flex gap-2 mt-2"><label className="flex-1 text-sm">Date<input type="date" value={nextSessionDate} onChange={e=>setNextSessionDate(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label><label className="flex-1 text-sm">Time<input type="time" value={nextSessionTime} onChange={e=>setNextSessionTime(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label></div>
                 <label className="block text-sm mt-2">Title (optional)<input value={nextSessionTitle} onChange={e=>setNextSessionTitle(e.target.value)} placeholder="GRIT Session" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
-                <button onClick={addManualNextSession} className="mt-2 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Save Next Session to Supabase</button>
+                <button onClick={addManualNextSession} className="mt-2 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Save Next Session</button>
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ONE-OFF IMPORT (THIS DEVICE ONLY)</p>
                 <label className="block text-sm mt-2">Public iCal link<input value={calendarFeedUrl} onChange={e=>setCalendarFeedUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
                 <button disabled={busy} onClick={fetchCalendarFeed} className="mt-2 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">Sync from iCal Link</button>
