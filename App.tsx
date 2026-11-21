@@ -137,11 +137,11 @@ create policy "grit_read" on public.grit_cards for select using (true);
 create policy "grit_write" on public.grit_cards for all using (true) with check (true);`;
 
 function PhotoBackground({ view }: { view?: string }){
-  const bg = view === "wall" ? fieldNightUrl : bgUrl;
+  const bg = fieldNightUrl;
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
       <img src={bg} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
-      <img src={bg} alt="" className="absolute inset-0 h-full w-full object-contain bg-[#0F1113] lg:object-cover lg:object-center" />
+      <img src={bg} alt="" className="absolute inset-0 h-full w-full scale-[1.4] object-cover object-[50%_18%] bg-[#0F1113]" />
       <div className="absolute inset-0" style={{background:"linear-gradient(90deg, rgba(15,17,19,.72) 0%, rgba(15,17,19,.08) 18%, rgba(15,17,19,0) 50%, rgba(15,17,19,.08) 82%, rgba(15,17,19,.72) 100%), linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
     </div>
   );
@@ -1074,10 +1074,10 @@ export default function App(){
           </div>
         </div>
         {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
-        <div className="pt-2 text-center">
+        {view==="wall" && (<div className="pt-2 text-center">
           <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9]">We Are <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
           <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
-        </div>
+        </div>)}
       </div>
 
       <main className="relative z-10 mx-auto max-w-[430px] px-4 pb-[128px] lg:px-8">
@@ -1086,8 +1086,8 @@ export default function App(){
             <section className="pt-5 md:col-span-1 lg:col-span-2">
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
                 <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
-                <div className="grit-logo-big mt-4 flex justify-center"><GritIcon size={230} rounded={34} /></div>
-                <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(30px,8.5vw,42px)]">THE GRIT<span className="text-[#C9A86A]">.</span></p>
+                
+                <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(44px,12vw,60px)] tracking-[0.04em]">THE <span style={{display:"inline-block",transform:"skewX(-4deg)",WebkitTextStroke:"0.5px rgba(255,255,255,.85)",textShadow:"2px 2px 0 rgba(0,0,0,.7),-1px 1px 0 rgba(255,255,255,.25),1px -1px 0 rgba(0,0,0,.5)"}}>G</span><span className="text-white">RIT</span><span className="text-[#C9A86A]">.</span></p>
                 <div className="mt-5 flex justify-center">
                   <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
                 </div>
