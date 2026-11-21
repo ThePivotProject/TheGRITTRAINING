@@ -11,13 +11,6 @@ function GritIcon({ size = 44, rounded = 10 }: { size?: number; rounded?: number
     </span>
   );
 }
-// The GRIT Logo — the wordmark used everywhere on the site. Rugged champagne G, RIT in cream, champagne period.
-// The square GritIcon artwork below is NOT used on the site — it lives on as the home-screen app icon and the shared icon image.
-function GritLogo({ size = 17, className = "" }: { size?: number; className?: string }) {
-  return (
-    <span className={`grit-logo font-display font-bold leading-none tracking-[0.12em] whitespace-nowrap ${className}`} style={{ fontSize: size }} aria-label="The GRIT">THE&nbsp;<span className="text-[#C9A86A]">G</span>RIT<span className="text-[#C9A86A]">.</span></span>
-  );
-}
 async function croppedGritPng(size = 1024): Promise<Blob> {
   const img = new Image();
   img.src = gritIconUrl;
@@ -149,7 +142,7 @@ create policy "grit_write" on public.grit_cards for all using (true) with check 
 function PhotoBackground(){
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
-      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full object-contain bg-[#0F1113] lg:object-cover lg:object-center" />
+      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full scale-[1.4] object-cover object-center" />
       <div className="absolute inset-0" style={{background:"linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
     </div>
   );
@@ -178,6 +171,9 @@ export default function App(){
   const [blockNotes,setBlockNotes]=useState<Record<string,string>>({});
   const [loggedInAthleteId,setLoggedInAthleteId]=useState<string|null>(null);
   const [athleteAppMode,setAthleteAppMode]=useState(false); // false = origin homepage; true = GRIT athlete app format. NOTE: distinct from the existing athleteMode filter below.
+  // Athlete profile photos: kept on this device only (localStorage) so they never bloat the Supabase sync.
+  const [athletePhotos,setAthletePhotos]=useState<Record<string,string>>(()=>{ try{ return JSON.parse(localStorage.getItem("grit-athlete-photos")||"{}"); }catch{ return {}; } });
+  function handlePhotoUpload(id:string, file?:File){ if(!file) return; const r=new FileReader(); r.onload=()=>{ const url=String(r.result||""); if(!url) return; setAthletePhotos(prev=>{ const next={...prev,[id]:url}; try{ localStorage.setItem("grit-athlete-photos", JSON.stringify(next)); }catch{} return next; }); }; r.readAsDataURL(file); }
   const [pinInput,setPinInput]=useState("");
   const [loginError,setLoginError]=useState("");
   const [profilePinEdit,setProfilePinEdit]=useState("");
@@ -1071,11 +1067,11 @@ export default function App(){
   return (
     <div data-safe-area-inset-root="" className="min-h-[100dvh] bg-[#0F1113] text-[#F2EFE9] overflow-x-clip" style={{boxSizing: 'border-box', paddingTop: 'var(--safe-area-inset-top)'}}>
       <PhotoBackground />
-      {/* Top: GRIT logo + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
+      {/* Top: We. Are. Built. + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
       <div className="relative z-10 mx-auto max-w-[430px] px-3 pt-2">
         <div className="flex items-center justify-between gap-2">
           <button onClick={()=>goTab("wall")} className="flex min-h-[44px] min-w-0 items-center gap-2" aria-label="The GRIT home">
-            <GritLogo size={20} />
+            <span className="font-display font-bold text-[17px] leading-none tracking-[0.12em] whitespace-nowrap">We. Are. <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></span>
           </button>
           {savedFlash && <span className="inline-flex min-h-[28px] shrink-0 items-center gap-1 rounded-full bg-[#C9A86A] px-2.5 text-[11px] font-bold text-black" role="status">Saved</span>}
           <div className="flex shrink-0 items-center gap-1.5">
@@ -1088,7 +1084,7 @@ export default function App(){
         {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
         {view==="wall" && (
         <div className="pt-2 text-center">
-          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9]">We Are <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
+          <span className="grit-logo font-display font-bold leading-none tracking-[0.06em] text-[clamp(44px,12vw,60px)]">THE&nbsp;<span className="text-[#C9A86A]">G</span>RIT<span className="text-[#C9A86A]">.</span></span>
           <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
         </div>
         )}
@@ -1109,10 +1105,7 @@ export default function App(){
             <section className="pt-5 md:col-span-1 lg:col-span-2">
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
                 <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
-                <div className="mt-5 text-center">
-                  <span className="grit-logo font-display font-bold leading-none tracking-[0.06em] text-[clamp(44px,12vw,60px)]">THE&nbsp;<span className="text-[#C9A86A]">G</span>RIT<span className="text-[#C9A86A]">.</span></span>
-                  <p className="mt-3 text-[11px] font-bold tracking-[0.34em] text-white/60">WE ARE BUILT • MIDLAND MI</p>
-                </div>
+                <div className="mt-2" />
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   <button onClick={()=>goTab("programs")} className="min-h-[40px] rounded-full bg-[#C9A86A] px-5 py-2 text-[13px] font-bold text-black active:scale-[0.98]">Explore Programs →</button>
                   {athleteAppMode ? (
@@ -1329,19 +1322,21 @@ export default function App(){
             ) : !isProfileUnlocked ? (
               <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-4 text-center">
                 <div className="relative mx-auto flex h-[220px] w-full max-w-[300px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#C9A86A]/40" style={{background:"linear-gradient(160deg, #2E4038 0%, #0F1113 62%, #22302A 100%)"}}>
-                  <span className="font-display text-[64px] font-bold leading-none text-[#C9A86A]">{selectedAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span>
+                  {athletePhotos[selectedAthlete.id] ? <img src={athletePhotos[selectedAthlete.id]} alt={`${selectedAthlete.name} profile photo`} className="h-[150px] w-[150px] rounded-full object-cover border-2 border-[#C9A86A]/60" /> : <span className="font-display text-[64px] font-bold leading-none text-[#C9A86A]">{selectedAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span>}
                   <span className="mt-3 text-[11px] font-bold tracking-[0.28em] text-[#F2EFE9]/80">YOUR GRIT PROFILE</span>
                 </div>
                 <p className="font-display text-2xl mt-4 leading-tight">{selectedAthlete.name}</p>
+                <label className="mt-3 inline-flex min-h-[44px] cursor-pointer items-center justify-center rounded-full border border-[#C9A86A]/60 px-4 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Upload Photo<input type="file" accept="image/*" className="hidden" onChange={e=>{ handlePhotoUpload(selectedAthlete.id, e.target.files?.[0]); e.target.value=""; }} /></label>
               </div>
             ) : (
               <div className="mt-4">
                 <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-2 md:grid md:grid-cols-2 md:gap-x-6 md:items-start">
                   <div className="relative mx-auto flex h-[340px] w-full max-w-[340px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#C9A86A]/40 md:col-span-2" style={{background:"linear-gradient(160deg, #2E4038 0%, #0F1113 62%, #22302A 100%)"}}>
-                    <span className="font-display text-[84px] font-bold leading-none text-[#C9A86A]">{selectedAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span>
+                    {athletePhotos[selectedAthlete.id] ? <img src={athletePhotos[selectedAthlete.id]} alt={`${selectedAthlete.name} profile photo`} className="h-[170px] w-[170px] rounded-full object-cover border-2 border-[#C9A86A]/60" /> : <span className="font-display text-[84px] font-bold leading-none text-[#C9A86A]">{selectedAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span>}
                     <span className="mt-3 text-[11px] font-bold tracking-[0.28em] text-[#F2EFE9]/80">YOUR GRIT PROFILE</span>
                   </div>
                   <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold text-center mt-4">YOUR GRIT PROFILE</p>
+                  <div className="mt-3 text-center"><label className="inline-flex min-h-[44px] cursor-pointer items-center justify-center rounded-full border border-[#C9A86A]/60 px-4 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Upload Photo<input type="file" accept="image/*" className="hidden" onChange={e=>{ handlePhotoUpload(selectedAthlete.id, e.target.files?.[0]); e.target.value=""; }} /></label></div>
                   {(selectedAthlete.program || selectedAthlete.startDate) ? <p className="text-xs text-[#D4B483] mt-2 font-semibold text-center">{selectedAthlete.program || ""}{selectedAthlete.program && selectedAthlete.startDate ? " • " : ""}{selectedAthlete.startDate ? `Starting ${selectedAthlete.startDate}` : ""}</p> : null}
                   <label className="block mt-3 text-xs font-bold tracking-widest text-[#C9A86A]">YOUR NAME</label>
                   <input value={selectedAthlete.name} onChange={e=>updateAthlete(selectedAthlete.id,{name:e.target.value})} className="mt-2 w-full min-h-[52px] bg-white/5 border border-white/15 rounded-xl px-3 py-3 font-display text-2xl outline-none focus:border-[#C9A86A]" />
