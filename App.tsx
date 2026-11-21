@@ -94,8 +94,9 @@ const TABS: {id:View; label:string; icon:any}[] = [
   {id:"programs", label:"Programs", icon: Trophy},
   {id:"coach", label:"Coaches", icon: ShieldCheck},
 ];
-// Nav bar tabs: Home + the main tabs. Defined here (not inline in JSX) so the build never has to parse a type cast inside the markup.
-const NAV_TABS: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, ...TABS];
+// Two nav sets, one app: origin mode (before login) vs athlete mode (after login). Defined here so no type cast ever sits inside the JSX.
+const ORIGIN_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, {id:"programs", label:"Programs", icon:Trophy}, {id:"athletes", label:"Athlete Login", icon:Users}];
+const ATHLETE_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, ...TABS];
 const SUPABASE_SQL = `-- GRIT Supabase setup — run the WHOLE file at once in Supabase > SQL Editor.
 -- Idempotent: safe to re-run. Athletes is created FIRST, before anything that references it.
 create table if not exists public.athletes (id uuid primary key default gen_random_uuid(), name text not null unique, sport text default '', position text default '', mindset text default '', grateful text default '', look_up_to_you text default '', focus text default '', focus_why text default '', pin text not null default '1234', doc_url text default '', homework text default '', created_at timestamptz not null default now(), updated_at timestamptz not null default now());
@@ -169,6 +170,7 @@ export default function App(){
   const [minutes,setMinutes]=useState<Record<string,string>>({...DEFAULT_MINUTES});
   const [blockNotes,setBlockNotes]=useState<Record<string,string>>({});
   const [loggedInAthleteId,setLoggedInAthleteId]=useState<string|null>(null);
+  const [athleteMode,setAthleteMode]=useState(false); // false = origin homepage; true = GRIT athlete app format
   const [pinInput,setPinInput]=useState("");
   const [loginError,setLoginError]=useState("");
   const [profilePinEdit,setProfilePinEdit]=useState("");
@@ -898,17 +900,18 @@ export default function App(){
   }
 
   const goTab = (v:View)=>{ setView(v); window.scrollTo({top:0, behavior:"smooth"}); };
+  const navTabs = athleteMode ? ATHLETE_NAV : ORIGIN_NAV;
   function handleUnlock(){
     const athlete = selectedAthlete;
     if(!athlete) return;
     const pin = String(pinInput).trim();
     if(pin.length===4 && (!athlete.pin || pin===athlete.pin)){
       if(!athlete.pin) updateAthlete(athlete.id,{pin});
-      setLoggedInAthleteId(athlete.id); setTrainingAthleteId(athlete.id); setLoginError(""); setPinInput(""); setResult("");
+      setLoggedInAthleteId(athlete.id); setTrainingAthleteId(athlete.id); setLoginError(""); setPinInput(""); setResult(""); setAthleteMode(true); setView("wall");
     }
     else { setLoginError("Incorrect PIN"); }
   }
-  function handleLock(){ setLoggedInAthleteId(null); setPinInput(""); setLoginError(""); }
+  function handleLock(){ setLoggedInAthleteId(null); setPinInput(""); setLoginError(""); setAthleteMode(false); setView("wall"); }
   async function saveTrainingFocus(){ await saveFocus(); }
   function handleShare(){ shareIconOnly(); }
   async function persistSettings(patch: Record<string, any>){
@@ -1080,13 +1083,14 @@ export default function App(){
           <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
         </div>
         )}
-        {/* Origin-style glass nav bar below the header — one solid bar, no borders, white font. */}
+        {/* Origin-style glass nav bar below the header — one solid bar, no borders, white font. Tabs switch with the mode: origin tabs before login, athlete tabs after. */}
         <nav aria-label="Main navigation" className="glass-nav no-scrollbar mt-3 flex items-center gap-1 overflow-x-auto px-1.5 py-1.5">
-          {NAV_TABS.map(t=>{
+          {navTabs.map(t=>{
             const active = view===t.id || (t.id==="pillars" && (view==="pillars" || view==="impact"));
             const Icon = t.icon;
             return <button key={t.id} onClick={()=>goTab(t.id)} aria-current={active?"page":undefined} className={`flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold whitespace-nowrap ${active?"bg-[#C9A86A] text-black":"text-white/85"}`}><Icon size={15}/>{t.label}</button>;
           })}
+          {athleteMode && <button onClick={()=>handleLock()} className="flex min-h-[40px] shrink-0 items-center rounded-full border border-white/25 px-3.5 py-2 text-[12px] font-bold whitespace-nowrap text-white/85">Log out</button>}
         </nav>
       </div>
 
@@ -1100,30 +1104,58 @@ export default function App(){
                 <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(30px,8.5vw,42px)]">THE GRIT<span className="text-[#C9A86A]">.</span></p>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   <button onClick={()=>goTab("programs")} className="min-h-[40px] rounded-full bg-[#C9A86A] px-5 py-2 text-[13px] font-bold text-black active:scale-[0.98]">Explore Programs →</button>
-                  <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
+                  {athleteMode ? (
+                    <button onClick={()=>goTab("training")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Open Your Training →</button>
+                  ) : (
+                    <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
+                  )}
                 </div>
               </div>
             </section>
 
-            <section className="mt-6 rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
-              <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">WHAT IS THE GRIT?</p>
-              <p className="mt-2 text-[16px] leading-relaxed text-white/90">Mindset-first training that develops athletes as players <span className="text-[#C9A86A] font-bold">and</span> people — for their communities and their families.</p>
-              <p className="mt-3 text-[15px] leading-relaxed text-white/85">Not just workouts: mindset, discipline, accountability, and showing up for the athlete next to you.</p>
-            </section>
-            <section className="mt-4 grid grid-cols-3 gap-2 text-center">
-              {(["EFFORT","DISCIPLINE","IMPACT"] as const).map(p=>(
-                <div key={p} className="rounded-2xl border border-white/15 bg-black/35 px-2 py-4">
-                  <p className="font-display text-[15px] font-bold tracking-wide text-[#C9A86A]">{p}</p>
-                  <p className="mt-1 text-[11px] leading-snug text-white/70">{p==="EFFORT" ? "Show up. Do the work." : p==="DISCIPLINE" ? "Do it right when nobody is watching." : "Lift up the athlete next to you."}</p>
-                </div>
-              ))}
-            </section>
+            {!athleteMode && (
+              <>
+                <section className="mt-6 rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
+                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">WHAT IS THE GRIT?</p>
+                  <p className="mt-2 text-[16px] leading-relaxed text-white/90">Mindset-first training that develops athletes as players <span className="text-[#C9A86A] font-bold">and</span> people — for their communities and their families.</p>
+                  <p className="mt-3 text-[15px] leading-relaxed text-white/85">Not just workouts: mindset, discipline, accountability, and showing up for the athlete next to you.</p>
+                </section>
+                <section className="mt-4 grid grid-cols-3 gap-2 text-center">
+                  {(["EFFORT","DISCIPLINE","IMPACT"] as const).map(p=>(
+                    <div key={p} className="rounded-2xl border border-white/15 bg-black/35 px-2 py-4">
+                      <p className="font-display text-[15px] font-bold tracking-wide text-[#C9A86A]">{p}</p>
+                      <p className="mt-1 text-[11px] leading-snug text-white/70">{p==="EFFORT" ? "Show up. Do the work." : p==="DISCIPLINE" ? "Do it right when nobody is watching." : "Lift up the athlete next to you."}</p>
+                    </div>
+                  ))}
+                </section>
+                <section className="mt-6">
+                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">PROGRAMS</p>
+                  <h2 className="font-display text-[30px] leading-none mt-2">Four ways to train with The GRIT.</h2>
+                  <div className="mt-4 space-y-3">
+                    {[
+                      {name:"GRIT ATHLETE", format:"Individual 1-on-1 training", desc:"Personal coaching built around the athlete: strength, speed, mindset, and accountability, one on one.", subject:"GRIT Athlete - Get Started"},
+                      {name:"GRIT TEAM", format:"Whole-team program • 6–8 weeks", desc:"Entire teams — baseball, softball, any sport — get a 6–8 week program building physical and mental strength and resilience, together.", subject:"GRIT Team - Get Started"},
+                      {name:"GRIT ON TURF", format:"1-hour sessions", desc:"Focused on acceleration, first-step quickness, mastering the art of changing direction, velocity, and explosive movement.", subject:"GRIT on Turf - Get Started"},
+                      {name:"GRIT ACCOUNTABILITY", format:"For adults and parents", desc:"Movement that fits real life — training built for limited time frames, with the accountability to actually stick to it.", subject:"GRIT Accountability - Get Started"},
+                    ].map(pr=>(
+                      <div key={pr.name} className="rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
+                        <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">{pr.format.toUpperCase()}</p>
+                        <h3 className="font-display text-[26px] leading-tight mt-2">{pr.name}</h3>
+                        <p className="text-[15px] text-white/85 mt-2 leading-relaxed">{pr.desc}</p>
+                        <a href={`mailto:thepiviotproject@kbuiltsoftball.com?subject=${encodeURIComponent(pr.subject)}`} className="mt-4 flex min-h-[48px] items-center justify-center rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Get Started →</a>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </>
+            )}
 
             {quoteText ? (
               <section className="mt-6 px-2 text-center">
                 <p className="text-[17px] italic leading-relaxed text-white/90">“{quoteText}”</p>
               </section>
             ) : null}
+            {athleteMode && (<>
             <section className="mt-6">
               <button onClick={()=>goTab("become")} className="block w-full rounded-[26px] border-2 border-[#C9A86A] bg-[#2E4038] px-5 py-6 text-left active:bg-[#35493F]">
                 <p className="font-display font-bold leading-[1.05] text-[clamp(30px,8.5vw,40px)] text-[#F2EFE9]">HOW DO I<br/>BECOME<span className="text-[#C9A86A]">…</span></p>
@@ -1138,6 +1170,7 @@ export default function App(){
               <p className="mt-1.5 text-xs text-white/75">{challengeProgress}% of the team in — {challengeDoneCount} of {athletes.length} • {currentChallenge.points} pts</p>
               <button onClick={()=>goTab("pillars")} className="mt-4 w-full min-h-[48px] rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Mark It Complete →</button></> : <p className="text-[15px] text-white/85 mt-2">No challenge set yet — your coach sets one on Mindset &amp; Impact.</p>}
             </section>
+            </>)}
           </div>
         ) : view==="training" ? (
           <section className="pt-5">
