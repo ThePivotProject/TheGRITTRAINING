@@ -25,8 +25,6 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--black);color:var(--cream);font-family:'Barlow',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
 .font-display{font-family:'Oswald','Barlow',sans-serif;letter-spacing:.04em}
-/* The GRIT logo wordmark: rugged, slightly condensed, champagne G. */
-.grit-logo{font-weight:700;letter-spacing:.06em;text-shadow:0 1px 0 rgba(0,0,0,.35)}
 /* One solid glass bar, no borders, white font — origin nav. */
 .glass-nav{background:var(--glass-bg);border:none;border-radius:999px;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;box-shadow:none !important}
 .glass{background:var(--glass-bg);border:none;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;box-shadow:none !important}
