@@ -4,7 +4,6 @@ import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, 
 import bgUrl from "./sprinter.webp";
 import fieldNightUrl from "./field-night.webp";
 import gritIconUrl from "./grit-icon.webp";
-import gritGUrl from "./grit-g.webp";
 
 function GritIcon({ size = 44, rounded = 10 }: { size?: number; rounded?: number }) {
   return (
@@ -142,7 +141,7 @@ function PhotoBackground({ view }: { view?: string }){
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
       <img src={bg} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
-      <img src={bg} alt="" className="absolute inset-0 h-full w-full scale-[1.4] object-cover object-[50%_18%] bg-[#0F1113]" />
+      <img src={bg} alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_25%] bg-[#0F1113]" />
       <div className="absolute inset-0" style={{background:"linear-gradient(90deg, rgba(15,17,19,.72) 0%, rgba(15,17,19,.08) 18%, rgba(15,17,19,0) 50%, rgba(15,17,19,.08) 82%, rgba(15,17,19,.72) 100%), linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
     </div>
   );
@@ -1088,7 +1087,7 @@ export default function App(){
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
                 <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
                 
-                <p className="grit-distressed mt-2 flex items-end justify-center font-display font-bold leading-none text-[clamp(44px,12vw,60px)] tracking-[0.04em]">THE&nbsp;<img src={gritGUrl} alt="G" style={{height:"0.98em",width:"auto",display:"inline-block",transform:"translateY(0.09em)"}} /><span className="text-white">RIT</span><span className="text-[#C9A86A]">.</span></p>
+                <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(44px,12vw,60px)] tracking-[0.04em]">THE G<span className="text-white">RIT</span><span className="text-[#C9A86A]">.</span></p>
                 <div className="mt-5 flex justify-center">
                   <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
                 </div>
@@ -1415,8 +1414,8 @@ export default function App(){
           <div>
             <section className="pt-5">
               <button onClick={()=>goTab("wall")} className="min-h-[44px] px-2 text-sm font-bold text-[#C9A86A]">← Back</button>
-              <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-normal mt-2">HOW DO I BECOME…</p>
-              <h2 className="font-display font-bold text-[36px] leading-none mt-2">Faster. Harder.<br/>QUICKER.</h2>
+              <p className="text-[#C9A86A] text-[11px] tracking-[0.28em] font-normal mt-2">HOW DO I BECOME…</p>
+              <h2 className="font-display font-bold text-[44px] leading-none mt-2">Faster. Harder.<br/>Quicker.</h2>
               <div className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
                 {becomeContent ? renderBecomeText(becomeContent) : (
                   <div>
