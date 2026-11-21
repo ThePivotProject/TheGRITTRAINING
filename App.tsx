@@ -1,7 +1,6 @@
 import "./index.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, Users, ShieldCheck, Zap, Brain, Home, Bookmark, ArrowLeft, Save, Target, Medal, CreditCard, Sparkles, Trophy, Search, Copy, Eraser, Flame, Dumbbell, BookOpen, Timer, Star, Mic, MicOff, Share2 } from "lucide-react";
-import bgUrl from "./sprinter.webp";
 import fieldNightUrl from "./field-night.webp";
 import gritIconUrl from "./grit-icon.webp";
 
@@ -88,7 +87,7 @@ const placeholderAthletes = (): AthleteProfile[] => {
 
 type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become";
 const TABS: {id:View; label:string; icon:any}[] = [
-  {id:"athletes", label:"Your GRIT Profile", icon: Users},
+  {id:"athletes", label:"Profile", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
   {id:"homework", label:"Homework", icon: BookOpen},
   {id:"pillars", label:"Mindset & Impact", icon: Brain},
@@ -136,13 +135,11 @@ create policy "grit_write" on public.progress_notes for all using (true) with ch
 create policy "grit_read" on public.grit_cards for select using (true);
 create policy "grit_write" on public.grit_cards for all using (true) with check (true);`;
 
-function PhotoBackground({ view }: { view?: string }){
-  const bg = fieldNightUrl;
+function PhotoBackground(){
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
-      <img src={bg} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
-      <img src={bg} alt="" className="absolute inset-0 h-full w-full object-cover object-[50%_25%] bg-[#0F1113]" />
-      <div className="absolute inset-0" style={{background:"linear-gradient(90deg, rgba(15,17,19,.72) 0%, rgba(15,17,19,.08) 18%, rgba(15,17,19,0) 50%, rgba(15,17,19,.08) 82%, rgba(15,17,19,.72) 100%), linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
+      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full object-contain bg-[#0F1113] lg:object-cover lg:object-center" />
+      <div className="absolute inset-0" style={{background:"linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
     </div>
   );
 }
@@ -1057,7 +1054,7 @@ export default function App(){
 
   return (
     <div data-safe-area-inset-root="" className="min-h-[100dvh] bg-[#0F1113] text-[#F2EFE9] overflow-x-clip" style={{boxSizing: 'border-box', paddingTop: 'var(--safe-area-inset-top)'}}>
-      <PhotoBackground view={view} />
+      <PhotoBackground />
       {/* Top: GRIT icon + THE GRIT + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
       <div className="relative z-10 mx-auto max-w-[430px] px-3 pt-2">
         <div className="flex items-center justify-between gap-2">
@@ -1074,20 +1071,30 @@ export default function App(){
           </div>
         </div>
         {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
-        {view==="wall" && (<div className="pt-2 text-center">
+        {view==="wall" && (
+        <div className="pt-2 text-center">
           <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9]">We Are <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
           <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
-        </div>)}
+        </div>
+        )}
+        {/* Origin-style glass nav bar below the header — one solid bar, no borders, white font. */}
+        <nav aria-label="Main navigation" className="glass-nav no-scrollbar mt-3 flex items-center gap-1 overflow-x-auto px-1.5 py-1.5">
+          {([{id:"wall", label:"Home", icon:Home} as {id:View; label:string; icon:any}), ...TABS].map(t=>{
+            const active = view===t.id || (t.id==="pillars" && (view==="pillars" || view==="impact"));
+            const Icon = t.icon;
+            return <button key={t.id} onClick={()=>goTab(t.id)} aria-current={active?"page":undefined} className={`flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold whitespace-nowrap ${active?"bg-[#C9A86A] text-black":"text-white/85"}`}><Icon size={15}/>{t.label}</button>;
+          })}
+        </nav>
       </div>
 
-      <main className="relative z-10 mx-auto max-w-[430px] px-4 pb-[128px] lg:px-8">
+      <main className="relative z-10 mx-auto max-w-[430px] px-4 pb-8 lg:px-8">
         {view==="wall" ? (
           <div className="md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
             <section className="pt-5 md:col-span-1 lg:col-span-2">
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
                 <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
-                
-                <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(44px,12vw,60px)] tracking-[0.04em]">THE G<span className="text-white">RIT</span><span className="text-[#C9A86A]">.</span></p>
+                <div className="grit-logo-big mt-4 flex justify-center"><GritIcon size={230} rounded={34} /></div>
+                <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(30px,8.5vw,42px)]">THE GRIT<span className="text-[#C9A86A]">.</span></p>
                 <div className="mt-5 flex justify-center">
                   <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
                 </div>
@@ -1414,8 +1421,8 @@ export default function App(){
           <div>
             <section className="pt-5">
               <button onClick={()=>goTab("wall")} className="min-h-[44px] px-2 text-sm font-bold text-[#C9A86A]">← Back</button>
-              <p className="text-[#C9A86A] text-[11px] tracking-[0.28em] font-normal mt-2">HOW DO I BECOME…</p>
-              <h2 className="font-display font-bold text-[44px] leading-none mt-2">Faster. Harder.<br/>Quicker.</h2>
+              <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-2">HOW DO I BECOME…</p>
+              <h2 className="font-display text-[36px] leading-none mt-2">Faster. Stronger.<br/>Built.</h2>
               <div className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
                 {becomeContent ? renderBecomeText(becomeContent) : (
                   <div>
@@ -1628,17 +1635,7 @@ export default function App(){
         )}
       </main>
 
-      <nav aria-label="Bottom navigation" className="fixed bottom-0 left-0 right-0 z-40 bg-[#0F1113] border-t border-[#C9A86A]/40" style={{paddingBottom:"var(--safe-area-inset-bottom, 0px)"}}>
-        <div className="mx-auto max-w-[430px] grid grid-cols-6 lg:px-8">
-          {TABS.map(t=>{
-            const active = view===t.id || (t.id==="pillars" && view==="pillars");
-            const Icon = t.icon;
-            return <button key={t.id} onClick={()=>goTab(t.id)} aria-current={active?"page":undefined} className={`min-h-[64px] flex flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 active:bg-white/5 ${active?"text-[#C9A86A]":"text-white/65"}`}><Icon size={20}/><span className="text-[9px] font-bold leading-tight text-center break-words">{t.label}</span>{active && <span className="mt-0.5 h-1 w-5 rounded-full bg-[#C9A86A]"/>}</button>;
-          })}
-        </div>
-      </nav>
-
-      <button onClick={()=>{setDictOpen(true);}} className="fixed right-4 z-50 flex min-h-[52px] items-center gap-2 rounded-full bg-[#C9A86A] text-[#0F1113] pl-3 pr-4 py-3 shadow-2xl font-bold text-sm hover:bg-[#D4B483] active:scale-[0.97]" style={{bottom:"calc(84px + var(--safe-area-inset-bottom, 0px))"}} aria-label="Open Voice Dictation">
+      <button onClick={()=>{setDictOpen(true);}} className="fixed right-4 z-50 flex min-h-[52px] items-center gap-2 rounded-full bg-[#C9A86A] text-[#0F1113] pl-3 pr-4 py-3 shadow-2xl font-bold text-sm hover:bg-[#D4B483] active:scale-[0.97]" style={{bottom:"calc(20px + var(--safe-area-inset-bottom, 0px))"}} aria-label="Open Voice Dictation">
         <MessageSquareText size={20}/><span>Dictation Voice</span>
       </button>
 
@@ -1677,9 +1674,9 @@ export default function App(){
           </div>
         </div>
       )}
-      <footer className="relative z-10 mx-auto max-w-[430px] px-4 pb-[92px] pt-2 text-center text-xs text-white/65 lg:px-8">
+      <footer className="relative z-10 mx-auto max-w-[430px] px-4 pb-6 pt-2 text-center text-xs text-white/65 lg:px-8">
         <button onClick={()=>goTab("formats")} className="min-h-[44px] px-3 font-bold text-[#C9A86A]">Formats | Payment</button>
-        <p className="mt-1">The GRIT — We are Built. We are Family. We are Rising. • Ink / Champagne / Bone / Moss</p>
+        <p className="mt-1">The Pivot Project LLC — Expect Nothing Appreciate Everything</p>
         <p className="mt-2">Use the Share button in the header to share the GRIT icon.</p>
         {(view==="wall" || view==="coach") && <TinyAddToHomeLink />}
       </footer>
