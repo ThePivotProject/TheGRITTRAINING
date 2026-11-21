@@ -85,12 +85,13 @@ const placeholderAthletes = (): AthleteProfile[] => {
   return [...ROSTER_NAMES].sort((a,b)=>a.localeCompare(b)).map((name,i)=>({ id:`local-${i+1}`, name, sport:"", position:"", lookUp:"", ageGroup:"", motto:"", remember:"", homework:"", mindset:"", gratitude:"", nonNegotiables:"", disciplineDone:[], pin:"", focus:"", createdAt:new Date().toISOString(), startDate:"", program:"", trainingSections:emptySections(), trainingMinutes:{...DEFAULT_MINUTES}, trainingNotes:{}, progress_doc_url:"", progress_notes:"", progress_notes_last_synced:"" }));
 };
 
-type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become";
+type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become"|"programs";
 const TABS: {id:View; label:string; icon:any}[] = [
   {id:"athletes", label:"Profile", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
   {id:"homework", label:"Homework", icon: BookOpen},
   {id:"pillars", label:"Mindset & Impact", icon: Brain},
+  {id:"programs", label:"Programs", icon: Trophy},
   {id:"coach", label:"Coaches", icon: ShieldCheck},
 ];
 const SUPABASE_SQL = `-- GRIT Supabase setup — run the WHOLE file at once in Supabase > SQL Editor.
@@ -1095,10 +1096,25 @@ export default function App(){
                 <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
                 <div className="grit-logo-big mt-4 flex justify-center"><GritIcon size={230} rounded={34} /></div>
                 <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(30px,8.5vw,42px)]">THE GRIT<span className="text-[#C9A86A]">.</span></p>
-                <div className="mt-5 flex justify-center">
+                <div className="mt-5 flex flex-wrap justify-center gap-2">
+                  <button onClick={()=>goTab("programs")} className="min-h-[40px] rounded-full bg-[#C9A86A] px-5 py-2 text-[13px] font-bold text-black active:scale-[0.98]">Explore Programs →</button>
                   <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
                 </div>
               </div>
+            </section>
+
+            <section className="mt-6 rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
+              <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">WHAT IS THE GRIT?</p>
+              <p className="mt-2 text-[16px] leading-relaxed text-white/90">Mindset-first training that develops athletes as players <span className="text-[#C9A86A] font-bold">and</span> people — for their communities and their families.</p>
+              <p className="mt-3 text-[15px] leading-relaxed text-white/85">Not just workouts: mindset, discipline, accountability, and showing up for the athlete next to you.</p>
+            </section>
+            <section className="mt-4 grid grid-cols-3 gap-2 text-center">
+              {(["EFFORT","DISCIPLINE","IMPACT"] as const).map(p=>(
+                <div key={p} className="rounded-2xl border border-white/15 bg-black/35 px-2 py-4">
+                  <p className="font-display text-[15px] font-bold tracking-wide text-[#C9A86A]">{p}</p>
+                  <p className="mt-1 text-[11px] leading-snug text-white/70">{p==="EFFORT" ? "Show up. Do the work." : p==="DISCIPLINE" ? "Do it right when nobody is watching." : "Lift up the athlete next to you."}</p>
+                </div>
+              ))}
             </section>
 
             {quoteText ? (
@@ -1444,6 +1460,29 @@ export default function App(){
               <button onClick={()=>goTab("formats")} className="mt-4 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Formats | Payment →</button>
             </section>
           </div>
+        ) : view==="programs" ? (
+          <section className="pt-5">
+            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">PROGRAMS</p>
+            <h2 className="font-display text-[36px] leading-none mt-2">Four ways to train with The GRIT.</h2>
+            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">For athletes, for teams, for adults. Pick the one that fits — then reach out and we&apos;ll get you started.</p>
+            <div className="mt-5 space-y-4">
+              {[
+                {name:"GRIT ATHLETE", format:"Individual 1-on-1 training", desc:"Personal coaching built around the athlete: strength, speed, mindset, and accountability, one on one.", subject:"GRIT Athlete - Get Started"},
+                {name:"GRIT TEAM", format:"Whole-team program • 6–8 weeks", desc:"Entire teams — baseball, softball, any sport — get a 6–8 week program building physical and mental strength and resilience, together.", subject:"GRIT Team - Get Started"},
+                {name:"GRIT ON TURF", format:"1-hour sessions", desc:"Focused on acceleration, first-step quickness, mastering the art of changing direction, velocity, and explosive movement.", subject:"GRIT on Turf - Get Started"},
+                {name:"GRIT ACCOUNTABILITY", format:"For adults and parents", desc:"Movement that fits real life — training built for limited time frames, with the accountability to actually stick to it.", subject:"GRIT Accountability - Get Started"},
+              ].map(pr=>(
+                <div key={pr.name} className="rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
+                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">{pr.format.toUpperCase()}</p>
+                  <h3 className="font-display text-[26px] leading-tight mt-2">{pr.name}</h3>
+                  <p className="text-[15px] text-white/85 mt-2 leading-relaxed">{pr.desc}</p>
+                  <a href={`mailto:thepiviotproject@kbuiltsoftball.com?subject=${encodeURIComponent(pr.subject)}`} className="mt-4 flex min-h-[48px] items-center justify-center rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Get Started →</a>
+                </div>
+              ))}
+            </div>
+            <p className="mt-5 text-center text-[15px] leading-relaxed text-white/85">Not sure which program fits? Reach out — we&apos;ll point you the right way.</p>
+            <a href="mailto:thepiviotproject@kbuiltsoftball.com?subject=Which%20GRIT%20program%20fits%20me%3F" className="mt-3 flex min-h-[48px] items-center justify-center rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Email The GRIT →</a>
+          </section>
         ) : view==="formats" ? (
           <section className="pt-5">
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">FORMATS | PAYMENT</p>
