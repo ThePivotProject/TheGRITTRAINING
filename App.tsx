@@ -4,6 +4,7 @@ import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, 
 import bgUrl from "./sprinter.webp";
 import fieldNightUrl from "./field-night.webp";
 import gritIconUrl from "./grit-icon.webp";
+import gritGUrl from "./grit-g.webp";
 
 function GritIcon({ size = 44, rounded = 10 }: { size?: number; rounded?: number }) {
   return (
@@ -1087,7 +1088,7 @@ export default function App(){
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
                 <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
                 
-                <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(44px,12vw,60px)] tracking-[0.04em]">THE <span style={{display:"inline-block",transform:"skewX(-4deg)",WebkitTextStroke:"0.5px rgba(255,255,255,.85)",textShadow:"2px 2px 0 rgba(0,0,0,.7),-1px 1px 0 rgba(255,255,255,.25),1px -1px 0 rgba(0,0,0,.5)"}}>G</span><span className="text-white">RIT</span><span className="text-[#C9A86A]">.</span></p>
+                <p className="grit-distressed mt-2 flex items-end justify-center font-display font-bold leading-none text-[clamp(44px,12vw,60px)] tracking-[0.04em]">THE&nbsp;<img src={gritGUrl} alt="G" style={{height:"0.98em",width:"auto",display:"inline-block",transform:"translateY(0.09em)"}} /><span className="text-white">RIT</span><span className="text-[#C9A86A]">.</span></p>
                 <div className="mt-5 flex justify-center">
                   <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
                 </div>
