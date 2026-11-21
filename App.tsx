@@ -177,7 +177,7 @@ export default function App(){
   const [minutes,setMinutes]=useState<Record<string,string>>({...DEFAULT_MINUTES});
   const [blockNotes,setBlockNotes]=useState<Record<string,string>>({});
   const [loggedInAthleteId,setLoggedInAthleteId]=useState<string|null>(null);
-  const [athleteMode,setAthleteMode]=useState(false); // false = origin homepage; true = GRIT athlete app format
+  const [athleteAppMode,setAthleteAppMode]=useState(false); // false = origin homepage; true = GRIT athlete app format. NOTE: distinct from the existing athleteMode filter below.
   const [pinInput,setPinInput]=useState("");
   const [loginError,setLoginError]=useState("");
   const [profilePinEdit,setProfilePinEdit]=useState("");
@@ -910,18 +910,18 @@ export default function App(){
   }
 
   const goTab = (v:View)=>{ setView(v); window.scrollTo({top:0, behavior:"smooth"}); };
-  const navTabs = athleteMode ? ATHLETE_NAV : ORIGIN_NAV;
+  const navTabs = athleteAppMode ? ATHLETE_NAV : ORIGIN_NAV;
   function handleUnlock(){
     const athlete = selectedAthlete;
     if(!athlete) return;
     const pin = String(pinInput).trim();
     if(pin.length===4 && (!athlete.pin || pin===athlete.pin)){
       if(!athlete.pin) updateAthlete(athlete.id,{pin});
-      setLoggedInAthleteId(athlete.id); setTrainingAthleteId(athlete.id); setLoginError(""); setPinInput(""); setResult(""); setAthleteMode(true); setView("wall");
+      setLoggedInAthleteId(athlete.id); setTrainingAthleteId(athlete.id); setLoginError(""); setPinInput(""); setResult(""); setAthleteAppMode(true); setView("wall");
     }
     else { setLoginError("Incorrect PIN"); }
   }
-  function handleLock(){ setLoggedInAthleteId(null); setPinInput(""); setLoginError(""); setAthleteMode(false); setView("wall"); }
+  function handleLock(){ setLoggedInAthleteId(null); setPinInput(""); setLoginError(""); setAthleteAppMode(false); setView("wall"); }
   async function saveTrainingFocus(){ await saveFocus(); }
   function handleShare(){ shareIconOnly(); }
   async function persistSettings(patch: Record<string, any>){
@@ -1099,7 +1099,7 @@ export default function App(){
             const Icon = t.icon;
             return <button key={t.id} onClick={()=>goTab(t.id)} aria-current={active?"page":undefined} className={`flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold whitespace-nowrap ${active?"bg-[#C9A86A] text-black":"text-white/85"}`}><Icon size={15}/>{t.label}</button>;
           })}
-          {athleteMode && <button onClick={()=>handleLock()} className="flex min-h-[40px] shrink-0 items-center rounded-full border border-white/25 px-3.5 py-2 text-[12px] font-bold whitespace-nowrap text-white/85">Log out</button>}
+          {athleteAppMode && <button onClick={()=>handleLock()} className="flex min-h-[40px] shrink-0 items-center rounded-full border border-white/25 px-3.5 py-2 text-[12px] font-bold whitespace-nowrap text-white/85">Log out</button>}
         </nav>
       </div>
 
@@ -1115,7 +1115,7 @@ export default function App(){
                 </div>
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   <button onClick={()=>goTab("programs")} className="min-h-[40px] rounded-full bg-[#C9A86A] px-5 py-2 text-[13px] font-bold text-black active:scale-[0.98]">Explore Programs →</button>
-                  {athleteMode ? (
+                  {athleteAppMode ? (
                     <button onClick={()=>goTab("training")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Open Your Training →</button>
                   ) : (
                     <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
@@ -1124,7 +1124,7 @@ export default function App(){
               </div>
             </section>
 
-            {!athleteMode && (
+            {!athleteAppMode && (
               <>
                 <section className="mt-6 rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
                   <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">WHAT IS THE GRIT?</p>
@@ -1166,7 +1166,7 @@ export default function App(){
                 <p className="text-[17px] italic leading-relaxed text-white/90">“{quoteText}”</p>
               </section>
             ) : null}
-            {athleteMode && (<>
+            {athleteAppMode && (<>
             <section className="mt-6">
               <button onClick={()=>goTab("become")} className="block w-full rounded-[26px] border-2 border-[#C9A86A] bg-[#2E4038] px-5 py-6 text-left active:bg-[#35493F]">
                 <p className="font-display font-bold leading-[1.05] text-[clamp(30px,8.5vw,40px)] text-[#F2EFE9]">HOW DO I<br/>BECOME<span className="text-[#C9A86A]">…</span></p>
