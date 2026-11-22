@@ -142,7 +142,7 @@ create policy "grit_write" on public.grit_cards for all using (true) with check 
 function PhotoBackground(){
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
-      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full scale-[1.4] object-cover object-center" />
+      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full scale-[1.2] object-cover object-center" />
       <div className="absolute inset-0" style={{background:"linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
     </div>
   );
@@ -255,7 +255,7 @@ export default function App(){
     const evs=parseIcs(text);
     if(!evs.length){ setCalendarSyncMsg("No events found in that .ics — check you pasted the whole file."); return; }
     setCalendarEvents((prev:any[])=>{ const seen=new Set(prev.map((e:any)=>e.id)); const add=evs.filter((e:any)=>!seen.has(e.id)); return [...add, ...prev].sort((a:any,b:any)=>String(a.start).localeCompare(String(b.start))); });
-    setCalendarSyncMsg(`${evs.length} calendar event(s) pulled from Google Calendar. Every phone pulls the same feed when the app opens.`);
+    setCalendarSyncMsg(`${evs.length} calendar event(s) pulled from Google Calendar. Only events with GRIT in the description and an athlete's name show on that athlete's profile.`);
     flashSaved();
   }
   async function fetchCalendarFeed(){
@@ -272,16 +272,25 @@ export default function App(){
     const ev={ id:`manual-${Date.now()}`, title:nextSessionTitle.trim()||`GRIT Session — ${a.name}`, desc:"", start, source:"Manual", athleteId:a.id, athleteName:a.name };
     setCalendarEvents((prev:any[])=>[...prev, ev].sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start))));
     try{ await callApi("records.create",{collection:"grit_next_sessions", value:ev}); }catch{}
-    setCalendarSyncMsg(`Next session saved for ${a.name} — ${new Date(start).toLocaleString()} — on this device. For all phones, sessions come from the Google Calendar iCal feed below.`);
+    setCalendarSyncMsg(`Next session saved for ${a.name} — ${new Date(start).toLocaleString()} — on this device.`);
     setNextSessionTitle(""); flashSaved();
   }
   const nextSessionForAthlete = (athleteId?:string)=>{
     if(!athleteId) return null;
     const a=athletes.find(x=>x.id===athleteId); if(!a) return null;
     const now=new Date();
-    const fromCal=calendarEvents.filter((e:any)=>{ const d=new Date(e.start); if(isNaN(d.getTime())||d<now) return false; const hay=`${e.title||""} ${e.desc||""} ${e.athleteName||""}`.toLowerCase(); return !e.athleteId || e.athleteId===athleteId || hay.includes(a.name.toLowerCase()) || hay.includes("grit"); }).sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start)))[0];
+    const fromCal=calendarEvents.filter((e:any)=>{ const d=new Date(e.start); if(isNaN(d.getTime())||d<now) return false; const desc=String(e.desc||"").toLowerCase(); const hay=`${e.title||""} ${e.desc||""} ${e.athleteName||""}`.toLowerCase(); const isGritEvent=desc.includes("grit"); const isForAthlete=hay.includes(a.name.toLowerCase()); return e.athleteId ? e.athleteId===athleteId : (isGritEvent && isForAthlete); }).sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start)))[0];
     if(fromCal) return { ...fromCal, sourceLabel: fromCal.source==="Manual" ? "Calendar • Added in app" : "Calendar • Synced" };
     return null;
+  };
+  // This week's GRIT sessions for one athlete. The feed is the whole mailbox calendar, so an event only
+  // counts when its DESCRIPTION says GRIT and its title/description names the athlete. Sessions added by
+  // hand in the app carry athleteId, so they count without the GRIT check.
+  const athleteWeekSessions = (athleteId?:string)=>{
+    if(!athleteId) return [];
+    const a=athletes.find(x=>x.id===athleteId); if(!a) return [];
+    const now=new Date(); const end=new Date(now.getTime()+7*24*60*60*1000);
+    return calendarEvents.filter((e:any)=>{ const d=new Date(e.start); if(isNaN(d.getTime())||d<now||d>end) return false; const desc=String(e.desc||"").toLowerCase(); const hay=`${e.title||""} ${e.desc||""} ${e.athleteName||""}`.toLowerCase(); return e.athleteId ? e.athleteId===athleteId : (desc.includes("grit") && hay.includes(a.name.toLowerCase())); }).sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start)));
   };
   const [quoteText,setQuoteText]=useState("");
   const [quoteRecordId,setQuoteRecordId]=useState<string|null>(null);
@@ -463,8 +472,7 @@ export default function App(){
     setLoading(false);
   }
   useEffect(()=>{ reloadRecords(); },[]);
-  // Calendar sync that actually reaches every phone: on every app open, pull the saved public iCal feed
-  // straight from Google Calendar. Sessions used to live only in this phone's localStorage, so athletes never saw them.
+  // Calendar sync: on every app open, pull the saved public iCal feed straight from Google Calendar.
   useEffect(()=>{ if(calendarFeedUrl.trim() && calendarSyncOn) fetchCalendarFeed(); },[]);
   useEffect(()=>{ setDictSupported(typeof window!=="undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition)); },[]);
 
@@ -1309,10 +1317,9 @@ export default function App(){
             </div>
             <div className="gold-rule mt-4" aria-hidden="true" />
             {isProfileUnlocked && selectedAthlete && (()=>{
-              const ns = nextSessionForAthlete(selectedAthlete.id);
-              if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — your coach adds it from Google Calendar.</p>;
-              const d = new Date(ns.start);
-              return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>;
+              const week = athleteWeekSessions(selectedAthlete.id);
+              if(!week.length) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No GRIT sessions this week yet — when your coach adds one with GRIT in the description and your name on it, it shows here.</p>;
+              return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">THIS WEEK'S GRIT SESSIONS</p>{week.map((ns:any)=>{ const d = new Date(ns.start); return <div key={ns.id||ns.start} className="mt-2 border-t border-white/10 pt-2 text-left"><p className="font-display text-lg font-bold leading-tight">{ns.title}</p><p className="text-sm text-white/85 mt-0.5">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}</div>; })}<p className="text-xs text-white/60 mt-2">Calendar • Synced • thepiviotproject@kbuiltsoftball.com</p></div>;
             })()}
             {!selectedAthlete ? (
               <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-4 text-center">
@@ -1599,7 +1606,7 @@ export default function App(){
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={checkCalendar} className="flex-1 min-h-[48px] border border-white/25 px-3 py-2.5 rounded-full text-sm font-semibold">Check Google Calendar Connection</button><button disabled={busy} onClick={syncCalendarSessions} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-3 py-2.5 rounded-full text-sm disabled:opacity-50">Sync GRIT Sessions</button></div>
               <div className="mt-4 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNC FROM GOOGLE CALENDAR — BACKEND SYNC</p>
-                <p className="text-sm text-white/75 mt-1">Every phone pulls the public iCal feed straight from Google Calendar when the app opens — paste the feed link below once and every athlete sees the same sessions. Manual adds below stay on this device only.</p>
+                <p className="text-sm text-white/75 mt-1">Every phone pulls the public iCal feed straight from Google Calendar when the app opens — paste the feed link below once. Only events with GRIT in the description and an athlete's name on them show on that athlete's profile; everything else on the calendar is ignored.</p>
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — THIS DEVICE ONLY</p>
                 <label className="block text-sm mt-2">Athlete<select value={nextSessionAthleteId} onChange={e=>setNextSessionAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
                 <div className="flex gap-2 mt-2"><label className="flex-1 text-sm">Date<input type="date" value={nextSessionDate} onChange={e=>setNextSessionDate(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label><label className="flex-1 text-sm">Time<input type="time" value={nextSessionTime} onChange={e=>setNextSessionTime(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label></div>
