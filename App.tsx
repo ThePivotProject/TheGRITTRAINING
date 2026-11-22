@@ -94,7 +94,6 @@ const TABS: {id:View; label:string; icon:any}[] = [
   {id:"programs", label:"Programs", icon: Trophy},
   {id:"coach", label:"Coaches", icon: ShieldCheck},
 ];
-// Two nav sets, one app: origin mode (before login) vs athlete mode (after login). Defined here so no type cast ever sits inside the JSX.
 const ORIGIN_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, {id:"programs", label:"Programs", icon:Trophy}, {id:"athletes", label:"Athlete Login", icon:Users}];
 const ATHLETE_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, ...TABS];
 const SUPABASE_SQL = `-- GRIT Supabase setup — run the WHOLE file at once in Supabase > SQL Editor.
@@ -142,7 +141,7 @@ create policy "grit_write" on public.grit_cards for all using (true) with check 
 function PhotoBackground(){
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
-      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full scale-[1.2] object-cover object-center" />
+      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
       <div className="absolute inset-0" style={{background:"linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
     </div>
   );
@@ -170,8 +169,7 @@ export default function App(){
   const [minutes,setMinutes]=useState<Record<string,string>>({...DEFAULT_MINUTES});
   const [blockNotes,setBlockNotes]=useState<Record<string,string>>({});
   const [loggedInAthleteId,setLoggedInAthleteId]=useState<string|null>(null);
-  const [athleteAppMode,setAthleteAppMode]=useState(false); // false = origin homepage; true = GRIT athlete app format. NOTE: distinct from the existing athleteMode filter below.
-  // Athlete profile photos: kept on this device only (localStorage) so they never bloat the Supabase sync.
+  const [athleteAppMode,setAthleteAppMode]=useState(false);
   const [athletePhotos,setAthletePhotos]=useState<Record<string,string>>(()=>{ try{ return JSON.parse(localStorage.getItem("grit-athlete-photos")||"{}"); }catch{ return {}; } });
   function handlePhotoUpload(id:string, file?:File){ if(!file) return; const r=new FileReader(); r.onload=()=>{ const url=String(r.result||""); if(!url) return; setAthletePhotos(prev=>{ const next={...prev,[id]:url}; try{ localStorage.setItem("grit-athlete-photos", JSON.stringify(next)); }catch{} return next; }); }; r.readAsDataURL(file); }
   const [pinInput,setPinInput]=useState("");
@@ -199,6 +197,8 @@ export default function App(){
   const [editingCardId,setEditingCardId]=useState<string|null>(null);
   const [expandedCardId,setExpandedCardId]=useState<string|null>(null);
   const [spotlightId,setSpotlightId]=useState("");
+  const [athleteOfWeekId,setAthleteOfWeekId]=useState<string>(()=>{ try{ return localStorage.getItem("grit-athlete-of-week")||""; }catch{ return ""; } });
+  function setAthleteOfWeek(id:string){ setAthleteOfWeekId(id); try{ localStorage.setItem("grit-athlete-of-week", id); }catch{} setResult(id ? `Athlete of the Week set to ${athletes.find(a=>a.id===id)?.name||"athlete"}.` : "Athlete of the Week cleared."); flashSaved(); }
   const [reactions,setReactions]=useState<Record<string,"fire">>({});
   const [celebrated,setCelebrated]=useState("");
   const [homeworkDone,setHomeworkDone]=useState<Record<string,boolean>>({});
@@ -261,8 +261,18 @@ export default function App(){
   async function fetchCalendarFeed(){
     if(!calendarFeedUrl.trim()){ setCalendarSyncMsg("Paste your public iCal link first (Google Calendar > Settings > Integrate calendar > Public address in iCal format)."); return; }
     setBusy(true);
-    try{ const res=await fetch(calendarFeedUrl.trim()); if(!res.ok) throw new Error(`Calendar returned ${res.status}`); const text=await res.text(); importIcsText(text); }
-    catch(e:any){ setCalendarSyncMsg(`Could not fetch that link from this browser (Google often blocks it). Workaround: open the link, copy all the text, paste it into “Paste .ics text” below and tap Import. ${e.message||""}`); }
+    const url = calendarFeedUrl.trim();
+    try{
+      let text = "";
+      try{ const res=await fetch(url); if(!res.ok) throw new Error(`Calendar returned ${res.status}`); text=await res.text(); }
+      catch(directErr:any){
+        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        const res2 = await fetch(proxy); if(!res2.ok) throw new Error(`Calendar returned ${res2.status}`);
+        text = await res2.text();
+      }
+      importIcsText(text);
+    }
+    catch(e:any){ setCalendarSyncMsg(`Could not fetch that link. Check the calendar is set to "Make available to public" in Google Calendar > Settings, and that the link is the Public iCal address. Workaround: open the link, copy all the text, paste it into "Paste .ics text" below and tap Import. ${e.message||""}`); }
     setBusy(false);
   }
   async function addManualNextSession(){
@@ -283,9 +293,6 @@ export default function App(){
     if(fromCal) return { ...fromCal, sourceLabel: fromCal.source==="Manual" ? "Calendar • Added in app" : "Calendar • Synced" };
     return null;
   };
-  // This week's GRIT sessions for one athlete. The feed is the whole mailbox calendar, so an event only
-  // counts when its DESCRIPTION says GRIT and its title/description names the athlete. Sessions added by
-  // hand in the app carry athleteId, so they count without the GRIT check.
   const athleteWeekSessions = (athleteId?:string)=>{
     if(!athleteId) return [];
     const a=athletes.find(x=>x.id===athleteId); if(!a) return [];
@@ -472,7 +479,6 @@ export default function App(){
     setLoading(false);
   }
   useEffect(()=>{ reloadRecords(); },[]);
-  // Calendar sync: on every app open, pull the saved public iCal feed straight from Google Calendar.
   useEffect(()=>{ if(calendarFeedUrl.trim() && calendarSyncOn) fetchCalendarFeed(); },[]);
   useEffect(()=>{ setDictSupported(typeof window!=="undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition)); },[]);
 
@@ -1067,6 +1073,7 @@ export default function App(){
   }
   const toggleReaction = (id:string, kind:"fire")=> setReactions(prev=> prev[id]===kind ? {...prev, [id]: undefined as any} : {...prev, [id]:kind});
   const spotlightAthlete = athletes.find(a=>a.id===spotlightId) || null;
+  const athleteOfWeek = (athleteOfWeekId ? athletes.find(a=>a.id===athleteOfWeekId) : athletes.find(a=>a.name==="Mackenzie Mercer")) || null;
   const coachDocAthlete = athletes.find(a=>a.id===coachDocAthleteId) || null;
   const leaderAthlete = athletes.find(a=>a.id===leaderAthleteId) || null;
 
@@ -1096,7 +1103,6 @@ export default function App(){
           <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
         </div>
         )}
-        {/* Origin-style glass nav bar below the header — one solid bar, no borders, white font. Tabs switch with the mode: origin tabs before login, athlete tabs after. */}
         <nav aria-label="Main navigation" className="glass-nav no-scrollbar mt-3 flex items-center gap-1 overflow-x-auto px-1.5 py-1.5">
           {navTabs.map(t=>{
             const active = view===t.id || (t.id==="pillars" && (view==="pillars" || view==="impact"));
@@ -1132,6 +1138,15 @@ export default function App(){
                   <p className="mt-2 text-[16px] leading-relaxed text-white/90">Mindset-first training that develops athletes as players <span className="text-[#C9A86A] font-bold">and</span> people — for their communities and their families.</p>
                   <p className="mt-3 text-[15px] leading-relaxed text-white/85">Not just workouts: mindset, discipline, accountability, and showing up for the athlete next to you.</p>
                 </section>
+                {athleteOfWeek && (
+                  <section className="mt-4 rounded-[26px] border border-[#C9A86A]/50 bg-black/35 px-5 py-5 text-center">
+                    <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">ATHLETE OF THE WEEK</p>
+                    {athletePhotos[athleteOfWeek.id] ? <img src={athletePhotos[athleteOfWeek.id]} alt={`${athleteOfWeek.name} — Athlete of the Week`} className="mx-auto mt-3 h-[150px] w-[150px] rounded-full object-cover border-2 border-[#C9A86A]/60" /> : null}
+                    <h3 className="font-display text-[28px] leading-tight mt-3">{athleteOfWeek.name}</h3>
+                    <p className="text-sm text-white/75 mt-1">{[athleteOfWeek.sport, athleteOfWeek.position].filter(Boolean).join(" • ") || "The GRIT"}</p>
+                    {athleteOfWeek.mindset ? <p className="text-[15px] leading-relaxed text-white/85 mt-2">“{athleteOfWeek.mindset}”</p> : null}
+                  </section>
+                )}
                 <section className="mt-4 grid grid-cols-3 gap-2 text-center">
                   {(["EFFORT","DISCIPLINE","IMPACT"] as const).map(p=>(
                     <div key={p} className="rounded-2xl border border-white/15 bg-black/35 px-2 py-4">
@@ -1316,7 +1331,7 @@ export default function App(){
               <button onClick={addAthlete} className="mt-3 w-full min-h-[44px] inline-flex items-center justify-center gap-2 border border-white/25 px-4 py-2 rounded-full text-sm font-semibold"><Plus size={15}/> Add Athlete / Roster Spot</button>
             </div>
             <div className="gold-rule mt-4" aria-hidden="true" />
-            {isProfileUnlocked && selectedAthlete && (()=>{
+            {selectedAthlete && (()=>{
               const week = athleteWeekSessions(selectedAthlete.id);
               if(!week.length) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No GRIT sessions this week yet — when your coach adds one with GRIT in the description and your name on it, it shows here.</p>;
               return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">THIS WEEK'S GRIT SESSIONS</p>{week.map((ns:any)=>{ const d = new Date(ns.start); return <div key={ns.id||ns.start} className="mt-2 border-t border-white/10 pt-2 text-left"><p className="font-display text-lg font-bold leading-tight">{ns.title}</p><p className="text-sm text-white/85 mt-0.5">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}</div>; })}<p className="text-xs text-white/60 mt-2">Calendar • Synced • thepiviotproject@kbuiltsoftball.com</p></div>;
@@ -1565,6 +1580,18 @@ export default function App(){
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed md:col-span-2 lg:col-span-3">Dashboard, setup, and checks — all in one place.</p>
             {lastSyncedAt && <p className="mt-3 text-sm text-[#D4B483]">Last synced: {lastSyncedAt}</p>}
             {result && <p className="mt-3 text-sm text-[#D4B483] bg-black/35 border border-white/10 rounded-xl px-3 py-2">{result}</p>}
+            <div className="mt-4 rounded-[22px] border border-[#C9A86A]/50 bg-black/35 p-4">
+              <h3 className="font-display text-xl">Athlete of the Week</h3>
+              <p className="text-sm text-white/75 mt-1">Pick who shows on the Home wall. Change it any time — it saves on this device.</p>
+              <p className="text-sm mt-2">Current: <strong className="text-[#C9A86A]">{athleteOfWeek ? athleteOfWeek.name : "None set"}</strong></p>
+              <label className="block text-sm mt-3">Choose Athlete of the Week
+                <select value={athleteOfWeekId} onChange={e=>setAthleteOfWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]">
+                  <option value="">— Default: Mackenzie Mercer —</option>
+                  {athletes.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+                </select>
+              </label>
+              {athleteOfWeekId && <button onClick={()=>setAthleteOfWeek("")} className="mt-2 min-h-[44px] rounded-full border border-white/25 px-4 py-2 text-[13px] font-semibold">Reset to Mackenzie Mercer</button>}
+            </div>
             <div className="mt-4">
               <h3 className="font-display text-xl">Dashboard Overview</h3>
               <div className="grid grid-cols-2 gap-2 mt-3 lg:grid-cols-3">
@@ -1606,7 +1633,7 @@ export default function App(){
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={checkCalendar} className="flex-1 min-h-[48px] border border-white/25 px-3 py-2.5 rounded-full text-sm font-semibold">Check Google Calendar Connection</button><button disabled={busy} onClick={syncCalendarSessions} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-3 py-2.5 rounded-full text-sm disabled:opacity-50">Sync GRIT Sessions</button></div>
               <div className="mt-4 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNC FROM GOOGLE CALENDAR — BACKEND SYNC</p>
-                <p className="text-sm text-white/75 mt-1">Every phone pulls the public iCal feed straight from Google Calendar when the app opens — paste the feed link below once. Only events with GRIT in the description and an athlete's name on them show on that athlete's profile; everything else on the calendar is ignored.</p>
+                <p className="text-sm text-white/75 mt-1">Every phone pulls the public iCal feed straight from Google Calendar when the app opens — paste the feed link below once. Only events with GRIT in the description and an athlete's name on them show on that athlete's profile; everything else on the calendar is ignored. If it pulls 0 events, check Google Calendar &gt; Settings &gt; this calendar &gt; Make available to public.</p>
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — THIS DEVICE ONLY</p>
                 <label className="block text-sm mt-2">Athlete<select value={nextSessionAthleteId} onChange={e=>setNextSessionAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
                 <div className="flex gap-2 mt-2"><label className="flex-1 text-sm">Date<input type="date" value={nextSessionDate} onChange={e=>setNextSessionDate(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label><label className="flex-1 text-sm">Time<input type="time" value={nextSessionTime} onChange={e=>setNextSessionTime(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label></div>
