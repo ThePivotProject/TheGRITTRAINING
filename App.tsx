@@ -1131,6 +1131,16 @@ export default function App(){
               </div>
             </section>
 
+            {athleteOfWeek && (
+              <section className="mt-4 rounded-[26px] border border-[#C9A86A]/50 bg-black/35 px-5 py-5 text-center">
+                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">ATHLETE OF THE WEEK</p>
+                {athletePhotos[athleteOfWeek.id] ? <img src={athletePhotos[athleteOfWeek.id]} alt={`${athleteOfWeek.name} — Athlete of the Week`} className="mx-auto mt-3 h-[150px] w-[150px] rounded-full object-cover border-2 border-[#C9A86A]/60" /> : null}
+                <h3 className="font-display text-[28px] leading-tight mt-3">{athleteOfWeek.name}</h3>
+                <p className="text-sm text-white/75 mt-1">{[athleteOfWeek.sport, athleteOfWeek.position].filter(Boolean).join(" • ") || "The GRIT"}</p>
+                {athleteOfWeek.mindset ? <p className="text-[15px] leading-relaxed text-white/85 mt-2">“{athleteOfWeek.mindset}”</p> : null}
+              </section>
+            )}
+
             {!athleteAppMode && (
               <>
                 <section className="mt-6 rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
@@ -1138,15 +1148,6 @@ export default function App(){
                   <p className="mt-2 text-[16px] leading-relaxed text-white/90">Mindset-first training that develops athletes as players <span className="text-[#C9A86A] font-bold">and</span> people — for their communities and their families.</p>
                   <p className="mt-3 text-[15px] leading-relaxed text-white/85">Not just workouts: mindset, discipline, accountability, and showing up for the athlete next to you.</p>
                 </section>
-                {athleteOfWeek && (
-                  <section className="mt-4 rounded-[26px] border border-[#C9A86A]/50 bg-black/35 px-5 py-5 text-center">
-                    <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">ATHLETE OF THE WEEK</p>
-                    {athletePhotos[athleteOfWeek.id] ? <img src={athletePhotos[athleteOfWeek.id]} alt={`${athleteOfWeek.name} — Athlete of the Week`} className="mx-auto mt-3 h-[150px] w-[150px] rounded-full object-cover border-2 border-[#C9A86A]/60" /> : null}
-                    <h3 className="font-display text-[28px] leading-tight mt-3">{athleteOfWeek.name}</h3>
-                    <p className="text-sm text-white/75 mt-1">{[athleteOfWeek.sport, athleteOfWeek.position].filter(Boolean).join(" • ") || "The GRIT"}</p>
-                    {athleteOfWeek.mindset ? <p className="text-[15px] leading-relaxed text-white/85 mt-2">“{athleteOfWeek.mindset}”</p> : null}
-                  </section>
-                )}
                 <section className="mt-4 grid grid-cols-3 gap-2 text-center">
                   {(["EFFORT","DISCIPLINE","IMPACT"] as const).map(p=>(
                     <div key={p} className="rounded-2xl border border-white/15 bg-black/35 px-2 py-4">
