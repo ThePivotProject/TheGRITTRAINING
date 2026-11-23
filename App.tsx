@@ -1702,7 +1702,7 @@ export default function App(){
               {savedFlash && <p className="mt-4 text-sm text-[#D4B483] font-bold" role="status">Saved</p>}
               {result && <p className="mt-4 text-sm text-[#D4B483]">{result}</p>}
               </>) : (
-              {loggedInAthleteId ? (
+              loggedInAthleteId ? (
               <div className="mt-5">
                 <p className="text-center font-display text-[clamp(24px,6vw,32px)] font-bold leading-tight">YOUR WORKOUT — FOUR PILLARS</p>
                 <p className="mt-1 text-center text-sm text-white/70">Your coach&apos;s plan. Tap each block done as you finish it.</p>
@@ -1729,7 +1729,7 @@ export default function App(){
               </div>
               ) : (
               <p className="mt-5 text-center text-xs text-white/50">Coach Checklist is hidden — tap COACH CHECKLIST at the top of this page to open it.</p>
-              )}
+              )
               )}
               </>
             )}
