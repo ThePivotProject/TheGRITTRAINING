@@ -1,6 +1,7 @@
 import "./index.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, Users, ShieldCheck, Zap, Brain, Home, Bookmark, ArrowLeft, Save, Target, Medal, CreditCard, Sparkles, Trophy, Search, Copy, Eraser, Flame, Dumbbell, BookOpen, Timer, Star, Mic, MicOff, Share2 } from "lucide-react";
+import bgUrl from "./sprinter.webp";
 import fieldNightUrl from "./field-night.webp";
 import gritIconUrl from "./grit-icon.webp";
 
@@ -85,17 +86,13 @@ const placeholderAthletes = (): AthleteProfile[] => {
   return [...ROSTER_NAMES].sort((a,b)=>a.localeCompare(b)).map((name,i)=>({ id:`local-${i+1}`, name, sport:"", position:"", lookUp:"", ageGroup:"", motto:"", remember:"", homework:"", mindset:"", gratitude:"", nonNegotiables:"", disciplineDone:[], pin:"", focus:"", createdAt:new Date().toISOString(), startDate:"", program:"", trainingSections:emptySections(), trainingMinutes:{...DEFAULT_MINUTES}, trainingNotes:{}, progress_doc_url:"", progress_notes:"", progress_notes_last_synced:"" }));
 };
 
-type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become"|"programs";
+type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"coachLock"|"homework"|"impact"|"become";
 const TABS: {id:View; label:string; icon:any}[] = [
-  {id:"athletes", label:"Profile", icon: Users},
+  {id:"athletes", label:"Your GRIT Profile", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
   {id:"homework", label:"Homework", icon: BookOpen},
   {id:"pillars", label:"Mindset & Impact", icon: Brain},
-  {id:"programs", label:"Programs", icon: Trophy},
-  {id:"coach", label:"Coaches", icon: ShieldCheck},
 ];
-const ORIGIN_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, {id:"programs", label:"Programs", icon:Trophy}, {id:"athletes", label:"Athlete Login", icon:Users}];
-const ATHLETE_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, ...TABS];
 const SUPABASE_SQL = `-- GRIT Supabase setup — run the WHOLE file at once in Supabase > SQL Editor.
 -- Idempotent: safe to re-run. Athletes is created FIRST, before anything that references it.
 create table if not exists public.athletes (id uuid primary key default gen_random_uuid(), name text not null unique, sport text default '', position text default '', mindset text default '', grateful text default '', look_up_to_you text default '', focus text default '', focus_why text default '', pin text not null default '1234', doc_url text default '', homework text default '', created_at timestamptz not null default now(), updated_at timestamptz not null default now());
@@ -138,10 +135,12 @@ create policy "grit_write" on public.progress_notes for all using (true) with ch
 create policy "grit_read" on public.grit_cards for select using (true);
 create policy "grit_write" on public.grit_cards for all using (true) with check (true);`;
 
-function PhotoBackground(){
+function PhotoBackground({ view }: { view?: string }){
+  // SKIN: field-night.webp on EVERY page, full-bleed cover. No sprinter.webp, no object-contain, no black bars.
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
-      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
+      <div className="absolute inset-0 bg-black/55" />
       <div className="absolute inset-0" style={{background:"linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
     </div>
   );
@@ -151,6 +150,7 @@ declare global { interface Window { SpeechRecognition?: any; webkitSpeechRecogni
 
 export default function App(){
   const [view,setView]=useState<View>("wall");
+  const [whatIsGritOpen,setWhatIsGritOpen]=useState(false);
   const [workouts,setWorkouts]=useState<Workout[]>([]);
   const [athletes,setAthletes]=useState<AthleteProfile[]>(placeholderAthletes());
   const [selectedAthleteId,setSelectedAthleteId]=useState<string|null>(null);
@@ -169,9 +169,6 @@ export default function App(){
   const [minutes,setMinutes]=useState<Record<string,string>>({...DEFAULT_MINUTES});
   const [blockNotes,setBlockNotes]=useState<Record<string,string>>({});
   const [loggedInAthleteId,setLoggedInAthleteId]=useState<string|null>(null);
-  const [athleteAppMode,setAthleteAppMode]=useState(false);
-  const [athletePhotos,setAthletePhotos]=useState<Record<string,string>>(()=>{ try{ return JSON.parse(localStorage.getItem("grit-athlete-photos")||"{}"); }catch{ return {}; } });
-  function handlePhotoUpload(id:string, file?:File){ if(!file) return; const r=new FileReader(); r.onload=()=>{ const url=String(r.result||""); if(!url) return; setAthletePhotos(prev=>{ const next={...prev,[id]:url}; try{ localStorage.setItem("grit-athlete-photos", JSON.stringify(next)); }catch{} return next; }); }; r.readAsDataURL(file); }
   const [pinInput,setPinInput]=useState("");
   const [loginError,setLoginError]=useState("");
   const [profilePinEdit,setProfilePinEdit]=useState("");
@@ -197,8 +194,6 @@ export default function App(){
   const [editingCardId,setEditingCardId]=useState<string|null>(null);
   const [expandedCardId,setExpandedCardId]=useState<string|null>(null);
   const [spotlightId,setSpotlightId]=useState("");
-  const [athleteOfWeekId,setAthleteOfWeekId]=useState<string>(()=>{ try{ return localStorage.getItem("grit-athlete-of-week")||""; }catch{ return ""; } });
-  function setAthleteOfWeek(id:string){ setAthleteOfWeekId(id); try{ localStorage.setItem("grit-athlete-of-week", id); }catch{} setResult(id ? `Athlete of the Week set to ${athletes.find(a=>a.id===id)?.name||"athlete"}.` : "Athlete of the Week cleared."); flashSaved(); }
   const [reactions,setReactions]=useState<Record<string,"fire">>({});
   const [celebrated,setCelebrated]=useState("");
   const [homeworkDone,setHomeworkDone]=useState<Record<string,boolean>>({});
@@ -207,7 +202,10 @@ export default function App(){
   const [leaderAthleteId,setLeaderAthleteId]=useState("");
   const [coachDocAthleteId,setCoachDocAthleteId]=useState("");
   // --- Coaches dashboard ---
-  const [supabaseUrl,setSupabaseUrl]=useState("");
+  const [coachUnlocked,setCoachUnlocked]=useState(false);
+  const [coachPinInput,setCoachPinInput]=useState("");
+  const [coachPinError,setCoachPinError]=useState("");
+  const [coachPinStored,setCoachPinStored]=useState(()=>{ try{ return localStorage.getItem("grit:coachPin")||""; }catch{ return ""; } });
   const [supabaseKey,setSupabaseKey]=useState("");
   const [supabaseStatus,setSupabaseStatus]=useState<"Not Connected"|"Connected">("Not Connected");
   const [supabaseLastChecked,setSupabaseLastChecked]=useState("");
@@ -231,6 +229,7 @@ export default function App(){
   const [calendarSyncMsg,setCalendarSyncMsg]=useState("");
   const [calendarEvents,setCalendarEvents]=useState<any[]>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:calendarEvents")||"[]"); }catch{ return []; } });
   const [calendarFeedUrl,setCalendarFeedUrl]=useState(()=>{ try{ return localStorage.getItem("grit:calendarFeedUrl")||""; }catch{ return ""; } });
+  const [calendarId,setCalendarId]=useState(()=>{ try{ return localStorage.getItem("grit:calendarId")||"thepiviotproject@kbuiltsoftball.com"; }catch{ return "thepiviotproject@kbuiltsoftball.com"; } });
   const [calendarIcsText,setCalendarIcsText]=useState("");
   const [nextSessionAthleteId,setNextSessionAthleteId]=useState("");
   const [nextSessionDate,setNextSessionDate]=useState("");
@@ -238,6 +237,7 @@ export default function App(){
   const [nextSessionTitle,setNextSessionTitle]=useState("");
   useEffect(()=>{ try{ localStorage.setItem("grit:calendarEvents", JSON.stringify(calendarEvents)); }catch{} },[calendarEvents]);
   useEffect(()=>{ try{ localStorage.setItem("grit:calendarFeedUrl", calendarFeedUrl); }catch{} },[calendarFeedUrl]);
+  useEffect(()=>{ try{ localStorage.setItem("grit:calendarId", calendarId); }catch{} },[calendarId]);
   function parseIcs(text:string){
     const events:any[]=[]; const blocks=String(text||"").split("BEGIN:VEVENT").slice(1);
     for(const b of blocks){
@@ -255,24 +255,14 @@ export default function App(){
     const evs=parseIcs(text);
     if(!evs.length){ setCalendarSyncMsg("No events found in that .ics — check you pasted the whole file."); return; }
     setCalendarEvents((prev:any[])=>{ const seen=new Set(prev.map((e:any)=>e.id)); const add=evs.filter((e:any)=>!seen.has(e.id)); return [...add, ...prev].sort((a:any,b:any)=>String(a.start).localeCompare(String(b.start))); });
-    setCalendarSyncMsg(`${evs.length} calendar event(s) pulled from Google Calendar. Only events with GRIT in the description and an athlete's name show on that athlete's profile.`);
+    setCalendarSyncMsg(`${evs.length} calendar event(s) imported on this device. For all phones, use the backend sync (Edge Function) — see CALENDAR-SYNC-README.md.`);
     flashSaved();
   }
   async function fetchCalendarFeed(){
     if(!calendarFeedUrl.trim()){ setCalendarSyncMsg("Paste your public iCal link first (Google Calendar > Settings > Integrate calendar > Public address in iCal format)."); return; }
     setBusy(true);
-    const url = calendarFeedUrl.trim();
-    try{
-      let text = "";
-      try{ const res=await fetch(url); if(!res.ok) throw new Error(`Calendar returned ${res.status}`); text=await res.text(); }
-      catch(directErr:any){
-        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-        const res2 = await fetch(proxy); if(!res2.ok) throw new Error(`Calendar returned ${res2.status}`);
-        text = await res2.text();
-      }
-      importIcsText(text);
-    }
-    catch(e:any){ setCalendarSyncMsg(`Could not fetch that link. Check the calendar is set to "Make available to public" in Google Calendar > Settings, and that the link is the Public iCal address. Workaround: open the link, copy all the text, paste it into "Paste .ics text" below and tap Import. ${e.message||""}`); }
+    try{ const res=await fetch(calendarFeedUrl.trim()); if(!res.ok) throw new Error(`Calendar returned ${res.status}`); const text=await res.text(); importIcsText(text); }
+    catch(e:any){ setCalendarSyncMsg(`Could not fetch that link from this browser (Google often blocks it). Workaround: open the link, copy all the text, paste it into “Paste .ics text” below and tap Import. ${e.message||""}`); }
     setBusy(false);
   }
   async function addManualNextSession(){
@@ -282,22 +272,16 @@ export default function App(){
     const ev={ id:`manual-${Date.now()}`, title:nextSessionTitle.trim()||`GRIT Session — ${a.name}`, desc:"", start, source:"Manual", athleteId:a.id, athleteName:a.name };
     setCalendarEvents((prev:any[])=>[...prev, ev].sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start))));
     try{ await callApi("records.create",{collection:"grit_next_sessions", value:ev}); }catch{}
-    setCalendarSyncMsg(`Next session saved for ${a.name} — ${new Date(start).toLocaleString()} — on this device.`);
+    setCalendarSyncMsg(`Next session saved for ${a.name} — ${new Date(start).toLocaleString()} — and synced to Supabase so all phones see it.`);
     setNextSessionTitle(""); flashSaved();
   }
   const nextSessionForAthlete = (athleteId?:string)=>{
     if(!athleteId) return null;
     const a=athletes.find(x=>x.id===athleteId); if(!a) return null;
     const now=new Date();
-    const fromCal=calendarEvents.filter((e:any)=>{ const d=new Date(e.start); if(isNaN(d.getTime())||d<now) return false; const desc=String(e.desc||"").toLowerCase(); const hay=`${e.title||""} ${e.desc||""} ${e.athleteName||""}`.toLowerCase(); const isGritEvent=desc.includes("grit"); const isForAthlete=hay.includes(a.name.toLowerCase()); return e.athleteId ? e.athleteId===athleteId : (isGritEvent && isForAthlete); }).sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start)))[0];
+    const fromCal=calendarEvents.filter((e:any)=>{ const d=new Date(e.start); if(isNaN(d.getTime())||d<now) return false; const hay=`${e.title||""} ${e.desc||""} ${e.athleteName||""}`.toLowerCase(); return !e.athleteId || e.athleteId===athleteId || hay.includes(a.name.toLowerCase()) || hay.includes("grit"); }).sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start)))[0];
     if(fromCal) return { ...fromCal, sourceLabel: fromCal.source==="Manual" ? "Calendar • Added in app" : "Calendar • Synced" };
     return null;
-  };
-  const athleteWeekSessions = (athleteId?:string)=>{
-    if(!athleteId) return [];
-    const a=athletes.find(x=>x.id===athleteId); if(!a) return [];
-    const now=new Date(); const end=new Date(now.getTime()+7*24*60*60*1000);
-    return calendarEvents.filter((e:any)=>{ const d=new Date(e.start); if(isNaN(d.getTime())||d<now||d>end) return false; const desc=String(e.desc||"").toLowerCase(); const hay=`${e.title||""} ${e.desc||""} ${e.athleteName||""}`.toLowerCase(); return e.athleteId ? e.athleteId===athleteId : (desc.includes("grit") && hay.includes(a.name.toLowerCase())); }).sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start)));
   };
   const [quoteText,setQuoteText]=useState("");
   const [quoteRecordId,setQuoteRecordId]=useState<string|null>(null);
@@ -325,6 +309,13 @@ export default function App(){
   const [dictInterim,setDictInterim]=useState("");
   const [dictStatus,setDictStatus]=useState<"Idle"|"Listening"|"Paused"|"Saved">("Idle");
   const [dictHandsFree,setDictHandsFree]=useState(false);
+  const [smartTranscript,setSmartTranscript]=useState("");
+  const [smartStatus,setSmartStatus]=useState<"Idle"|"Listening"|"Paused"|"Saved">("Idle");
+  const [smartAthleteName,setSmartAthleteName]=useState("");
+  const [smartInterim,setSmartInterim]=useState("");
+  const smartTranscriptRef=useRef("");
+  const smartRecogRef=useRef<any>(null);
+  const smartListeningRef=useRef(false);
   const [dictSupported,setDictSupported]=useState(false);
   const recogRef = useRef<any>(null);
   const dictatingRef = useRef(false);
@@ -479,7 +470,6 @@ export default function App(){
     setLoading(false);
   }
   useEffect(()=>{ reloadRecords(); },[]);
-  useEffect(()=>{ if(calendarFeedUrl.trim() && calendarSyncOn) fetchCalendarFeed(); },[]);
   useEffect(()=>{ setDictSupported(typeof window!=="undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition)); },[]);
 
   const queued = useMemo(()=>workouts.filter(w=>w.calendar==="queued").length,[workouts]);
@@ -621,6 +611,104 @@ export default function App(){
       flashSaved();
     }catch(e:any){ setResult(e.message||"Could not save dictation."); }
     setBusy(false);
+  }
+
+  function findAthleteFromText(text:string){
+    const lower=text.toLowerCase();
+    const sorted=[...athletes].sort((a,b)=>b.name.length-a.name.length);
+    for(const a of sorted){
+      const name=a.name.toLowerCase().trim();
+      if(!name) continue;
+      if(lower.includes(name)) return a;
+      const parts=name.split(/\s+/).filter(Boolean);
+      if(parts.length>=2){ const first=parts[0], last=parts[parts.length-1]; if(lower.includes(first) && lower.includes(last)) return a; }
+    }
+    for(const a of sorted){
+      const parts=a.name.toLowerCase().split(/\s+/).filter(Boolean);
+      for(const part of parts){ if(part.length>=3 && new RegExp(`\\b${part}\\b`).test(lower)) return a; }
+    }
+    return null;
+  }
+  function parseSmartTraining(text:string, athlete:any){
+    let rest=text;
+    const idx=rest.toLowerCase().indexOf(athlete.name.toLowerCase());
+    if(idx>=0) rest=(rest.slice(0,idx)+" "+rest.slice(idx+athlete.name.length)).replace(/\s+/g," ").trim();
+    else { const parts=athlete.name.split(/\s+/).filter(Boolean); for(const part of parts){ const i=rest.toLowerCase().indexOf(part.toLowerCase()); if(i>=0){ rest=(rest.slice(0,i)+" "+rest.slice(i+part.length)).replace(/\s+/g," ").trim(); break; } } }
+    rest=rest.replace(/^(for|training|today'?s training|today|workout|is|—|-|:)+\s*/i,"").trim();
+    const out:{sections:Record<string,string>, homework:string, mindset:string}={sections:{}, homework:"", mindset:""};
+    const markers:{key:string, re:RegExp, target:string}[]=[
+      {key:"stretch", re:/\b(dynamic stretch|stretch)\b/i, target:SECTIONS[0]},
+      {key:"core", re:/\bcore\b/i, target:SECTIONS[1]},
+      {key:"main", re:/\b(main lift|main)\b/i, target:SECTIONS[2]},
+      {key:"speed", re:/\b(speed|agility|explode|explosive)\b/i, target:SECTIONS[3]},
+      {key:"homework", re:/\bhomework\b/i, target:"__homework"},
+      {key:"mindset", re:/\b(mindset|remember)\b/i, target:"__mindset"},
+    ];
+    const hits:{pos:number, target:string, len:number}[]=[];
+    for(const m of markers){ const mm=rest.match(m.re); if(mm && mm.index!==undefined) hits.push({pos:mm.index, target:m.target, len:mm[0].length}); }
+    hits.sort((a,b)=>a.pos-b.pos);
+    if(!hits.length){ out.sections[SECTIONS[2]]=rest; return out; }
+    hits.forEach((h,i)=>{
+      const start=h.pos+h.len; const end=i+1<hits.length?hits[i+1].pos:rest.length;
+      let seg=rest.slice(start,end).replace(/^[,:\-—\s]+/,"").replace(/\s+/g," ").trim();
+      seg=seg.replace(/\b(and then|then|next)\b\s*/gi,"").trim(); if(!seg) return;
+      const cap=seg.charAt(0).toUpperCase()+seg.slice(1);
+      if(h.target==="__homework") out.homework=out.homework?out.homework+" "+cap:cap;
+      else if(h.target==="__mindset") out.mindset=out.mindset?out.mindset+" "+cap:cap;
+      else out.sections[h.target]=out.sections[h.target]?out.sections[h.target]+" "+cap:cap;
+    });
+    return out;
+  }
+  async function saveSmartDictation(rawText?:string){
+    const text=(rawText ?? smartTranscriptRef.current).trim();
+    if(!text){ setResult("Say the athlete's name + their training first."); return; }
+    const athlete=findAthleteFromText(text);
+    if(!athlete){ setSmartStatus("Paused"); setResult(`Couldn't match an athlete name in: "${text}". Say their full name first — e.g. "Mackenzie Mercer, stretch..."`); return; }
+    const parsed=parseSmartTraining(text, athlete);
+    const join=(prev:string, add:string)=>prev&&prev.trim()?`${prev.trim()} ${add}`:add;
+    const newSections={...(athlete.trainingSections||{})};
+    for(const [k,v] of Object.entries(parsed.sections)) newSections[k]=join(newSections[k]||"", v as string);
+    const updated:any={ ...athlete, trainingSections:newSections };
+    if(parsed.homework) updated.homework=join(athlete.homework||"", parsed.homework);
+    if(parsed.mindset) updated.mindset=join(athlete.mindset||"", parsed.mindset);
+    setBusy(true);
+    try{
+      const newId=await persistAthleteToStore(updated);
+      if(newId!==updated.id) setAthletes(prev=>prev.map(a=>a.id===updated.id?{...a,id:newId}:a));
+      updateAthlete(athlete.id, updated as Partial<AthleteProfile>);
+      if(trainingAthleteId===athlete.id){ setSections(prev=>({...prev, ...newSections})); if(parsed.homework) setHomeworkText(updated.homework||""); }
+      await reloadRecords();
+      setSmartStatus("Saved"); setSmartAthleteName(athlete.name);
+      setResult(`Saved to ${athlete.name} — ${Object.keys(parsed.sections).join(", ")||"training"}${parsed.homework?" + homework":""}. Say the next athlete to keep going.`);
+      flashSaved(); setSmartTranscript(""); smartTranscriptRef.current="";
+    }catch(e:any){ setResult(e.message||"Could not save dictation."); }
+    setBusy(false);
+  }
+  const saveSmartDictationRef=useRef(saveSmartDictation);
+  useEffect(()=>{ saveSmartDictationRef.current=saveSmartDictation; });
+  function stopSmartDictation(){ smartListeningRef.current=false; try{ smartRecogRef.current?.stop(); }catch{} smartRecogRef.current=null; setSmartInterim(""); setSmartStatus("Paused"); }
+  function startSmartDictation(){
+    const Ctor=window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!Ctor){ setResult("Dictation isn't supported in this browser — use Safari or Chrome on iPhone."); return; }
+    if(smartRecogRef.current){ try{ smartRecogRef.current.stop(); }catch{} }
+    const rec=new Ctor(); rec.continuous=true; rec.interimResults=true; rec.lang="en-US";
+    smartRecogRef.current=rec; smartListeningRef.current=true; setSmartStatus("Listening");
+    rec.onresult=(event:any)=>{
+      let interim="";
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        const res=event.results[i]; const t=res[0]?.transcript||""; if(!t) continue;
+        if(res.isFinal){
+          const lower=t.toLowerCase().trim().replace(/[.!?]+$/,"");
+          if(lower==="save"||lower==="save dictation"||lower==="stop"||lower==="stop dictation"){ setSmartStatus("Saved"); saveSmartDictationRef.current(); }
+          else if(/\s+(save dictation|save|stop)\s*[.!?]*$/.test(lower)){ const cleaned=t.replace(/\s+(save dictation|save|stop)\s*[.!?]*$/i,"").trim(); if(cleaned){ const next=smartTranscriptRef.current?smartTranscriptRef.current+" "+cleaned:cleaned; smartTranscriptRef.current=next; setSmartTranscript(next); const a=findAthleteFromText(next); if(a) setSmartAthleteName(a.name); } saveSmartDictationRef.current(); }
+          else { const next=smartTranscriptRef.current?smartTranscriptRef.current+" "+t:t; smartTranscriptRef.current=next; setSmartTranscript(next); const a=findAthleteFromText(next); if(a) setSmartAthleteName(a.name); }
+        } else interim+=t;
+      }
+      setSmartInterim(interim);
+    };
+    rec.onerror=()=>{ setSmartInterim(""); };
+    rec.onend=()=>{ setSmartInterim(""); if(smartListeningRef.current){ setSmartStatus("Listening"); try{ rec.start(); }catch{} } };
+    try{ rec.start(); }catch{ smartListeningRef.current=false; }
   }
   const saveDictationRef = useRef(saveDictation);
   useEffect(()=>{ saveDictationRef.current = saveDictation; });
@@ -919,19 +1007,31 @@ export default function App(){
     setBecomeVideoUrl(""); setBecomeVideoCaption("");
   }
 
-  const goTab = (v:View)=>{ setView(v); window.scrollTo({top:0, behavior:"smooth"}); };
-  const navTabs = athleteAppMode ? ATHLETE_NAV : ORIGIN_NAV;
+  const goTab = (v:View)=>{ if(v==="coach" && !coachUnlocked){ setView("coachLock"); } else { setView(v); } window.scrollTo({top:0, behavior:"smooth"}); };
+  function unlockCoaches(){
+    if(!coachPinStored){
+      const pin=coachPinInput.trim();
+      if(!/^\d{4}$/.test(pin)){ setCoachPinError("Pick a 4-digit Coach PIN."); return; }
+      try{ localStorage.setItem("grit:coachPin", pin); }catch{}
+      setCoachPinStored(pin); setCoachUnlocked(true); setCoachPinInput(""); setCoachPinError(""); setView("coach"); setResult("Coach PIN set. Coaches is unlocked on this device until you lock it.");
+    } else {
+      if(coachPinInput.trim()===coachPinStored){ setCoachUnlocked(true); setCoachPinInput(""); setCoachPinError(""); setView("coach"); }
+      else setCoachPinError("Wrong Coach PIN.");
+    }
+  }
+  function lockCoaches(){ setCoachUnlocked(false); setCoachPinInput(""); setView("wall"); setResult("Coaches locked."); }
+  function resetCoachPin(){ try{ localStorage.removeItem("grit:coachPin"); }catch{} setCoachPinStored(""); setCoachUnlocked(false); setCoachPinInput(""); setCoachPinError(""); setResult("Coach PIN cleared — set a new one next time you open Coaches."); }
   function handleUnlock(){
     const athlete = selectedAthlete;
     if(!athlete) return;
     const pin = String(pinInput).trim();
     if(pin.length===4 && (!athlete.pin || pin===athlete.pin)){
       if(!athlete.pin) updateAthlete(athlete.id,{pin});
-      setLoggedInAthleteId(athlete.id); setTrainingAthleteId(athlete.id); setLoginError(""); setPinInput(""); setResult(""); setAthleteAppMode(true); setView("wall");
+      setLoggedInAthleteId(athlete.id); setTrainingAthleteId(athlete.id); setLoginError(""); setPinInput(""); setResult("");
     }
     else { setLoginError("Incorrect PIN"); }
   }
-  function handleLock(){ setLoggedInAthleteId(null); setPinInput(""); setLoginError(""); setAthleteAppMode(false); setView("wall"); }
+  function handleLock(){ setLoggedInAthleteId(null); setPinInput(""); setLoginError(""); }
   async function saveTrainingFocus(){ await saveFocus(); }
   function handleShare(){ shareIconOnly(); }
   async function persistSettings(patch: Record<string, any>){
@@ -979,7 +1079,7 @@ export default function App(){
         updated++;
       }
       await reloadRecords();
-      setCalendarSyncMsg(updated ? `${updated} session${updated===1?"":"s"} marked synced (local list only — live sessions come from the iCal feed below).` : "All sessions are already marked synced.");
+      setCalendarSyncMsg(updated ? `${updated} session${updated===1?"":"s"} marked synced to Google Calendar.` : "All sessions are already marked synced.");
       flashSaved();
     }catch(e:any){ setCalendarSyncMsg(e.message||"Could not sync sessions."); }
     setBusy(false);
@@ -1041,7 +1141,7 @@ export default function App(){
       { label:"Supabase", ok: supabaseStatus==="Connected", detail: supabaseStatus==="Connected" ? "Connected" : "Not Connected", synced: supabaseLastChecked || "Not checked yet" },
       { label:"Google Calendar", ok: calendarConnected, detail: calendarConnected ? "Connected" : "Not connected", synced: calendarLastChecked || "Not checked yet" },
       { label:"Progress Docs Sync", ok: docsOk, detail: docsOk ? "At least one Doc synced" : "No Doc synced yet", synced: lastDoc ? new Date(lastDoc).toLocaleString() : "Not synced yet" },
-      { label:"Roster (28)", ok: athletes.length===28, detail: `${athletes.length} athletes`, synced: stamp },
+      { label:"Roster", ok: athletes.length>0, detail: "Roster loaded", synced: stamp },
       { label:"Training Blocks (4)", ok: SECTIONS.length===4, detail: "4 blocks", synced: stamp },
       { label:"PINs Set", ok: pinsOk, detail: pinsOk ? "Every athlete has a 4-digit PIN" : "One or more PINs are missing", synced: stamp },
     ];
@@ -1073,7 +1173,6 @@ export default function App(){
   }
   const toggleReaction = (id:string, kind:"fire")=> setReactions(prev=> prev[id]===kind ? {...prev, [id]: undefined as any} : {...prev, [id]:kind});
   const spotlightAthlete = athletes.find(a=>a.id===spotlightId) || null;
-  const athleteOfWeek = (athleteOfWeekId ? athletes.find(a=>a.id===athleteOfWeekId) : athletes.find(a=>a.name==="Mackenzie Mercer")) || null;
   const coachDocAthlete = athletes.find(a=>a.id===coachDocAthleteId) || null;
   const leaderAthlete = athletes.find(a=>a.id===leaderAthleteId) || null;
 
@@ -1081,12 +1180,13 @@ export default function App(){
 
   return (
     <div data-safe-area-inset-root="" className="min-h-[100dvh] bg-[#0F1113] text-[#F2EFE9] overflow-x-clip" style={{boxSizing: 'border-box', paddingTop: 'var(--safe-area-inset-top)'}}>
-      <PhotoBackground />
-      {/* Top: We. Are. Built. + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
+      <PhotoBackground view={view} />
+      {/* Top header is NOT tabs — just logo + Share + Coaches. Tabs live ONLY in the bottom app nav. */}
       <div className="relative z-10 mx-auto max-w-[430px] px-3 pt-2">
         <div className="flex items-center justify-between gap-2">
           <button onClick={()=>goTab("wall")} className="flex min-h-[44px] min-w-0 items-center gap-2" aria-label="The GRIT home">
-            <span className="font-display font-bold text-[17px] leading-none tracking-[0.12em] whitespace-nowrap">We. Are. <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></span>
+            <GritIcon size={36} rounded={9} />
+            <span className="font-display font-bold text-[17px] leading-none tracking-[0.12em] whitespace-nowrap">THE GRIT<span className="text-[#C9A86A]">.</span></span>
           </button>
           {savedFlash && <span className="inline-flex min-h-[28px] shrink-0 items-center gap-1 rounded-full bg-[#C9A86A] px-2.5 text-[11px] font-bold text-black" role="status">Saved</span>}
           <div className="flex shrink-0 items-center gap-1.5">
@@ -1097,93 +1197,49 @@ export default function App(){
           </div>
         </div>
         {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
-        {view==="wall" && (
         <div className="pt-2 text-center">
-          <span className="grit-logo font-display font-bold leading-none tracking-[0.06em] text-[clamp(44px,12vw,60px)]">THE&nbsp;<span className="text-[#C9A86A]">G</span>RIT<span className="text-[#C9A86A]">.</span></span>
+          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9]">We Are <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
           <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
         </div>
-        )}
-        <nav aria-label="Main navigation" className="glass-nav no-scrollbar mt-3 flex items-center gap-1 overflow-x-auto px-1.5 py-1.5">
-          {navTabs.map(t=>{
-            const active = view===t.id || (t.id==="pillars" && (view==="pillars" || view==="impact"));
-            const Icon = t.icon;
-            return <button key={t.id} onClick={()=>goTab(t.id)} aria-current={active?"page":undefined} className={`flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-[12px] font-bold whitespace-nowrap ${active?"bg-[#C9A86A] text-black":"text-white/85"}`}><Icon size={15}/>{t.label}</button>;
-          })}
-          {athleteAppMode && <button onClick={()=>handleLock()} className="flex min-h-[40px] shrink-0 items-center rounded-full border border-white/25 px-3.5 py-2 text-[12px] font-bold whitespace-nowrap text-white/85">Log out</button>}
-        </nav>
       </div>
 
-      <main className="relative z-10 mx-auto max-w-[430px] px-4 pb-8 lg:px-8">
+      <main className="relative z-10 mx-auto max-w-[430px] px-4 pb-[128px] lg:px-8">
         {view==="wall" ? (
           <div className="md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
             <section className="pt-5 md:col-span-1 lg:col-span-2">
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
                 <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
-                <div className="mt-2" />
-                <div className="mt-5 flex flex-wrap justify-center gap-2">
-                  <button onClick={()=>goTab("programs")} className="min-h-[40px] rounded-full bg-[#C9A86A] px-5 py-2 text-[13px] font-bold text-black active:scale-[0.98]">Explore Programs →</button>
-                  {athleteAppMode ? (
-                    <button onClick={()=>goTab("training")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Open Your Training →</button>
-                  ) : (
-                    <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
-                  )}
+                <div className="grit-logo-big mt-4 flex justify-center"><GritIcon size={230} rounded={34} /></div>
+                <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(30px,8.5vw,42px)]">THE GRIT<span className="text-[#C9A86A]">.</span></p>
+                <div className="mt-5 flex justify-center">
+                  <button onClick={()=>goTab("athletes")} className="min-h-[48px] rounded-full bg-[#C9A86A] px-6 py-3 text-[14px] font-bold text-black active:scale-[0.98]">Athlete Login →</button>
                 </div>
               </div>
             </section>
 
-            {athleteOfWeek && (
-              <section className="mt-4 rounded-[26px] border border-[#C9A86A]/50 bg-black/35 px-5 py-5 text-center">
-                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">ATHLETE OF THE WEEK</p>
-                {athletePhotos[athleteOfWeek.id] ? <img src={athletePhotos[athleteOfWeek.id]} alt={`${athleteOfWeek.name} — Athlete of the Week`} className="mx-auto mt-3 h-[150px] w-[150px] rounded-full object-cover border-2 border-[#C9A86A]/60" /> : null}
-                <h3 className="font-display text-[28px] leading-tight mt-3">{athleteOfWeek.name}</h3>
-                <p className="text-sm text-white/75 mt-1">{[athleteOfWeek.sport, athleteOfWeek.position].filter(Boolean).join(" • ") || "The GRIT"}</p>
-                {athleteOfWeek.mindset ? <p className="text-[15px] leading-relaxed text-white/85 mt-2">“{athleteOfWeek.mindset}”</p> : null}
-              </section>
-            )}
-
-            {!athleteAppMode && (
-              <>
-                <section className="mt-6 rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
-                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">WHAT IS THE GRIT?</p>
-                  <p className="mt-2 text-[16px] leading-relaxed text-white/90">Mindset-first training that develops athletes as players <span className="text-[#C9A86A] font-bold">and</span> people — for their communities and their families.</p>
-                  <p className="mt-3 text-[15px] leading-relaxed text-white/85">Not just workouts: mindset, discipline, accountability, and showing up for the athlete next to you.</p>
-                </section>
-                <section className="mt-4 grid grid-cols-3 gap-2 text-center">
-                  {(["EFFORT","DISCIPLINE","IMPACT"] as const).map(p=>(
-                    <div key={p} className="rounded-2xl border border-white/15 bg-black/35 px-2 py-4">
-                      <p className="font-display text-[15px] font-bold tracking-wide text-[#C9A86A]">{p}</p>
-                      <p className="mt-1 text-[11px] leading-snug text-white/70">{p==="EFFORT" ? "Show up. Do the work." : p==="DISCIPLINE" ? "Do it right when nobody is watching." : "Lift up the athlete next to you."}</p>
-                    </div>
-                  ))}
-                </section>
-                <section className="mt-6">
-                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">PROGRAMS</p>
-                  <h2 className="font-display text-[30px] leading-none mt-2">Four ways to train with The GRIT.</h2>
-                  <div className="mt-4 space-y-3">
-                    {[
-                      {name:"GRIT ATHLETE", format:"Individual 1-on-1 training", desc:"Personal coaching built around the athlete: strength, speed, mindset, and accountability, one on one.", subject:"GRIT Athlete - Get Started"},
-                      {name:"GRIT TEAM", format:"Whole-team program • 6–8 weeks", desc:"Entire teams — baseball, softball, any sport — get a 6–8 week program building physical and mental strength and resilience, together.", subject:"GRIT Team - Get Started"},
-                      {name:"GRIT ON TURF", format:"1-hour sessions", desc:"Focused on acceleration, first-step quickness, mastering the art of changing direction, velocity, and explosive movement.", subject:"GRIT on Turf - Get Started"},
-                      {name:"GRIT ACCOUNTABILITY", format:"For adults and parents", desc:"Movement that fits real life — training built for limited time frames, with the accountability to actually stick to it.", subject:"GRIT Accountability - Get Started"},
-                    ].map(pr=>(
-                      <div key={pr.name} className="rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
-                        <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">{pr.format.toUpperCase()}</p>
-                        <h3 className="font-display text-[26px] leading-tight mt-2">{pr.name}</h3>
-                        <p className="text-[15px] text-white/85 mt-2 leading-relaxed">{pr.desc}</p>
-                        <a href={`mailto:thepiviotproject@kbuiltsoftball.com?subject=${encodeURIComponent(pr.subject)}`} className="mt-4 flex min-h-[48px] items-center justify-center rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Get Started →</a>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              </>
-            )}
+            {/* WHAT IS GRIT — dropdown */}
+            <section className="mt-6">
+              <button onClick={()=>setWhatIsGritOpen(v=>!v)} aria-expanded={whatIsGritOpen} className="flex w-full items-center justify-between gap-3 rounded-[26px] border-2 border-[#C9A86A] bg-[#2E4038] px-5 py-5 text-left active:bg-[#35493F]">
+                <span>
+                  <span className="block text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">WHAT IS GRIT</span>
+                  <span className="mt-1 block font-display text-[26px] font-bold leading-tight text-[#F2EFE9]">What Is The GRIT?</span>
+                </span>
+                <span className="shrink-0 text-[22px] font-bold text-[#C9A86A]">{whatIsGritOpen ? "−" : "+"}</span>
+              </button>
+              {whatIsGritOpen && (
+                <div className="mt-3 rounded-[26px] border border-white/15 bg-black/45 px-5 py-5">
+                  <p className="text-[15px] leading-relaxed text-white/90">The GRIT is how we train — and how we live. It&apos;s 1-on-1 training built around speed, strength, and quickness, plus the mindset to keep showing up when it&apos;s hard.</p>
+                  <p className="mt-3 text-[15px] leading-relaxed text-white/90">Every athlete gets a plan for their sport: Dynamic Stretch, Core, Main Lift, Speed, Agility &amp; Explode — plus homework, mindset, and a daily standard to live up to.</p>
+                  <p className="mt-3 text-[15px] leading-relaxed text-white/90">GRIT isn&apos;t just for the field. It&apos;s for becoming the best player — and the best person — for your team, your family, and your community.</p>
+                </div>
+              )}
+            </section>
 
             {quoteText ? (
               <section className="mt-6 px-2 text-center">
                 <p className="text-[17px] italic leading-relaxed text-white/90">“{quoteText}”</p>
               </section>
             ) : null}
-            {athleteAppMode && (<>
             <section className="mt-6">
               <button onClick={()=>goTab("become")} className="block w-full rounded-[26px] border-2 border-[#C9A86A] bg-[#2E4038] px-5 py-6 text-left active:bg-[#35493F]">
                 <p className="font-display font-bold leading-[1.05] text-[clamp(30px,8.5vw,40px)] text-[#F2EFE9]">HOW DO I<br/>BECOME<span className="text-[#C9A86A]">…</span></p>
@@ -1198,7 +1254,6 @@ export default function App(){
               <p className="mt-1.5 text-xs text-white/75">{challengeProgress}% of the team in — {challengeDoneCount} of {athletes.length} • {currentChallenge.points} pts</p>
               <button onClick={()=>goTab("pillars")} className="mt-4 w-full min-h-[48px] rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Mark It Complete →</button></> : <p className="text-[15px] text-white/85 mt-2">No challenge set yet — your coach sets one on Mindset &amp; Impact.</p>}
             </section>
-            </>)}
           </div>
         ) : view==="training" ? (
           <section className="pt-5">
@@ -1304,9 +1359,8 @@ export default function App(){
           </section>
         ) : view==="athletes" ? (
           <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">YOUR GRIT PROFILE • {athletes.length} ROSTER SPOTS</p>
+            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">YOUR GRIT PROFILE</p>
             <h2 className="font-display text-[36px] leading-none mt-2">Your GRIT Profile</h2>
-            <p className="mt-3 font-display text-[19px] font-semibold leading-snug text-[#F2EFE9]">28 Athletes — GRIT Starting Nov 1, 2026</p>
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
               <label className="block text-xs font-bold tracking-widest text-[#C9A86A]" htmlFor="profile-name-search">YOUR NAME</label>
               <div className="relative mt-2">
@@ -1332,11 +1386,6 @@ export default function App(){
               <button onClick={addAthlete} className="mt-3 w-full min-h-[44px] inline-flex items-center justify-center gap-2 border border-white/25 px-4 py-2 rounded-full text-sm font-semibold"><Plus size={15}/> Add Athlete / Roster Spot</button>
             </div>
             <div className="gold-rule mt-4" aria-hidden="true" />
-            {selectedAthlete && (()=>{
-              const week = athleteWeekSessions(selectedAthlete.id);
-              if(!week.length) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No GRIT sessions this week yet — when your coach adds one with GRIT in the description and your name on it, it shows here.</p>;
-              return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">THIS WEEK'S GRIT SESSIONS</p>{week.map((ns:any)=>{ const d = new Date(ns.start); return <div key={ns.id||ns.start} className="mt-2 border-t border-white/10 pt-2 text-left"><p className="font-display text-lg font-bold leading-tight">{ns.title}</p><p className="text-sm text-white/85 mt-0.5">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}</div>; })}<p className="text-xs text-white/60 mt-2">Calendar • Synced • thepiviotproject@kbuiltsoftball.com</p></div>;
-            })()}
             {!selectedAthlete ? (
               <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-4 text-center">
                 <p className="font-display text-2xl">Select your profile</p>
@@ -1345,22 +1394,20 @@ export default function App(){
             ) : !isProfileUnlocked ? (
               <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-4 text-center">
                 <div className="relative mx-auto flex h-[220px] w-full max-w-[300px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#C9A86A]/40" style={{background:"linear-gradient(160deg, #2E4038 0%, #0F1113 62%, #22302A 100%)"}}>
-                  {athletePhotos[selectedAthlete.id] ? <img src={athletePhotos[selectedAthlete.id]} alt={`${selectedAthlete.name} profile photo`} className="h-[150px] w-[150px] rounded-full object-cover border-2 border-[#C9A86A]/60" /> : <span className="font-display text-[64px] font-bold leading-none text-[#C9A86A]">{selectedAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span>}
+                  <span className="font-display text-[64px] font-bold leading-none text-[#C9A86A]">{selectedAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span>
                   <span className="mt-3 text-[11px] font-bold tracking-[0.28em] text-[#F2EFE9]/80">YOUR GRIT PROFILE</span>
                 </div>
                 <p className="font-display text-2xl mt-4 leading-tight">{selectedAthlete.name}</p>
-                <label className="mt-3 inline-flex min-h-[44px] cursor-pointer items-center justify-center rounded-full border border-[#C9A86A]/60 px-4 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Upload Photo<input type="file" accept="image/*" className="hidden" onChange={e=>{ handlePhotoUpload(selectedAthlete.id, e.target.files?.[0]); e.target.value=""; }} /></label>
               </div>
             ) : (
               <div className="mt-4">
                 <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-2 md:grid md:grid-cols-2 md:gap-x-6 md:items-start">
                   <div className="relative mx-auto flex h-[340px] w-full max-w-[340px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#C9A86A]/40 md:col-span-2" style={{background:"linear-gradient(160deg, #2E4038 0%, #0F1113 62%, #22302A 100%)"}}>
-                    {athletePhotos[selectedAthlete.id] ? <img src={athletePhotos[selectedAthlete.id]} alt={`${selectedAthlete.name} profile photo`} className="h-[170px] w-[170px] rounded-full object-cover border-2 border-[#C9A86A]/60" /> : <span className="font-display text-[84px] font-bold leading-none text-[#C9A86A]">{selectedAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span>}
+                    <span className="font-display text-[84px] font-bold leading-none text-[#C9A86A]">{selectedAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span>
                     <span className="mt-3 text-[11px] font-bold tracking-[0.28em] text-[#F2EFE9]/80">YOUR GRIT PROFILE</span>
                   </div>
                   <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold text-center mt-4">YOUR GRIT PROFILE</p>
-                  <div className="mt-3 text-center"><label className="inline-flex min-h-[44px] cursor-pointer items-center justify-center rounded-full border border-[#C9A86A]/60 px-4 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Upload Photo<input type="file" accept="image/*" className="hidden" onChange={e=>{ handlePhotoUpload(selectedAthlete.id, e.target.files?.[0]); e.target.value=""; }} /></label></div>
-                  {(selectedAthlete.program || selectedAthlete.startDate) ? <p className="text-xs text-[#D4B483] mt-2 font-semibold text-center">{selectedAthlete.program || ""}{selectedAthlete.program && selectedAthlete.startDate ? " • " : ""}{selectedAthlete.startDate ? `Starting ${selectedAthlete.startDate}` : ""}</p> : null}
+                  
                   <label className="block mt-3 text-xs font-bold tracking-widest text-[#C9A86A]">YOUR NAME</label>
                   <input value={selectedAthlete.name} onChange={e=>updateAthlete(selectedAthlete.id,{name:e.target.value})} className="mt-2 w-full min-h-[52px] bg-white/5 border border-white/15 rounded-xl px-3 py-3 font-display text-2xl outline-none focus:border-[#C9A86A]" />
                   <label className="block mt-4"><span className="text-sm font-semibold text-[#D4B483]">Your Sport</span><input value={selectedAthlete.sport} onChange={e=>updateAthlete(selectedAthlete.id,{sport:e.target.value})} className="mt-1 w-full min-h-[52px] bg-white/5 border border-white/15 rounded-xl px-3 py-3 text-[16px] outline-none focus:border-[#C9A86A]"/></label>
@@ -1530,28 +1577,19 @@ export default function App(){
               <button onClick={()=>goTab("formats")} className="mt-4 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Formats | Payment →</button>
             </section>
           </div>
-        ) : view==="programs" ? (
+        ) : view==="coachLock" ? (
           <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">PROGRAMS</p>
-            <h2 className="font-display text-[36px] leading-none mt-2">Four ways to train with The GRIT.</h2>
-            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">For athletes, for teams, for adults. Pick the one that fits — then reach out and we&apos;ll get you started.</p>
-            <div className="mt-5 space-y-4">
-              {[
-                {name:"GRIT ATHLETE", format:"Individual 1-on-1 training", desc:"Personal coaching built around the athlete: strength, speed, mindset, and accountability, one on one.", subject:"GRIT Athlete - Get Started"},
-                {name:"GRIT TEAM", format:"Whole-team program • 6–8 weeks", desc:"Entire teams — baseball, softball, any sport — get a 6–8 week program building physical and mental strength and resilience, together.", subject:"GRIT Team - Get Started"},
-                {name:"GRIT ON TURF", format:"1-hour sessions", desc:"Focused on acceleration, first-step quickness, mastering the art of changing direction, velocity, and explosive movement.", subject:"GRIT on Turf - Get Started"},
-                {name:"GRIT ACCOUNTABILITY", format:"For adults and parents", desc:"Movement that fits real life — training built for limited time frames, with the accountability to actually stick to it.", subject:"GRIT Accountability - Get Started"},
-              ].map(pr=>(
-                <div key={pr.name} className="rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
-                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">{pr.format.toUpperCase()}</p>
-                  <h3 className="font-display text-[26px] leading-tight mt-2">{pr.name}</h3>
-                  <p className="text-[15px] text-white/85 mt-2 leading-relaxed">{pr.desc}</p>
-                  <a href={`mailto:thepiviotproject@kbuiltsoftball.com?subject=${encodeURIComponent(pr.subject)}`} className="mt-4 flex min-h-[48px] items-center justify-center rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Get Started →</a>
-                </div>
-              ))}
+            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">COACHES • LOCKED</p>
+            <h2 className="font-display text-[36px] leading-none mt-2">Coaches</h2>
+            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">{coachPinStored ? "This area is for coaches only. Enter your Coach PIN to open it." : "This area is for coaches only. Set a Coach PIN now — athletes will need it to get in, so keep it to yourself."}</p>
+            <div className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
+              <label className="block text-sm font-semibold">{coachPinStored ? "Coach PIN" : "Set a 4-digit Coach PIN"}<input value={coachPinInput} onChange={e=>setCoachPinInput(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} onKeyDown={e=>{ if(e.key==="Enter") unlockCoaches(); }} inputMode="numeric" placeholder="••••" className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[20px] tracking-[0.4em] text-center" /></label>
+              {coachPinError && <p className="mt-2 text-sm font-bold text-red-300">{coachPinError}</p>}
+              <button onClick={unlockCoaches} className="mt-3 w-full min-h-[52px] rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">{coachPinStored ? "Unlock Coaches →" : "Set PIN + Unlock Coaches →"}</button>
+              <button onClick={()=>goTab("wall")} className="mt-2 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-sm font-semibold">Back to The GRIT</button>
+              {coachPinStored && <button onClick={resetCoachPin} className="mt-2 w-full min-h-[44px] text-xs text-white/50">Forgot PIN? Clear it and set a new one</button>}
+              <p className="mt-3 text-xs text-white/60">Same app for everyone — Coaches is just PIN-locked. It stays unlocked on this phone until you tap Lock Coaches.</p>
             </div>
-            <p className="mt-5 text-center text-[15px] leading-relaxed text-white/85">Not sure which program fits? Reach out — we&apos;ll point you the right way.</p>
-            <a href="mailto:thepiviotproject@kbuiltsoftball.com?subject=Which%20GRIT%20program%20fits%20me%3F" className="mt-3 flex min-h-[48px] items-center justify-center rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Email The GRIT →</a>
           </section>
         ) : view==="formats" ? (
           <section className="pt-5">
@@ -1579,20 +1617,9 @@ export default function App(){
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold md:col-span-2 lg:col-span-3">COACHES • DASHBOARD</p>
             <h2 className="font-display text-[36px] leading-none mt-2 md:col-span-2 lg:col-span-3">Coaches</h2>
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed md:col-span-2 lg:col-span-3">Dashboard, setup, and checks — all in one place.</p>
+            <button onClick={lockCoaches} className="mt-3 min-h-[44px] rounded-full border border-white/25 px-4 py-2 text-sm font-semibold md:col-span-2 lg:col-span-3">🔒 Lock Coaches</button>
             {lastSyncedAt && <p className="mt-3 text-sm text-[#D4B483]">Last synced: {lastSyncedAt}</p>}
             {result && <p className="mt-3 text-sm text-[#D4B483] bg-black/35 border border-white/10 rounded-xl px-3 py-2">{result}</p>}
-            <div className="mt-4 rounded-[22px] border border-[#C9A86A]/50 bg-black/35 p-4">
-              <h3 className="font-display text-xl">Athlete of the Week</h3>
-              <p className="text-sm text-white/75 mt-1">Pick who shows on the Home wall. Change it any time — it saves on this device.</p>
-              <p className="text-sm mt-2">Current: <strong className="text-[#C9A86A]">{athleteOfWeek ? athleteOfWeek.name : "None set"}</strong></p>
-              <label className="block text-sm mt-3">Choose Athlete of the Week
-                <select value={athleteOfWeekId} onChange={e=>setAthleteOfWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]">
-                  <option value="">— Default: Mackenzie Mercer —</option>
-                  {athletes.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-              </label>
-              {athleteOfWeekId && <button onClick={()=>setAthleteOfWeek("")} className="mt-2 min-h-[44px] rounded-full border border-white/25 px-4 py-2 text-[13px] font-semibold">Reset to Mackenzie Mercer</button>}
-            </div>
             <div className="mt-4">
               <h3 className="font-display text-xl">Dashboard Overview</h3>
               <div className="grid grid-cols-2 gap-2 mt-3 lg:grid-cols-3">
@@ -1625,26 +1652,36 @@ export default function App(){
               </div>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
-              <h3 className="font-display text-xl flex items-center gap-2"><CalendarDays size={20} className="text-[#C9A86A]"/> Google Calendar — Connect + Check</h3>
+              <h3 className="font-display text-xl flex items-center gap-2"><CalendarDays size={20} className="text-[#C9A86A]"/> Google Calendar — Connect + Sync</h3>
+              <div className="mt-3 rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4">
+                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">GOOGLE CALENDAR • CALENDAR ID SYNC — NO iCAL</p>
+                <p className="mt-2 text-[14px] leading-relaxed text-white/85">No iCal link here. This app syncs through the <strong>Apps Script + Calendar ID</strong> you already wrote, into <strong>Supabase</strong>.</p>
+                <label className="block text-sm font-semibold mt-3">Google Calendar ID<input value={calendarId} onChange={e=>setCalendarId(e.target.value)} placeholder="thepiviotproject@kbuiltsoftball.com" className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]" /></label>
+                <div className="mt-3 rounded-xl bg-[#2E4038]/90 border border-white/10 p-3 text-[13px] leading-relaxed text-white/80">
+                  <p className="font-bold text-[#C9A86A]">HOW IT SYNCs</p>
+                  <p className="mt-1">1. Script reads this Calendar ID.</p>
+                  <p>2. It keeps only events whose <strong>description contains “GRIT”</strong>.</p>
+                  <p>3. It matches the event to an athlete by <strong>athlete name in the description</strong>.</p>
+                  <p>4. It writes those sessions to Supabase (<strong>grit_calendar_events</strong>).</p>
+                  <p>5. This app reads Supabase — every phone sees the same next session.</p>
+                </div>
+                <p className="mt-2 text-xs leading-relaxed text-white/60">Supabase: {supabaseStatus} • Last checked: {calendarLastChecked || "Not checked yet"}. If sessions aren&apos;t showing, run the script in Apps Script and check that the event description has both “GRIT” and the athlete&apos;s exact name.</p>
+                {calendarSyncMsg && <p className="mt-2 text-sm text-[#D4B483]">{calendarSyncMsg}</p>}
+              </div>
               <p className="text-sm mt-2">Calendar status: <strong className="text-[#C9A86A]">{calendarConnected ? "Connected" : "Not connected"}</strong></p>
-              <p className="text-sm text-white/80 mt-1">Account: thepiviotproject@kbuiltsoftball.com</p>
+              <p className="text-sm text-white/80 mt-1">Calendar ID: {calendarId}</p>
               <p className="text-sm text-white/80">Time zone: America/Detroit</p>
               <p className="text-xs text-white/60 mt-1">Last checked: {calendarLastChecked || "Not checked yet"}</p>
               <label className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#2E4038]/90 border border-white/10 px-3 py-3 text-sm font-semibold"><span>Sync GRIT Sessions to Calendar</span><button role="switch" aria-checked={calendarSyncOn} onClick={toggleCalendarSync} className={`min-h-[32px] min-w-[56px] rounded-full px-2 text-xs font-bold ${calendarSyncOn?"bg-[#C9A86A] text-black":"bg-white/15 text-white"}`}>{calendarSyncOn?"On":"Off"}</button></label>
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={checkCalendar} className="flex-1 min-h-[48px] border border-white/25 px-3 py-2.5 rounded-full text-sm font-semibold">Check Google Calendar Connection</button><button disabled={busy} onClick={syncCalendarSessions} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-3 py-2.5 rounded-full text-sm disabled:opacity-50">Sync GRIT Sessions</button></div>
               <div className="mt-4 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNC FROM GOOGLE CALENDAR — BACKEND SYNC</p>
-                <p className="text-sm text-white/75 mt-1">Every phone pulls the public iCal feed straight from Google Calendar when the app opens — paste the feed link below once. Only events with GRIT in the description and an athlete's name on them show on that athlete's profile; everything else on the calendar is ignored. If it pulls 0 events, check Google Calendar &gt; Settings &gt; this calendar &gt; Make available to public.</p>
-                <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — THIS DEVICE ONLY</p>
+                <p className="text-sm text-white/75 mt-1">Apps Script runs on this Calendar ID and writes to Supabase — all phones read the same sessions. Manual add below is only a fallback.</p>
+                <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — SYNCED TO ALL PHONES</p>
                 <label className="block text-sm mt-2">Athlete<select value={nextSessionAthleteId} onChange={e=>setNextSessionAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
                 <div className="flex gap-2 mt-2"><label className="flex-1 text-sm">Date<input type="date" value={nextSessionDate} onChange={e=>setNextSessionDate(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label><label className="flex-1 text-sm">Time<input type="time" value={nextSessionTime} onChange={e=>setNextSessionTime(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label></div>
                 <label className="block text-sm mt-2">Title (optional)<input value={nextSessionTitle} onChange={e=>setNextSessionTitle(e.target.value)} placeholder="GRIT Session" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
-                <button onClick={addManualNextSession} className="mt-2 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Save Next Session</button>
-                <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ONE-OFF IMPORT (THIS DEVICE ONLY)</p>
-                <label className="block text-sm mt-2">Public iCal link<input value={calendarFeedUrl} onChange={e=>setCalendarFeedUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
-                <button disabled={busy} onClick={fetchCalendarFeed} className="mt-2 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">Sync from iCal Link</button>
-                <label className="block text-sm mt-3">Or paste .ics text<textarea value={calendarIcsText} onChange={e=>setCalendarIcsText(e.target.value)} rows={4} placeholder="BEGIN:VCALENDAR…" className="mt-1 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[13px] font-mono"/></label>
-                <button onClick={()=>importIcsText(calendarIcsText)} className="mt-2 w-full min-h-[48px] border border-white/25 px-4 py-2.5 rounded-full text-sm font-semibold">Import Pasted .ics</button>
+                <button onClick={addManualNextSession} className="mt-2 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Save Next Session to Supabase</button>
                 {calendarEvents.length>0 && <div className="mt-3"><p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNCED EVENTS ({calendarEvents.length})</p><ul className="mt-2 space-y-2">{calendarEvents.slice(0,6).map((e:any)=>(<li key={e.id} className="flex justify-between gap-2 text-[13px] border-b border-white/10 pb-2 last:border-0"><span className="min-w-0"><span className="font-semibold">{e.title}</span><span className="block text-xs text-white/60">{new Date(e.start).toLocaleString()} • {e.source}</span></span><button onClick={async()=>{ setCalendarEvents((p:any[])=>p.filter((x:any)=>x.id!==e.id)); try{ await callApi("records.delete",{collection:"grit_next_sessions", id:e.id}); }catch{} }} className="text-xs text-white/60 shrink-0 px-2">Remove</button></li>))}</ul></div>}
               </div>
               {calendarSyncMsg && <p className="mt-2 text-sm text-[#D4B483]">{calendarSyncMsg}</p>}
@@ -1756,7 +1793,17 @@ export default function App(){
         )}
       </main>
 
-      <button onClick={()=>{setDictOpen(true);}} className="fixed right-4 z-50 flex min-h-[52px] items-center gap-2 rounded-full bg-[#C9A86A] text-[#0F1113] pl-3 pr-4 py-3 shadow-2xl font-bold text-sm hover:bg-[#D4B483] active:scale-[0.97]" style={{bottom:"calc(20px + var(--safe-area-inset-bottom, 0px))"}} aria-label="Open Voice Dictation">
+      <nav aria-label="Bottom navigation" className="fixed bottom-0 left-0 right-0 z-40 bg-[#0F1113]/95 border-t-2 border-[#C9A86A]/60 shadow-[0_-8px_30px_rgba(0,0,0,0.6)] backdrop-blur" style={{paddingBottom:"var(--safe-area-inset-bottom, 0px)"}}>
+        <div className="mx-auto max-w-[430px] grid grid-cols-4 lg:px-8">
+          {TABS.map(t=>{
+            const active = view===t.id || (t.id==="pillars" && view==="pillars");
+            const Icon = t.icon;
+            return <button key={t.id} onClick={()=>goTab(t.id)} aria-current={active?"page":undefined} className={`min-h-[64px] flex flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 active:bg-white/5 ${active?"text-[#C9A86A]":"text-white/65"}`}><Icon size={20}/><span className="text-[9px] font-bold leading-tight text-center break-words">{t.label}</span>{active && <span className="mt-0.5 h-1 w-5 rounded-full bg-[#C9A86A]"/>}</button>;
+          })}
+        </div>
+      </nav>
+
+      <button onClick={()=>{setDictOpen(true);}} className="fixed right-4 z-50 flex min-h-[52px] items-center gap-2 rounded-full bg-[#C9A86A] text-[#0F1113] pl-3 pr-4 py-3 shadow-2xl font-bold text-sm hover:bg-[#D4B483] active:scale-[0.97]" style={{bottom:"calc(84px + var(--safe-area-inset-bottom, 0px))"}} aria-label="Open Voice Dictation">
         <MessageSquareText size={20}/><span>Dictation Voice</span>
       </button>
 
@@ -1780,6 +1827,20 @@ export default function App(){
                 <><label className="block text-xs font-bold tracking-widest text-[#C9A86A] mt-4">TRAINING BLOCK</label>
                 <select value={dictQuestionBlock} onChange={e=>setDictQuestionBlock(e.target.value)} className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-xl px-3 py-3 text-[16px]"><option value="">Select Block</option>{SECTIONS.map(s=><option key={s} value={s}>{s}</option>)}</select></>
               )}
+              <div className="mt-4 rounded-2xl border-2 border-[#C9A86A] bg-black/45 px-4 py-4">
+                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">SMART DICTATE — NO PICKS NEEDED</p>
+                <p className="mt-2 text-[15px] leading-relaxed text-white/90">Tap Start, then just say the athlete&apos;s name + their training. Say <strong className="text-[#C9A86A]">“save”</strong> when you&apos;re done and it fills + saves to their profile. Keep going to the next athlete.</p>
+                <p className="mt-2 rounded-xl bg-[#2E4038]/90 px-3 py-2 text-[13px] text-white/85">Try: <em>“Mackenzie Mercer — stretch leg swings, core plank, main lift trap bar deadlift, speed 10-yard sprints, homework 20 pushups — save”</em></p>
+                <div className="mt-3 flex gap-2">
+                  {smartStatus==="Listening" ? <button onClick={stopSmartDictation} className="flex-1 min-h-[52px] rounded-full border border-white/25 px-4 py-3 text-sm font-bold">Stop</button> : <button onClick={startSmartDictation} className="flex-1 min-h-[52px] rounded-full bg-[#C9A86A] px-4 py-3 text-sm font-bold text-black active:scale-[0.98]">🎤 Start Smart Dictate</button>}
+                  <button disabled={busy || !smartTranscript.trim()} onClick={()=>saveSmartDictation()} className="flex-1 min-h-[52px] rounded-full border border-[#C9A86A] px-4 py-3 text-sm font-bold disabled:opacity-50">Save to Profile</button>
+                </div>
+                <p className="mt-3 text-sm font-bold text-[#D4B483]" role="status">{smartStatus==="Listening" ? "Listening — say name + training, then “save”..." : smartStatus==="Saved" ? `Saved${smartAthleteName?` to ${smartAthleteName}`:""} — say the next athlete` : smartStatus==="Paused" ? "Paused" : "Idle"}{smartInterim?` — ${smartInterim}`:""}</p>
+                {smartAthleteName && <p className="mt-1 text-sm text-white/85">Heard athlete: <strong className="text-[#C9A86A]">{smartAthleteName}</strong></p>}
+                <label className="mt-3 block text-xs font-bold tracking-widest text-[#C9A86A]">SMART TRANSCRIPT</label>
+                <textarea value={smartTranscript} onChange={e=>{ setSmartTranscript(e.target.value); smartTranscriptRef.current=e.target.value; const a=findAthleteFromText(e.target.value); if(a) setSmartAthleteName(a.name); }} rows={4} placeholder="Mackenzie Mercer — stretch... core... main lift... speed... homework... — save" className="mt-2 w-full rounded-xl border border-white/15 bg-white/5 p-3 text-[16px] outline-none focus:border-[#C9A86A]" />
+                <button onClick={()=>{ setSmartTranscript(""); smartTranscriptRef.current=""; setSmartAthleteName(""); setSmartStatus("Idle"); }} className="mt-2 w-full min-h-[44px] rounded-full border border-white/25 text-sm font-semibold">Clear Smart Transcript</button>
+              </div>
               <label className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-[#2E4038]/90 border border-white/10 px-3 py-3 text-sm font-semibold"><span className="inline-flex items-center gap-2">{dictHandsFree ? <Mic size={16} className="text-[#C9A86A]"/> : <MicOff size={16}/>} Hands-Free</span><button role="switch" aria-checked={dictHandsFree} onClick={()=>setDictHandsFree(v=>!v)} className={`min-h-[32px] min-w-[56px] rounded-full px-2 text-xs font-bold ${dictHandsFree?"bg-[#C9A86A] text-black":"bg-white/15 text-white"}`}>{dictHandsFree?"On":"Off"}</button></label>
               <div className="flex gap-2 mt-4">
                 {dictStatus==="Listening" ? <button onClick={stopManualDictation} className="flex-1 min-h-[52px] border border-white/25 rounded-full px-4 py-3 text-sm font-bold">Stop</button> : <button disabled={!dictSupported} onClick={startManualDictation} className="flex-1 min-h-[52px] bg-[#C9A86A] text-black font-bold px-4 py-3 rounded-full text-sm disabled:opacity-50">Start Dictation</button>}
@@ -1795,9 +1856,9 @@ export default function App(){
           </div>
         </div>
       )}
-      <footer className="relative z-10 mx-auto max-w-[430px] px-4 pb-6 pt-2 text-center text-xs text-white/65 lg:px-8">
+      <footer className="relative z-10 mx-auto max-w-[430px] px-4 pb-[92px] pt-2 text-center text-xs text-white/65 lg:px-8">
         <button onClick={()=>goTab("formats")} className="min-h-[44px] px-3 font-bold text-[#C9A86A]">Formats | Payment</button>
-        <p className="mt-1">The Pivot Project LLC — Expect Nothing Appreciate Everything</p>
+        <p className="mt-1">The GRIT — We are Built. We are Family. • Ink / Champagne / Bone / Moss</p>
         <p className="mt-2">Use the Share button in the header to share the GRIT icon.</p>
         {(view==="wall" || view==="coach") && <TinyAddToHomeLink />}
       </footer>
