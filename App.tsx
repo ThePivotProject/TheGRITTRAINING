@@ -340,6 +340,52 @@ export default function App(){
       setGrittyStatus("Mic blocked — allow microphone access in the browser, then try again.");
     }
   }
+  // CHECKLIST SECOND-TO-LAST — random easy sport question (athlete picks the sport) + random funny-fact question.
+  const SPORT_TRIVIA: Record<string,{q:string;options:string[];answer:number;fact:string}[]> = {
+    softball: [
+      {q:"How many outs does each team get in one half-inning?",options:["1","2","3","4"],answer:2,fact:"3 outs, then the other team bats."},
+      {q:"How many strikes is a strikeout?",options:["1","2","3","4"],answer:2,fact:"3 strikes and you're out!"},
+      {q:"What is it called when the batter hits the ball over the fence?",options:["A double","A bunt","A home run","A foul ball"],answer:2,fact:"Touch 'em all — home run!"},
+      {q:"How many players from one team are on the field at a time?",options:["7","8","9","10"],answer:2,fact:"9 on the field in softball."},
+      {q:"How many balls is a walk?",options:["2","3","4","5"],answer:2,fact:"4 balls — take your base."},
+      {q:"What does the pitcher throw from?",options:["Home plate","The pitching circle","Second base","The dugout"],answer:1,fact:"From the pitching circle."},
+    ],
+    baseball: [
+      {q:"How many strikes is a strikeout?",options:["1","2","3","4"],answer:2,fact:"3 strikes and you're out!"},
+      {q:"How many innings are in a pro baseball game?",options:["5","7","9","12"],answer:2,fact:"9 innings — unless it goes extras."},
+      {q:"What do you call the player who crouches behind home plate?",options:["The pitcher","The catcher","The umpire","The shortstop"],answer:1,fact:"The catcher — the toughest job on the field."},
+      {q:"How many players from one team are on the field at a time?",options:["7","8","9","10"],answer:2,fact:"9 on the field in baseball."},
+      {q:"How many balls is a walk?",options:["2","3","4","5"],answer:2,fact:"4 balls — take your base."},
+      {q:"What is it called when the pitcher throws 3 strikes past a batter?",options:["A walk","A strikeout","A home run","A foul"],answer:1,fact:"Strike three — sit down!"},
+    ],
+    football: [
+      {q:"How many points is a touchdown?",options:["3","6","7","10"],answer:1,fact:"6 points — then kick the extra point."},
+      {q:"How many points is a field goal?",options:["1","2","3","6"],answer:2,fact:"3 points through the uprights."},
+      {q:"How many players from one team are on the field at a time?",options:["9","10","11","12"],answer:2,fact:"11 on the field per team."},
+      {q:"How many downs does the offense get to gain 10 yards?",options:["2","3","4","5"],answer:2,fact:"4 downs to move the chains."},
+      {q:"How many quarters are in a football game?",options:["2","3","4","6"],answer:2,fact:"4 quarters — finish the game."},
+      {q:"What is it called when the defense tackles the quarterback behind the line?",options:["A fumble","An interception","A sack","A blitz"],answer:2,fact:"Sack! Big play by the defense."},
+    ],
+  };
+  const FUNNY_FACTS: {q:string;options:string[];answer:number;fact:string}[] = [
+    {q:"True or false: a group of flamingos is called a flamboyance.",options:["True — it really is!","False — no way","Only in Florida"],answer:0,fact:"True! A flamboyance of flamingos. Best group name ever."},
+    {q:"What do you call a group of owls?",options:["A parliament","A school","A pack"],answer:0,fact:"A parliament of owls. Very serious birds."},
+    {q:"Which animal's fingerprints look almost exactly like a human's?",options:["A koala","A raccoon","A penguin"],answer:0,fact:"Koala fingerprints are so human-like they've confused crime scenes!"},
+    {q:"True or false: honey never goes bad.",options:["True — it lasts forever","False — it expires","Only if it's in a bear-shaped bottle"],answer:0,fact:"True! Archaeologists found 3,000-year-old honey that was still good."},
+    {q:"What color is a polar bear's skin under all that white fur?",options:["Pink","Black","White"],answer:1,fact:"Black skin — it soaks up the sun to keep them warm."},
+    {q:"How many hearts does an octopus have?",options:["1","2","3"],answer:2,fact:"3 hearts! Two for the gills, one for the body."},
+    {q:"True or false: bananas are berries, but strawberries are NOT berries.",options:["True — wild, right?","False — that's backwards","Only in Australia"],answer:0,fact:"True! Botanically, bananas are berries and strawberries aren't."},
+    {q:"True or false: cows can walk UP stairs, but not DOWN them.",options:["True — knees don't work that way","False — they do both","Only the sporty ones"],answer:0,fact:"True! Their knees don't bend right for going down stairs."},
+  ];
+  const [triviaSport,setTriviaSport]=useState<string>("softball");
+  const [triviaIdx,setTriviaIdx]=useState<number>(()=>Math.floor(Math.random()*6));
+  const [triviaPick,setTriviaPick]=useState<number|null>(null);
+  const [funnyIdx,setFunnyIdx]=useState<number>(()=>Math.floor(Math.random()*8));
+  const [funnyPick,setFunnyPick]=useState<number|null>(null);
+  const triviaQ=SPORT_TRIVIA[triviaSport]?.[triviaIdx] || SPORT_TRIVIA.softball[0];
+  const funnyQ=FUNNY_FACTS[funnyIdx] || FUNNY_FACTS[0];
+  function newTrivia(sport:string){ setTriviaSport(sport); setTriviaPick(null); setTriviaIdx(prev=>{ let n=prev; while(n===prev) n=Math.floor(Math.random()*6); return n; }); }
+  function newFunny(){ setFunnyPick(null); setFunnyIdx(prev=>{ let n=prev; while(n===prev) n=Math.floor(Math.random()*FUNNY_FACTS.length); return n; }); }
   function stopGrittyListen(){
     const refs=grittyRefs.current; if(!refs) return;
     cancelAnimationFrame(refs.raf); clearTimeout(refs.timer);
@@ -360,8 +406,8 @@ export default function App(){
   const circuitDone = checkinCircuit ? checkinCircuit.steps.reduce((n,s,si)=>n+s.items.filter((_,ii)=>circuitChecks[circuitKey(si,ii)]).length,0) : 0;
   const checkinTotal = 3 + SECTIONS.length + 1;
   const checkinDoneCount = (checkinGrateful.trim()?1:0) + (checkinProud.trim()?1:0) + (checkinGritness!=null?1:0) + SECTIONS.filter(s=>checkinChecks[s]).length + (checkinChecks["focus"]?1:0);
-  function resetCheckin(){ setCheckinGrateful(""); setCheckinProud(""); setCheckinGritness(null); setLowReason(null); setGrittyScore(null); setGrittyHeard(""); setGrittyBreakdown(null); setCheckinChecks({}); setCircuitChecks({}); setCheckinSavedMsg("Check-in cleared — fresh start for the next athlete."); }
-  async function saveCheckin(){ try{ await callApi("records.create",{collection:"grit_checkins", value:{athleteId:loggedInAthleteId||trainingAthleteId||"", athleteName:unlockedAthlete?.name||trainingAthlete?.name||"", grateful:checkinGrateful, proud:checkinProud, gritness:checkinGritness, grittyScore:grittyScore, grittyHeard:grittyHeard, grittyBreakdown:grittyBreakdown, circuit:checkinCircuit?.name||"", circuitSport, lowReason:lowReason||"", circuitVariant, circuitSteps:checkinCircuit?.steps||[], circuitChecks, checks:checkinChecks, createdAt:new Date().toISOString()}, idempotency_key:safeId()}); setCheckinSavedMsg("Check-in saved."); }catch{ setCheckinSavedMsg("Check-in saved on this device."); } }
+  function resetCheckin(){ setCheckinGrateful(""); setCheckinProud(""); setCheckinGritness(null); setLowReason(null); setGrittyScore(null); setGrittyHeard(""); setGrittyBreakdown(null); setTriviaPick(null); setFunnyPick(null); setCheckinChecks({}); setCircuitChecks({}); setCheckinSavedMsg("Check-in cleared — fresh start for the next athlete."); }
+  async function saveCheckin(){ try{ await callApi("records.create",{collection:"grit_checkins", value:{athleteId:loggedInAthleteId||trainingAthleteId||"", athleteName:unlockedAthlete?.name||trainingAthlete?.name||"", grateful:checkinGrateful, proud:checkinProud, gritness:checkinGritness, grittyScore:grittyScore, grittyHeard:grittyHeard, grittyBreakdown:grittyBreakdown, triviaSport:triviaSport, triviaQuestion:triviaQ.q, triviaCorrect:triviaPick!=null&&triviaPick===triviaQ.answer, funnyQuestion:funnyQ.q, funnyCorrect:funnyPick!=null&&funnyPick===funnyQ.answer, circuit:checkinCircuit?.name||"", circuitSport, lowReason:lowReason||"", circuitVariant, circuitSteps:checkinCircuit?.steps||[], circuitChecks, checks:checkinChecks, createdAt:new Date().toISOString()}, idempotency_key:safeId()}); setCheckinSavedMsg("Check-in saved."); }catch{ setCheckinSavedMsg("Check-in saved on this device."); } }
   const [loggedInAthleteId,setLoggedInAthleteId]=useState<string|null>(null);
   const [pinInput,setPinInput]=useState("");
   const [loginError,setLoginError]=useState("");
@@ -1593,24 +1639,10 @@ export default function App(){
             <h2 className="font-display text-center font-bold leading-[1.15] break-words text-[clamp(24px,6.8vw,36px)] mt-6">WE COMPETE LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER LOST</span> AND TRAIN LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER WON</span></h2>
             
             
-            {!loggedInAthleteId ? (
+            {!loggedInAthleteId && !coachChecklistOpen ? (
               <div>
                 <button onClick={()=>goTab("athletes")} className="mt-5 w-full min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px]">Unlock Your Profile</button>
-                <p className="text-center text-sm text-white/70 mt-2">Training details unlock with your profile.</p>
-                <div className="space-y-3 mt-4">
-                  {SECTIONS.map(s=>(
-                    <div key={s} className="rounded-2xl border border-white/15 bg-black/35 p-4">
-                      <h3 className="font-display font-semibold text-[#D4B483] text-lg leading-tight">{s}</h3>
-                      <div className="mt-3 h-11 rounded-lg bg-white/10 border border-white/10 flex items-center px-3"><span className="text-sm text-white/50">Locked — unlock your profile to view details</span></div>
-                      <div className="mt-2 h-20 rounded-xl bg-white/5 border border-white/10" aria-hidden="true" />
-                    </div>
-                  ))}
-                  <div className="rounded-2xl border border-white/15 bg-black/35 p-4">
-                    <h3 className="font-display font-semibold text-[#D4B483] text-lg leading-tight">Your GRIT Focus and Why</h3>
-                    <div className="mt-3 h-20 rounded-xl bg-white/5 border border-white/10" aria-hidden="true" />
-                    <p className="text-sm text-white/50 mt-2">Locked — unlock your profile to view details</p>
-                  </div>
-                </div>
+                <p className="text-center text-sm text-white/70 mt-2">Training details unlock with your profile. The checklist stays hidden until then.</p>
               </div>
             ) : (
               <>
@@ -1628,47 +1660,6 @@ export default function App(){
                   <button onClick={clearTraining} className="min-h-[48px] inline-flex items-center justify-center gap-1 border border-white/25 px-3 py-2 rounded-full text-sm font-semibold"><Eraser size={14}/> Clear for New Week</button>
                   {currentWorkout && <span className="text-xs text-[#D4B483] text-center">Published for {currentWorkout.athlete} • {currentWorkout.week}</span>}
                 </div>
-              </div>
-              {/* CHECKLIST Q1 — "Who are you and why are you GRITTY?" Voice answer, scored 1–10 on loudness + confidence. */}
-              <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-5 lg:p-5">
-                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CHECKLIST — QUESTION 1 • VOICE</p>
-                <h3 className="mt-2 font-display text-[clamp(26px,7vw,36px)] font-bold leading-tight">Who are you and why are you GRITTY?</h3>
-                <p className="mt-1 text-sm text-white/75">Say it out loud. Louder + steadier + keep talking = higher score. The mic never leaves this device.</p>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  {grittyListening ? (
-                    <button onClick={stopGrittyListen} className="min-h-[52px] rounded-full bg-[#FF6B5E] px-6 text-[15px] font-bold text-black">■ STOP — Score It</button>
-                  ) : (
-                    <button onClick={startGrittyListen} className="min-h-[52px] rounded-full bg-[#C9A86A] px-6 text-[15px] font-bold text-black">🎤 {grittyScore!=null ? "Answer Again" : "Answer Out Loud"}</button>
-                  )}
-                  {grittyScore!=null && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold tracking-widest text-white/60">SCORE</span>
-                      <span className="font-display text-[44px] leading-none font-bold text-[#C9A86A]">{grittyScore}</span>
-                      <span className="font-display text-[22px] leading-none text-white/50">/ 10</span>
-                      <span className="ml-1 flex gap-1">
-                        <button onClick={()=>setGrittyScore(s=>Math.max(1,(s??1)-1))} className="min-h-[40px] min-w-[40px] rounded-full border border-white/30 text-lg font-bold">−</button>
-                        <button onClick={()=>setGrittyScore(s=>Math.min(10,(s??1)+1))} className="min-h-[40px] min-w-[40px] rounded-full border border-white/30 text-lg font-bold">+</button>
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {grittyListening && (
-                  <div className="mt-4">
-                    <div className="h-3 w-full overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#C9A86A] transition-[width] duration-100" style={{width:`${grittyLevel}%`}} /></div>
-                    <p className="mt-1.5 text-xs font-bold tracking-widest text-[#FF6B5E]">● LISTENING — SPEAK UP</p>
-                  </div>
-                )}
-                {grittyStatus && <p className="mt-3 text-sm font-bold text-[#D4B483]">{grittyStatus}</p>}
-                {grittyHeard && <p className="mt-3 rounded-xl border border-white/15 bg-black/40 p-3 text-[15px] leading-relaxed text-white/85"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A]">HEARD — </span>“{grittyHeard}”</p>}
-                {grittyBreakdown && (
-                  <div className="mt-4 grid gap-2 text-[13px] sm:grid-cols-2">
-                    <p>Volume <span className="text-[#D4B483] font-bold">{grittyBreakdown.volume.toFixed(1)} / 4</span> — how loud overall</p>
-                    <p>Peak <span className="text-[#D4B483] font-bold">{grittyBreakdown.peak.toFixed(1)} / 2</span> — loudest moment</p>
-                    <p>Kept talking <span className="text-[#D4B483] font-bold">{grittyBreakdown.time.toFixed(1)} / 2</span> — seconds of real speech</p>
-                    <p>Steady <span className="text-[#D4B483] font-bold">{grittyBreakdown.steady.toFixed(1)} / 2</span> — even voice, no fading out</p>
-                  </div>
-                )}
-                <p className="mt-3 text-xs text-white/50">Coach nudge: tap − / + to adjust the score. It saves with this check-in.</p>
               </div>
               <p className="mt-5 text-center font-display text-[22px] lg:text-[28px] font-bold">CHECKLIST — TAP EACH BLOCK DONE AS YOU FINISH IT</p>
               <div className="grid gap-3 mt-3 md:grid-cols-2 lg:grid-cols-4">
@@ -1711,7 +1702,34 @@ export default function App(){
               {savedFlash && <p className="mt-4 text-sm text-[#D4B483] font-bold" role="status">Saved</p>}
               {result && <p className="mt-4 text-sm text-[#D4B483]">{result}</p>}
               </>) : (
+              {loggedInAthleteId ? (
+              <div className="mt-5">
+                <p className="text-center font-display text-[clamp(24px,6vw,32px)] font-bold leading-tight">YOUR WORKOUT — FOUR PILLARS</p>
+                <p className="mt-1 text-center text-sm text-white/70">Your coach&apos;s plan. Tap each block done as you finish it.</p>
+                <div className="grid gap-3 mt-3 md:grid-cols-2">
+                  {SECTIONS.map(s=>{ const a=trainingAthlete; const mins=a?.trainingMinutes?.[s]||""; const desc=a?.trainingSections?.[s]||""; const notes=a?.trainingNotes?.[s]||""; const done=!!checkinChecks[s]; return (
+                    <div key={s} className={`rounded-2xl border p-4 ${done?"border-[#C9A86A] bg-[#2E4038]/60":"border-white/15 bg-black/35"}`}>
+                      <button onClick={()=>setCheckinChecks(prev=>({...prev,[s]:!prev[s]}))} className="flex w-full items-center justify-between gap-3 text-left">
+                        <span className="font-display font-semibold text-lg leading-tight text-[#D4B483]">{s}</span>
+                        <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${done?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/30 text-white/70"}`}>{done?"DONE ✓":"TAP WHEN DONE"}</span>
+                      </button>
+                      {mins && <p className="mt-3 text-sm"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A]">REPS / HOW LONG</span><br/>{mins}</p>}
+                      {desc && <p className="mt-3 text-[15px] leading-relaxed">{desc}</p>}
+                      {notes && <p className="mt-3 text-sm text-[#D4B483]"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A]">COACH NOTES</span><br/>{notes}</p>}
+                      {!mins && !desc && !notes && <p className="mt-3 text-sm text-white/50">Your coach hasn&apos;t written this block yet.</p>}
+                    </div>
+                  );})}
+                </div>
+                <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-3">
+                  <h3 className="font-display font-semibold text-lg leading-tight text-[#D4B483]">Your GRIT Focus and Why</h3>
+                  {trainingAthlete?.focus ? <p className="mt-3 text-[15px] leading-relaxed">{trainingAthlete.focus}</p> : <p className="mt-3 text-sm text-white/50">Your coach hasn&apos;t written your focus yet.</p>}
+                  <button onClick={()=>{ if(trainingAthlete){ setDictAthleteId(trainingAthlete.id); setDictDestination("focus"); setDictOpen(true); } }} className="mt-4 min-h-[52px] w-full rounded-full bg-[#C9A86A] px-5 py-3 text-[15px] font-bold text-black">🎤 Dictate GRIT Focus</button>
+                  <p className="mt-2 text-center text-xs text-white/60">Say your focus out loud — it adds to your GRIT Focus.</p>
+                </div>
+              </div>
+              ) : (
               <p className="mt-5 text-center text-xs text-white/50">Coach Checklist is hidden — tap COACH CHECKLIST at the top of this page to open it.</p>
+              )}
               )}
               </>
             )}
@@ -2015,6 +2033,96 @@ export default function App(){
                 <option value="">Mackenzie Mercer (default)</option>
                 {athleteOptions()}
               </select>
+            </div>
+            <div className="mt-4 rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 lg:p-5">
+              <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">COACHES — RUN THE CHECKLIST</p>
+              <h3 className="mt-2 font-display text-[clamp(24px,7vw,32px)] font-bold leading-tight">Fun Checklist — You Ask, They Answer</h3>
+              <p className="mt-2 text-sm text-white/75">Pick the athlete in front of you, run the questions out loud, tap the answers, then save them to that athlete&apos;s check-in.</p>
+              <label className="block text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ATHLETE</label>
+              <select value={trainingAthleteId} onChange={e=>setTrainingAthleteId(e.target.value)} className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-xl px-3 py-3 text-[16px]">
+                <option value="">Select Athlete</option>
+                {athleteOptions()}
+              </select>
+              {/* CHECKLIST Q1 — "Who are you and why are you GRITTY?" Voice answer, scored 1–10 on loudness + confidence. */}
+              <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-5 lg:p-5">
+                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CHECKLIST — QUESTION 1 • VOICE</p>
+                <h3 className="mt-2 font-display text-[clamp(26px,7vw,36px)] font-bold leading-tight">Who are you and why are you GRITTY?</h3>
+                <p className="mt-1 text-sm text-white/75">Say it out loud. Louder + steadier + keep talking = higher score. The mic never leaves this device.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  {grittyListening ? (
+                    <button onClick={stopGrittyListen} className="min-h-[52px] rounded-full bg-[#FF6B5E] px-6 text-[15px] font-bold text-black">■ STOP — Score It</button>
+                  ) : (
+                    <button onClick={startGrittyListen} className="min-h-[52px] rounded-full bg-[#C9A86A] px-6 text-[15px] font-bold text-black">🎤 {grittyScore!=null ? "Answer Again" : "Answer Out Loud"}</button>
+                  )}
+                  {grittyScore!=null && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold tracking-widest text-white/60">SCORE</span>
+                      <span className="font-display text-[44px] leading-none font-bold text-[#C9A86A]">{grittyScore}</span>
+                      <span className="font-display text-[22px] leading-none text-white/50">/ 10</span>
+                      <span className="ml-1 flex gap-1">
+                        <button onClick={()=>setGrittyScore(s=>Math.max(1,(s??1)-1))} className="min-h-[40px] min-w-[40px] rounded-full border border-white/30 text-lg font-bold">−</button>
+                        <button onClick={()=>setGrittyScore(s=>Math.min(10,(s??1)+1))} className="min-h-[40px] min-w-[40px] rounded-full border border-white/30 text-lg font-bold">+</button>
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {grittyListening && (
+                  <div className="mt-4">
+                    <div className="h-3 w-full overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#C9A86A] transition-[width] duration-100" style={{width:`${grittyLevel}%`}} /></div>
+                    <p className="mt-1.5 text-xs font-bold tracking-widest text-[#FF6B5E]">● LISTENING — SPEAK UP</p>
+                  </div>
+                )}
+                {grittyStatus && <p className="mt-3 text-sm font-bold text-[#D4B483]">{grittyStatus}</p>}
+                {grittyHeard && <p className="mt-3 rounded-xl border border-white/15 bg-black/40 p-3 text-[15px] leading-relaxed text-white/85"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A]">HEARD — </span>“{grittyHeard}”</p>}
+                {grittyBreakdown && (
+                  <div className="mt-4 grid gap-2 text-[13px] sm:grid-cols-2">
+                    <p>Volume <span className="text-[#D4B483] font-bold">{grittyBreakdown.volume.toFixed(1)} / 4</span> — how loud overall</p>
+                    <p>Peak <span className="text-[#D4B483] font-bold">{grittyBreakdown.peak.toFixed(1)} / 2</span> — loudest moment</p>
+                    <p>Kept talking <span className="text-[#D4B483] font-bold">{grittyBreakdown.time.toFixed(1)} / 2</span> — seconds of real speech</p>
+                    <p>Steady <span className="text-[#D4B483] font-bold">{grittyBreakdown.steady.toFixed(1)} / 2</span> — even voice, no fading out</p>
+                  </div>
+                )}
+                <p className="mt-3 text-xs text-white/50">Coach nudge: tap − / + to adjust the score. It saves with this check-in.</p>
+              </div>
+              {/* CHECKLIST SECOND-TO-LAST — random sport question + random funny-fact question. GRIT Focus stays last. */}
+              <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-3 lg:p-5">
+                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CHECKLIST — SECOND TO LAST • KNOW YOUR GAME</p>
+                <h3 className="mt-2 font-display text-[clamp(24px,7vw,32px)] font-bold leading-tight">Quick Question — Pick Your Sport</h3>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(["softball","baseball","football"] as const).map(s=>(
+                    <button key={s} onClick={()=>newTrivia(s)} className={`min-h-[44px] rounded-full px-5 text-sm font-bold capitalize ${triviaSport===s?"bg-[#C9A86A] text-black":"border border-white/30 text-white"}`}>{s}</button>
+                  ))}
+                  <button onClick={()=>newTrivia(triviaSport)} className="min-h-[44px] rounded-full border border-[#C9A86A] px-5 text-sm font-bold text-[#C9A86A]">↻ New Question</button>
+                </div>
+                <p className="mt-4 text-[17px] font-semibold leading-snug">{triviaQ.q}</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {triviaQ.options.map((opt,oi)=>{
+                    const picked=triviaPick===oi; const show=triviaPick!=null;
+                    const right=oi===triviaQ.answer;
+                    return <button key={oi} disabled={show} onClick={()=>setTriviaPick(oi)} className={`min-h-[48px] rounded-xl border px-4 py-3 text-left text-[15px] font-semibold ${show&&right?"border-[#C9A86A] bg-[#2E4038] text-white":show&&picked?"border-[#FF6B5E] bg-[#FF6B5E]/20 text-white":"border-white/25 bg-black/30 text-white"}`}>{opt}{show&&right?" ✓":""}</button>;
+                  })}
+                </div>
+                {triviaPick!=null && <p className="mt-3 text-sm font-bold text-[#D4B483]">{triviaPick===triviaQ.answer?"Correct! 💪 ":"Not quite — "}{triviaQ.fact}</p>}
+                <div className="mt-6 border-t border-white/15 pt-5">
+                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">AND ONE MORE — FUNNY FACT</p>
+                  <h3 className="mt-2 font-display text-[clamp(22px,7vw,30px)] font-bold leading-tight">Funny Fact Question</h3>
+                  <p className="mt-3 text-[17px] font-semibold leading-snug">{funnyQ.q}</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    {funnyQ.options.map((opt,oi)=>{
+                      const picked=funnyPick===oi; const show=funnyPick!=null;
+                      const right=oi===funnyQ.answer;
+                      return <button key={oi} disabled={show} onClick={()=>setFunnyPick(oi)} className={`min-h-[48px] rounded-xl border px-4 py-3 text-left text-[15px] font-semibold ${show&&right?"border-[#C9A86A] bg-[#2E4038] text-white":show&&picked?"border-[#FF6B5E] bg-[#FF6B5E]/20 text-white":"border-white/25 bg-black/30 text-white"}`}>{opt}{show&&right?" ✓":""}</button>;
+                    })}
+                  </div>
+                  {funnyPick!=null && <p className="mt-3 text-sm font-bold text-[#D4B483]">{funnyPick===funnyQ.answer?"Got it! 😂 ":"Nope — "}{funnyQ.fact}</p>}
+                  <button onClick={newFunny} className="mt-3 min-h-[44px] rounded-full border border-[#C9A86A] px-5 text-sm font-bold text-[#C9A86A]">↻ New Funny Fact</button>
+                </div>
+              </div>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <button onClick={saveCheckin} className="min-h-[52px] flex-1 rounded-full bg-[#C9A86A] px-5 py-3 text-[15px] font-bold text-black">Save These Answers to Check-In</button>
+                <button onClick={resetCheckin} className="min-h-[52px] rounded-full border border-white/25 px-5 py-3 text-[15px] font-semibold">Clear for Next Athlete</button>
+              </div>
+              {checkinSavedMsg && <p className="mt-2 text-sm font-bold text-[#D4B483]" role="status">{checkinSavedMsg}</p>}
             </div>
             <div className="mt-4">
               <h3 className="font-display text-xl">Dashboard Overview</h3>
