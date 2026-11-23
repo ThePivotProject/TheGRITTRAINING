@@ -70,6 +70,12 @@ async function callApi(action: string, args: any): Promise<any> {
   throw new Error(`Unknown action: ${action}`);
 }
 const SECTIONS = ["Dynamic Stretch |","Core |","Main Lift |","Speed and Agility |"];
+const WAYS_TO_TRAIN = [
+  {t:"GRIT Athlete — 1-on-1", d:"Individual training built around one athlete: acceleration, first-step quickness, changing direction, velocity, and explosive movement."},
+  {t:"GRIT Team", d:"Whole teams. 6–8 weeks of physical and mental strength and resilience, built together."},
+  {t:"GRIT on Turf", d:"One hour on the turf: acceleration, first-step quickness, changing direction, velocity, explosive movement."},
+  {t:"GRIT Accountability", d:"For adults and parents. Real movement on limited time, with someone holding you to it."},
+];
 const DEFAULT_MINUTES: Record<string,string> = {"Dynamic Stretch |":"","Core |":"","Main Lift |":"","Speed and Agility |":""};
 const emptySections = () => Object.fromEntries(SECTIONS.map(s=>[s,""]));
 function safeId(){ return typeof crypto!=="undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
@@ -435,6 +441,8 @@ export default function App(){
   const [expandedCardId,setExpandedCardId]=useState<string|null>(null);
   const [spotlightId,setSpotlightId]=useState("");
   const [originWhatOpen,setOriginWhatOpen]=useState(false);
+  const [originWaysOpen,setOriginWaysOpen]=useState(false);
+  const [wallWaysOpen,setWallWaysOpen]=useState(false);
   const [reactions,setReactions]=useState<Record<string,"fire">>({});
   const [celebrated,setCelebrated]=useState("");
   const [homeworkDone,setHomeworkDone]=useState<Record<string,boolean>>({});
@@ -1429,16 +1437,18 @@ export default function App(){
               </section>
             )}
             <section className="mt-4">
-              <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">PROGRAMS</p>
-              <div className="mt-3 space-y-3">
-                {[
-                  {t:"GRIT Athlete — 1-on-1", d:"Individual training built around one athlete: acceleration, first-step quickness, changing direction, velocity, and explosive movement."},
-                  {t:"GRIT Team", d:"Whole teams. 6–8 weeks of physical and mental strength and resilience, built together."},
-                  {t:"GRIT on Turf", d:"One hour on the turf: acceleration, first-step quickness, changing direction, velocity, explosive movement."},
-                  {t:"GRIT Accountability", d:"For adults and parents. Real movement on limited time, with someone holding you to it."},
-                ].map(x=>(
-                  <div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-4"><h3 className="font-display text-xl">{x.t}</h3><p className="mt-1 text-[15px] leading-relaxed text-white/80">{x.d}</p></div>
-                ))}
+              <div className="rounded-2xl border border-white/15 bg-black/35 px-5 py-5">
+                <button onClick={()=>setOriginWaysOpen(v=>!v)} aria-expanded={originWaysOpen} className="flex w-full items-center justify-between gap-3 text-left">
+                  <span className="font-display text-[26px] font-bold leading-tight">GRIT WAYS TO TRAIN</span>
+                  <span className="shrink-0 text-[22px] font-bold text-[#C9A86A]">{originWaysOpen?"−":"+"}</span>
+                </button>
+                {originWaysOpen ? (
+                <div className="mt-3 space-y-3">
+                  {WAYS_TO_TRAIN.map(x=>(
+                    <div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-4"><h3 className="font-display text-xl">{x.t}</h3><p className="mt-1 text-[15px] leading-relaxed text-white/80">{x.d}</p></div>
+                  ))}
+                </div>
+                ) : null}
               </div>
               <a href="mailto:thepiviotproject@kbuiltsoftball.com?subject=Get%20Started%20with%20The%20GRIT" className="mt-4 block w-full min-h-[52px] rounded-full bg-[#C9A86A] px-5 py-3 text-center text-[15px] font-bold text-black active:scale-[0.98]">Get Started →</a>
             </section>
@@ -1467,7 +1477,22 @@ export default function App(){
                 <p className="mt-2 text-[15px] leading-relaxed text-white/85">Showing up. Doing it right. Lifting others up. That&apos;s GRIT.</p>
               </section>
             )}
-            {quoteText ? (
+            <section className="mt-6">
+                <div className="rounded-2xl border border-white/15 bg-black/35 px-5 py-5">
+                  <button onClick={()=>setWallWaysOpen(v=>!v)} aria-expanded={wallWaysOpen} className="flex w-full items-center justify-between gap-3 text-left">
+                    <span className="font-display text-[26px] font-bold leading-tight">GRIT WAYS TO TRAIN</span>
+                    <span className="shrink-0 text-[22px] font-bold text-[#C9A86A]">{wallWaysOpen?"−":"+"}</span>
+                  </button>
+                  {wallWaysOpen ? (
+                  <div className="mt-3 space-y-3">
+                    {WAYS_TO_TRAIN.map(x=>(
+                      <div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-4"><h3 className="font-display text-xl">{x.t}</h3><p className="mt-1 text-[15px] leading-relaxed text-white/80">{x.d}</p></div>
+                    ))}
+                  </div>
+                  ) : null}
+                </div>
+              </section>
+              {quoteText ? (
               <section className="mt-6 px-2 text-center">
                 <p className="text-[17px] italic leading-relaxed text-white/90">“{quoteText}”</p>
               </section>
@@ -1661,6 +1686,47 @@ export default function App(){
                   {currentWorkout && <span className="text-xs text-[#D4B483] text-center">Published for {currentWorkout.athlete} • {currentWorkout.week}</span>}
                 </div>
               </div>
+              {/* CHECKLIST Q1 — "Who are you and why are you GRITTY?" Voice answer, scored 1–10 on loudness + confidence. */}
+              <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-5 lg:p-5">
+                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CHECKLIST — QUESTION 1 • VOICE</p>
+                <h3 className="mt-2 font-display text-[clamp(26px,7vw,36px)] font-bold leading-tight">Who are you and why are you GRITTY?</h3>
+                <p className="mt-1 text-sm text-white/75">Say it out loud. Louder + steadier + keep talking = higher score. The mic never leaves this device.</p>
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  {grittyListening ? (
+                    <button onClick={stopGrittyListen} className="min-h-[52px] rounded-full bg-[#FF6B5E] px-6 text-[15px] font-bold text-black">■ STOP — Score It</button>
+                  ) : (
+                    <button onClick={startGrittyListen} className="min-h-[52px] rounded-full bg-[#C9A86A] px-6 text-[15px] font-bold text-black">🎤 {grittyScore!=null ? "Answer Again" : "Answer Out Loud"}</button>
+                  )}
+                  {grittyScore!=null && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-bold tracking-widest text-white/60">SCORE</span>
+                      <span className="font-display text-[44px] leading-none font-bold text-[#C9A86A]">{grittyScore}</span>
+                      <span className="font-display text-[22px] leading-none text-white/50">/ 10</span>
+                      <span className="ml-1 flex gap-1">
+                        <button onClick={()=>setGrittyScore(s=>Math.max(1,(s??1)-1))} className="min-h-[40px] min-w-[40px] rounded-full border border-white/30 text-lg font-bold">−</button>
+                        <button onClick={()=>setGrittyScore(s=>Math.min(10,(s??1)+1))} className="min-h-[40px] min-w-[40px] rounded-full border border-white/30 text-lg font-bold">+</button>
+                      </span>
+                    </div>
+                  )}
+                </div>
+                {grittyListening && (
+                  <div className="mt-4">
+                    <div className="h-3 w-full overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#C9A86A] transition-[width] duration-100" style={{width:`${grittyLevel}%`}} /></div>
+                    <p className="mt-1.5 text-xs font-bold tracking-widest text-[#FF6B5E]">● LISTENING — SPEAK UP</p>
+                  </div>
+                )}
+                {grittyStatus && <p className="mt-3 text-sm font-bold text-[#D4B483]">{grittyStatus}</p>}
+                {grittyHeard && <p className="mt-3 rounded-xl border border-white/15 bg-black/40 p-3 text-[15px] leading-relaxed text-white/85"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A]">HEARD — </span>“{grittyHeard}”</p>}
+                {grittyBreakdown && (
+                  <div className="mt-4 grid gap-2 text-[13px] sm:grid-cols-2">
+                    <p>Volume <span className="text-[#D4B483] font-bold">{grittyBreakdown.volume.toFixed(1)} / 4</span> — how loud overall</p>
+                    <p>Peak <span className="text-[#D4B483] font-bold">{grittyBreakdown.peak.toFixed(1)} / 2</span> — loudest moment</p>
+                    <p>Kept talking <span className="text-[#D4B483] font-bold">{grittyBreakdown.time.toFixed(1)} / 2</span> — seconds of real speech</p>
+                    <p>Steady <span className="text-[#D4B483] font-bold">{grittyBreakdown.steady.toFixed(1)} / 2</span> — even voice, no fading out</p>
+                  </div>
+                )}
+                <p className="mt-3 text-xs text-white/50">Coach nudge: tap − / + to adjust the score. It saves with this check-in.</p>
+              </div>
               <p className="mt-5 text-center font-display text-[22px] lg:text-[28px] font-bold">CHECKLIST — TAP EACH BLOCK DONE AS YOU FINISH IT</p>
               <div className="grid gap-3 mt-3 md:grid-cols-2 lg:grid-cols-4">
                 {SECTIONS.map(s=>{ const done=!!checkinChecks[s]; return (
@@ -1678,6 +1744,40 @@ export default function App(){
                     <button disabled={busy} onClick={()=>saveTrainingBlock(s)} className="mt-3 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black px-4 py-2.5 rounded-full text-sm font-bold disabled:opacity-50"><Save size={15}/> Save</button>
                   </div>
                 );})}
+              </div>
+              {/* CHECKLIST SECOND-TO-LAST — random sport question + random funny-fact question. GRIT Focus stays last. */}
+              <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-3 lg:p-5">
+                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CHECKLIST — SECOND TO LAST • KNOW YOUR GAME</p>
+                <h3 className="mt-2 font-display text-[clamp(24px,7vw,32px)] font-bold leading-tight">Quick Question — Pick Your Sport</h3>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {(["softball","baseball","football"] as const).map(s=>(
+                    <button key={s} onClick={()=>newTrivia(s)} className={`min-h-[44px] rounded-full px-5 text-sm font-bold capitalize ${triviaSport===s?"bg-[#C9A86A] text-black":"border border-white/30 text-white"}`}>{s}</button>
+                  ))}
+                  <button onClick={()=>newTrivia(triviaSport)} className="min-h-[44px] rounded-full border border-[#C9A86A] px-5 text-sm font-bold text-[#C9A86A]">↻ New Question</button>
+                </div>
+                <p className="mt-4 text-[17px] font-semibold leading-snug">{triviaQ.q}</p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                  {triviaQ.options.map((opt,oi)=>{
+                    const picked=triviaPick===oi; const show=triviaPick!=null;
+                    const right=oi===triviaQ.answer;
+                    return <button key={oi} disabled={show} onClick={()=>setTriviaPick(oi)} className={`min-h-[48px] rounded-xl border px-4 py-3 text-left text-[15px] font-semibold ${show&&right?"border-[#C9A86A] bg-[#2E4038] text-white":show&&picked?"border-[#FF6B5E] bg-[#FF6B5E]/20 text-white":"border-white/25 bg-black/30 text-white"}`}>{opt}{show&&right?" ✓":""}</button>;
+                  })}
+                </div>
+                {triviaPick!=null && <p className="mt-3 text-sm font-bold text-[#D4B483]">{triviaPick===triviaQ.answer?"Correct! 💪 ":"Not quite — "}{triviaQ.fact}</p>}
+                <div className="mt-6 border-t border-white/15 pt-5">
+                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">AND ONE MORE — FUNNY FACT</p>
+                  <h3 className="mt-2 font-display text-[clamp(22px,7vw,30px)] font-bold leading-tight">Funny Fact Question</h3>
+                  <p className="mt-3 text-[17px] font-semibold leading-snug">{funnyQ.q}</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                    {funnyQ.options.map((opt,oi)=>{
+                      const picked=funnyPick===oi; const show=funnyPick!=null;
+                      const right=oi===funnyQ.answer;
+                      return <button key={oi} disabled={show} onClick={()=>setFunnyPick(oi)} className={`min-h-[48px] rounded-xl border px-4 py-3 text-left text-[15px] font-semibold ${show&&right?"border-[#C9A86A] bg-[#2E4038] text-white":show&&picked?"border-[#FF6B5E] bg-[#FF6B5E]/20 text-white":"border-white/25 bg-black/30 text-white"}`}>{opt}{show&&right?" ✓":""}</button>;
+                    })}
+                  </div>
+                  {funnyPick!=null && <p className="mt-3 text-sm font-bold text-[#D4B483]">{funnyPick===funnyQ.answer?"Got it! 😂 ":"Nope — "}{funnyQ.fact}</p>}
+                  <button onClick={newFunny} className="mt-3 min-h-[44px] rounded-full border border-[#C9A86A] px-5 text-sm font-bold text-[#C9A86A]">↻ New Funny Fact</button>
+                </div>
               </div>
               <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3 lg:p-5">
                 <button onClick={()=>setCheckinChecks(p=>({...p,focus:!p.focus}))} className="flex items-center gap-3 text-left active:scale-[0.99]">
@@ -1711,7 +1811,7 @@ export default function App(){
                     <div key={s} className={`rounded-2xl border p-4 ${done?"border-[#C9A86A] bg-[#2E4038]/60":"border-white/15 bg-black/35"}`}>
                       <button onClick={()=>setCheckinChecks(prev=>({...prev,[s]:!prev[s]}))} className="flex w-full items-center justify-between gap-3 text-left">
                         <span className="font-display font-semibold text-lg leading-tight text-[#D4B483]">{s}</span>
-                        <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${done?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/30 text-white/70"}`}>{done?"DONE ✓":"TAP WHEN DONE"}</span>
+                        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-xl font-bold ${done?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/40 text-white"}`}>{done?"✓":"○"}</span>
                       </button>
                       {mins && <p className="mt-3 text-sm"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A]">REPS / HOW LONG</span><br/>{mins}</p>}
                       {desc && <p className="mt-3 text-[15px] leading-relaxed">{desc}</p>}
@@ -2033,96 +2133,6 @@ export default function App(){
                 <option value="">Mackenzie Mercer (default)</option>
                 {athleteOptions()}
               </select>
-            </div>
-            <div className="mt-4 rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 lg:p-5">
-              <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">COACHES — RUN THE CHECKLIST</p>
-              <h3 className="mt-2 font-display text-[clamp(24px,7vw,32px)] font-bold leading-tight">Fun Checklist — You Ask, They Answer</h3>
-              <p className="mt-2 text-sm text-white/75">Pick the athlete in front of you, run the questions out loud, tap the answers, then save them to that athlete&apos;s check-in.</p>
-              <label className="block text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ATHLETE</label>
-              <select value={trainingAthleteId} onChange={e=>setTrainingAthleteId(e.target.value)} className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-xl px-3 py-3 text-[16px]">
-                <option value="">Select Athlete</option>
-                {athleteOptions()}
-              </select>
-              {/* CHECKLIST Q1 — "Who are you and why are you GRITTY?" Voice answer, scored 1–10 on loudness + confidence. */}
-              <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-5 lg:p-5">
-                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CHECKLIST — QUESTION 1 • VOICE</p>
-                <h3 className="mt-2 font-display text-[clamp(26px,7vw,36px)] font-bold leading-tight">Who are you and why are you GRITTY?</h3>
-                <p className="mt-1 text-sm text-white/75">Say it out loud. Louder + steadier + keep talking = higher score. The mic never leaves this device.</p>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  {grittyListening ? (
-                    <button onClick={stopGrittyListen} className="min-h-[52px] rounded-full bg-[#FF6B5E] px-6 text-[15px] font-bold text-black">■ STOP — Score It</button>
-                  ) : (
-                    <button onClick={startGrittyListen} className="min-h-[52px] rounded-full bg-[#C9A86A] px-6 text-[15px] font-bold text-black">🎤 {grittyScore!=null ? "Answer Again" : "Answer Out Loud"}</button>
-                  )}
-                  {grittyScore!=null && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold tracking-widest text-white/60">SCORE</span>
-                      <span className="font-display text-[44px] leading-none font-bold text-[#C9A86A]">{grittyScore}</span>
-                      <span className="font-display text-[22px] leading-none text-white/50">/ 10</span>
-                      <span className="ml-1 flex gap-1">
-                        <button onClick={()=>setGrittyScore(s=>Math.max(1,(s??1)-1))} className="min-h-[40px] min-w-[40px] rounded-full border border-white/30 text-lg font-bold">−</button>
-                        <button onClick={()=>setGrittyScore(s=>Math.min(10,(s??1)+1))} className="min-h-[40px] min-w-[40px] rounded-full border border-white/30 text-lg font-bold">+</button>
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {grittyListening && (
-                  <div className="mt-4">
-                    <div className="h-3 w-full overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#C9A86A] transition-[width] duration-100" style={{width:`${grittyLevel}%`}} /></div>
-                    <p className="mt-1.5 text-xs font-bold tracking-widest text-[#FF6B5E]">● LISTENING — SPEAK UP</p>
-                  </div>
-                )}
-                {grittyStatus && <p className="mt-3 text-sm font-bold text-[#D4B483]">{grittyStatus}</p>}
-                {grittyHeard && <p className="mt-3 rounded-xl border border-white/15 bg-black/40 p-3 text-[15px] leading-relaxed text-white/85"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A]">HEARD — </span>“{grittyHeard}”</p>}
-                {grittyBreakdown && (
-                  <div className="mt-4 grid gap-2 text-[13px] sm:grid-cols-2">
-                    <p>Volume <span className="text-[#D4B483] font-bold">{grittyBreakdown.volume.toFixed(1)} / 4</span> — how loud overall</p>
-                    <p>Peak <span className="text-[#D4B483] font-bold">{grittyBreakdown.peak.toFixed(1)} / 2</span> — loudest moment</p>
-                    <p>Kept talking <span className="text-[#D4B483] font-bold">{grittyBreakdown.time.toFixed(1)} / 2</span> — seconds of real speech</p>
-                    <p>Steady <span className="text-[#D4B483] font-bold">{grittyBreakdown.steady.toFixed(1)} / 2</span> — even voice, no fading out</p>
-                  </div>
-                )}
-                <p className="mt-3 text-xs text-white/50">Coach nudge: tap − / + to adjust the score. It saves with this check-in.</p>
-              </div>
-              {/* CHECKLIST SECOND-TO-LAST — random sport question + random funny-fact question. GRIT Focus stays last. */}
-              <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-3 lg:p-5">
-                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CHECKLIST — SECOND TO LAST • KNOW YOUR GAME</p>
-                <h3 className="mt-2 font-display text-[clamp(24px,7vw,32px)] font-bold leading-tight">Quick Question — Pick Your Sport</h3>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(["softball","baseball","football"] as const).map(s=>(
-                    <button key={s} onClick={()=>newTrivia(s)} className={`min-h-[44px] rounded-full px-5 text-sm font-bold capitalize ${triviaSport===s?"bg-[#C9A86A] text-black":"border border-white/30 text-white"}`}>{s}</button>
-                  ))}
-                  <button onClick={()=>newTrivia(triviaSport)} className="min-h-[44px] rounded-full border border-[#C9A86A] px-5 text-sm font-bold text-[#C9A86A]">↻ New Question</button>
-                </div>
-                <p className="mt-4 text-[17px] font-semibold leading-snug">{triviaQ.q}</p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {triviaQ.options.map((opt,oi)=>{
-                    const picked=triviaPick===oi; const show=triviaPick!=null;
-                    const right=oi===triviaQ.answer;
-                    return <button key={oi} disabled={show} onClick={()=>setTriviaPick(oi)} className={`min-h-[48px] rounded-xl border px-4 py-3 text-left text-[15px] font-semibold ${show&&right?"border-[#C9A86A] bg-[#2E4038] text-white":show&&picked?"border-[#FF6B5E] bg-[#FF6B5E]/20 text-white":"border-white/25 bg-black/30 text-white"}`}>{opt}{show&&right?" ✓":""}</button>;
-                  })}
-                </div>
-                {triviaPick!=null && <p className="mt-3 text-sm font-bold text-[#D4B483]">{triviaPick===triviaQ.answer?"Correct! 💪 ":"Not quite — "}{triviaQ.fact}</p>}
-                <div className="mt-6 border-t border-white/15 pt-5">
-                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">AND ONE MORE — FUNNY FACT</p>
-                  <h3 className="mt-2 font-display text-[clamp(22px,7vw,30px)] font-bold leading-tight">Funny Fact Question</h3>
-                  <p className="mt-3 text-[17px] font-semibold leading-snug">{funnyQ.q}</p>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {funnyQ.options.map((opt,oi)=>{
-                      const picked=funnyPick===oi; const show=funnyPick!=null;
-                      const right=oi===funnyQ.answer;
-                      return <button key={oi} disabled={show} onClick={()=>setFunnyPick(oi)} className={`min-h-[48px] rounded-xl border px-4 py-3 text-left text-[15px] font-semibold ${show&&right?"border-[#C9A86A] bg-[#2E4038] text-white":show&&picked?"border-[#FF6B5E] bg-[#FF6B5E]/20 text-white":"border-white/25 bg-black/30 text-white"}`}>{opt}{show&&right?" ✓":""}</button>;
-                    })}
-                  </div>
-                  {funnyPick!=null && <p className="mt-3 text-sm font-bold text-[#D4B483]">{funnyPick===funnyQ.answer?"Got it! 😂 ":"Nope — "}{funnyQ.fact}</p>}
-                  <button onClick={newFunny} className="mt-3 min-h-[44px] rounded-full border border-[#C9A86A] px-5 text-sm font-bold text-[#C9A86A]">↻ New Funny Fact</button>
-                </div>
-              </div>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <button onClick={saveCheckin} className="min-h-[52px] flex-1 rounded-full bg-[#C9A86A] px-5 py-3 text-[15px] font-bold text-black">Save These Answers to Check-In</button>
-                <button onClick={resetCheckin} className="min-h-[52px] rounded-full border border-white/25 px-5 py-3 text-[15px] font-semibold">Clear for Next Athlete</button>
-              </div>
-              {checkinSavedMsg && <p className="mt-2 text-sm font-bold text-[#D4B483]" role="status">{checkinSavedMsg}</p>}
             </div>
             <div className="mt-4">
               <h3 className="font-display text-xl">Dashboard Overview</h3>
