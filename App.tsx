@@ -169,40 +169,123 @@ export default function App(){
   useEffect(()=>{ try{ localStorage.setItem("grit:checkinProud", checkinProud); }catch{} },[checkinProud]);
   useEffect(()=>{ try{ localStorage.setItem("grit:checkinGritness", checkinGritness==null?"":String(checkinGritness)); }catch{} },[checkinGritness]);
   useEffect(()=>{ try{ localStorage.setItem("grit:checkinChecks", JSON.stringify(checkinChecks)); }catch{} },[checkinChecks]);
-  // --- Generated circuits: built off the 4 pillars in SECTIONS. Never overwrites a coach-written plan. ---
-  const CIRCUITS: Record<string, {name:string; tag:string; desc:string; steps:{pillar:string; focus:string; items:string[]}[]}> = {
-    reset: { name:"RESET CIRCUIT", tag:"1–2 • RESET", color:"text-[#D4B483]", desc:"Low battery, not low standards. Slow it down, breathe, move clean, rebuild. Injury prevention first, then dynamic stretch + core. Leave feeling better than you walked in.",
-      steps: [
-        { pillar:"Dynamic Stretch", focus:"Injury prevention • slow + controlled", items:["Neck rolls + shoulder circles — 30 sec each, easy", "Cat-cow — 8 slow reps, breathe out on the round", "World's greatest stretch — 4 per side, hold 3 sec", "Leg swings front-to-back — 10 per leg, small range", "Walking lunge with reach — 6 per side, tall chest"] },
-        { pillar:"Core", focus:"Brace + breathe — no rushing", items:["Dead bug — 8 per side, low back stays down", "Side plank — 20 sec per side", "Glute bridge hold — 3 × 20 sec, squeeze at the top", "Bird dog — 8 per side, hold 3 sec"] },
-        { pillar:"Main Lift", focus:"Technique only — light or bodyweight", items:["Bodyweight squat to a box — 2 × 8, perfect form", "Wall push-up or light goblet squat — 2 × 8, slow down", "No max effort today. If it hurts, stop and tell Coach."] },
-        { pillar:"Speed and Agility", focus:"Footwork, not speed — stay smooth", items:["Easy high knees in place — 2 × 15 sec, 70% effort", "Lateral shuffles — 2 × 10 yards each way, stay low", "Backpedal to jog — 4 × 10 yards, controlled"] },
-      ] },
-    build: { name:"BUILD CIRCUIT", tag:"3 • BUILD", color:"text-[#C9A86A]", desc:"Steady and locked in. Technique first, then strength. Controlled tempo, full range, finish every rep.",
-      steps: [
-        { pillar:"Dynamic Stretch", focus:"Prep to move — full range", items:["Leg swings front-to-back + side-to-side — 10 each", "Inchworms — 6, walk feet all the way in", "Open-the-gate + close-the-gate — 8 per side", "Arm circles + band pull-aparts — 10 each"] },
-        { pillar:"Core", focus:"Strong middle, every rep", items:["Plank — 3 × 30 sec", "Dead bug — 10 per side", "Side plank with reach — 8 per side", "Hollow hold — 3 × 15 sec"] },
-        { pillar:"Main Lift", focus:"Coach's lift, done right", items:["Main lift — 3 × 6, controlled down, strong up", "Pair it with a row or pull — 3 × 8", "Rest 60–90 sec. Form beats weight."] },
-        { pillar:"Speed and Agility", focus:"Quick feet, clean stops", items:["A-skips — 2 × 15 yards", "Lateral shuffle to sprint — 4 × 10 yards", "5-10-5 shuttle — 3 reps, full effort on the turn"] },
-      ] },
-    attack: { name:"ATTACK CIRCUIT", tag:"4–5 • ATTACK", color:"text-[#C9A86A]", desc:"You came to work. High intent, explosive, push the pace. Whatever it is, we're doing it — all out, no coasting.",
-      steps: [
-        { pillar:"Dynamic Stretch", focus:"Explode-ready — fast + full", items:["Leg swings — 12 each, big range", "Inchworm to push-up — 6", "Walking lunge with twist — 8 per side", "Pogo hops — 2 × 10 sec, quick feet"] },
-        { pillar:"Core", focus:"Brace hard, move fast", items:["Plank to push-up — 10", "Dead bug with pause — 8 per side", "Med-ball slam or plank reach — 10", "Hollow rocks — 3 × 12"] },
-        { pillar:"Main Lift", focus:"Power + strength", items:["Main lift — 4 × 5, drive every rep", "Jump squat or box jump — 3 × 5 between sets", "Finish the set. No half reps."] },
-        { pillar:"Speed and Agility", focus:"Game speed — compete every rep", items:["Sprints — 5 × 10 yards, all out", "Lateral shuffle to sprint — 4 × 15 yards", "Reactive start — Coach calls it, you GO — 5 reps"] },
-      ] },
+  // --- Generated circuits: sport-specific (softball / baseball / football / general), ages 11-17 elite.
+  // Coach-written plan for a pillar always wins — the bank only fills pillars Coach left blank.
+  // Variants rotate: you never get the same variant twice in a row, and the set cycles before anything repeats.
+  const PILLARS4 = ["Dynamic Stretch","Core","Main Lift","Speed and Agility"];
+  type SportKey = "softball"|"baseball"|"football"|"general";
+  const SPORT_LABELS: Record<SportKey,string> = { softball:"Softball", baseball:"Baseball", football:"Football", general:"General" };
+  const normalizeSport = (s:string): SportKey => { const v=(s||"").toLowerCase(); if(v.includes("softball")) return "softball"; if(v.includes("baseball")) return "baseball"; if(v.includes("football")) return "football"; return "general"; };
+  // Core + Main Lift are universal for 11-17 elite athletes — technique first, no max-effort singles.
+  const SHARED_CORE: Record<string,string[]> = {
+    reset: ["Dead bug — 8 per side, low back stays down","Glute bridge — 2 × 10, squeeze at top","Side plank — 20 sec per side","Bird dog — 8 per side, hold 3 sec"],
+    build: ["Plank — 3 × 30 sec","Dead bug — 10 per side","Side plank with reach — 8 per side","Hollow hold — 3 × 15 sec"],
+    attack: ["Plank to push-up — 10","Dead bug with pause — 8 per side","Med-ball slam — 10, full effort","Hollow rocks — 3 × 12"],
   };
-  const checkinCircuit = checkinGritness==null ? null : checkinGritness<=2 ? CIRCUITS.reset : checkinGritness===3 ? CIRCUITS.build : CIRCUITS.attack;
+  const SHARED_MAIN: Record<string,string[]> = {
+    reset: ["Bodyweight squat to a box — 2 × 8, perfect form","Wall push-up — 2 × 8, slow down","Band row — 2 × 10, squeeze shoulder blades","No max effort today. If it hurts, stop and tell Coach."],
+    build: ["Goblet squat — 3 × 6, controlled down","Single-arm dumbbell row — 3 × 8 per side","Glute bridge with pause — 3 × 8","Rest 60–90 sec. Form beats weight."],
+    attack: ["Trap-bar / goblet squat — 4 × 5, drive every rep","Jump squat or box jump — 3 × 5 between sets","Single-leg RDL — 3 × 6 per side","Finish the set. No half reps."],
+  };
+  const SHARED_STRETCH: Record<string,string[]> = {
+    resetThrow: ["Arm circles + band pull-aparts — 10 each, easy","World's greatest stretch — 4 per side, hold 3 sec","Leg swings front-to-back — 10 per leg, small range","Walking lunge with reach — 6 per side, tall chest"],
+    resetNoThrow: ["Neck rolls + shoulder circles — 30 sec each, easy","Cat-cow — 8 slow reps, breathe out on the round","World's greatest stretch — 4 per side, hold 3 sec","Leg swings front-to-back — 10 per leg, small range"],
+    buildBase: ["Leg swings front-to-back + side-to-side — 10 each","Inchworms — 6","Open-the-gate + close-the-gate — 8 per side"],
+    attack: ["Leg swings — 12 each, big range","Inchworm to push-up — 6","Walking lunge with twist — 8 per side","Pogo hops — 2 × 10 sec, quick feet"],
+  };
+  // Speed + Agility is where the sport lives: 60-ft bases vs 90-ft, lead-offs vs routes.
+  const SPEED_BANK: Record<SportKey, Record<string,string[]>> = {
+    softball: {
+      reset: ["Easy high knees in place — 2 × 15 sec, 70%","Lateral shuffles — 2 × 10 yards each way, stay low","Backpedal to jog — 4 × 10 yards, controlled","Base-running footwork walk-through — 60 ft, easy"],
+      build: ["A-skips — 2 × 15 yards","Home-to-first sprints — 4 × 60 ft, 90%","5-10-5 shuttle — 3 reps","Slap / bunt footwork — 6 reps each side"],
+      attack: ["Home-to-first — 5 × 60 ft, all out","Lateral shuffle to sprint — 4 × 15 yards","Reactive start — Coach calls it, you GO — 5 reps","First-step quickness: 5-yard burst — 6 reps"],
+    },
+    baseball: {
+      reset: ["Easy high knees in place — 2 × 15 sec, 70%","Lateral shuffles — 2 × 10 yards each way, stay low","Backpedal to jog — 4 × 10 yards, controlled","Lead-off footwork walk-through — easy, clean jumps"],
+      build: ["A-skips — 2 × 15 yards","Home-to-first sprints — 4 × 90 ft, 90%","5-10-5 shuttle — 3 reps","Lead-off to steal jump — 6 reps"],
+      attack: ["Home-to-first — 5 × 90 ft, all out","Lateral shuffle to sprint — 4 × 15 yards","Reactive start — Coach calls it, you GO — 5 reps","First-step quickness: 5-yard burst — 6 reps"],
+    },
+    football: {
+      reset: ["Easy high knees in place — 2 × 15 sec, 70%","Lateral shuffles — 2 × 10 yards each way, stay low","Backpedal to jog — 4 × 10 yards, controlled","Stance + first-step walk-through — easy, no contact"],
+      build: ["A-skips — 2 × 15 yards","5-10-5 shuttle — 3 reps","Backpedal + break — 4 × 10 yards","Route footwork: slant + out — 4 reps each, 90%"],
+      attack: ["40-yard sprints — 4, all out","Lateral shuffle to sprint — 4 × 15 yards","Reactive start — Coach calls it, you GO — 5 reps","Change-of-direction: 5-yard burst + cut — 6 reps, no contact"],
+    },
+    general: {
+      reset: ["Easy high knees in place — 2 × 15 sec, 70%","Lateral shuffles — 2 × 10 yards each way, stay low","Backpedal to jog — 4 × 10 yards, controlled","Easy footwork ladder — 2 passes, smooth"],
+      build: ["A-skips — 2 × 15 yards","Lateral shuffle to sprint — 4 × 10 yards","5-10-5 shuttle — 3 reps","Short sprints — 4 × 15 yards, 90%"],
+      attack: ["Sprints — 5 × 15 yards, all out","Lateral shuffle to sprint — 4 × 15 yards","Reactive start — Coach calls it, you GO — 5 reps","First-step quickness: 5-yard burst — 6 reps"],
+    },
+  };
+  const stretchFor = (sport:SportKey, tier:string): string[] => {
+    if(tier==="attack") return SHARED_STRETCH.attack;
+    if(tier==="reset") return (sport==="softball"||sport==="baseball") ? SHARED_STRETCH.resetThrow : SHARED_STRETCH.resetNoThrow;
+    const last = sport==="softball" ? "Pitching arm circles + wrist snaps — 10 each" : sport==="baseball" ? "Throwing arm circles + wrist snaps — 10 each" : "Arm circles + band pull-aparts — 10 each";
+    return [...SHARED_STRETCH.buildBase, last];
+  };
+  const BANK: Record<SportKey, Record<"reset"|"build"|"attack", Record<string,string[]>>> = (["softball","baseball","football","general"] as SportKey[]).reduce((acc,sport)=>{
+    (["reset","build","attack"] as const).forEach(tier=>{
+      acc[sport] = acc[sport] || {} as any;
+      acc[sport][tier] = { "Dynamic Stretch": stretchFor(sport,tier), "Core": SHARED_CORE[tier], "Main Lift": SHARED_MAIN[tier], "Speed and Agility": SPEED_BANK[sport][tier] };
+    });
+    return acc;
+  }, {} as Record<SportKey, Record<"reset"|"build"|"attack", Record<string,string[]>>>);
+  const CIRCUIT_FOCUS: Record<string, Record<string,string>> = {
+    reset: {"Dynamic Stretch":"Injury prevention • slow + controlled","Core":"Brace + breathe — no rushing","Main Lift":"Technique only — light or bodyweight","Speed and Agility":"Footwork, not speed — stay smooth"},
+    build: {"Dynamic Stretch":"Prep to move — full range","Core":"Strong middle, every rep","Main Lift":"Coach's lift, done right","Speed and Agility":"Quick feet, clean stops"},
+    attack: {"Dynamic Stretch":"Explode-ready — fast + full","Core":"Brace hard, move fast","Main Lift":"Power + strength","Speed and Agility":"Game speed — compete every rep"},
+    noexcuses: {"Dynamic Stretch":"No excuses — still warm up right","Core":"Brace hard — no coasting","Main Lift":"Harder than Attack. Every rep.","Speed and Agility":"All out — no coasting"},
+  };
+  const NOEXCUSES_EXTRA: Record<string,string> = {"Dynamic Stretch":"Burpees — 5, then right back in","Core":"Plank hold — 30 sec, no dropping","Main Lift":"One more set than Attack — 5 × 5","Speed and Agility":"One extra sprint — all out"};
+  const CIRCUIT_META: Record<string,{name:string;tag:string;color:string;desc:string}> = {
+    reset: {name:"RESET CIRCUIT",tag:"1–2 • RESET",color:"text-[#D4B483]",desc:"Low battery, not low standards. Slow it down, breathe, move clean, rebuild. Injury prevention first, then dynamic stretch + core. Leave feeling better than you walked in."},
+    build: {name:"BUILD CIRCUIT",tag:"3 • BUILD",color:"text-[#C9A86A]",desc:"Steady and locked in. Technique first, then strength. Controlled tempo, full range, finish every rep."},
+    attack: {name:"ATTACK CIRCUIT",tag:"4–5 • ATTACK",color:"text-[#C9A86A]",desc:"You came to work. High intent, explosive, push the pace. Whatever it is, we're doing it — all out, no coasting."},
+    noexcuses: {name:"NO EXCUSES CIRCUIT",tag:"1–2 • NO GOOD REASON",color:"text-[#FF6B5E]",desc:"No good reason? Then we don't get an easy day — we get the hardest one. Harder than Attack. More reps, more sprints, no coasting. This is the GRIT part."},
+  };
+  function buildCircuitVariant(sport:SportKey, tier:"reset"|"build"|"attack"|"noexcuses", variant:number){
+    const base = tier==="noexcuses" ? "attack" as const : tier;
+    const meta = CIRCUIT_META[tier];
+    return { ...meta, variant, sport, tier,
+      steps: PILLARS4.map(pillar=>{
+        const bank = BANK[sport][base][pillar] || BANK.general[base][pillar];
+        const rot = bank.map((_,i)=>bank[(i+variant)%bank.length]);
+        const items = rot.slice(0,3);
+        if(tier==="noexcuses") items.push(NOEXCUSES_EXTRA[pillar]);
+        return { pillar, focus: CIRCUIT_FOCUS[tier][pillar], items };
+      }),
+    };
+  }
+  // --- Circuit state: sport, 1-2 follow-up, rotation (no repeats) ---
+  const [circuitSport,setCircuitSport]=useState<SportKey>(() => { try{ return (localStorage.getItem("grit:circuitSport") as SportKey) || "softball"; }catch{ return "softball"; } });
+  const [lowReason,setLowReason]=useState<"yes"|"no"|null>(() => { try{ return (localStorage.getItem("grit:lowReason") as any) || null; }catch{ return null; } });
+  const [circuitVariant,setCircuitVariant]=useState<number>(0);
+  const [circuitHistory,setCircuitHistory]=useState<string[]>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:circuitHistory")||"[]"); }catch{ return []; } });
+  useEffect(()=>{ try{ localStorage.setItem("grit:circuitSport", circuitSport); }catch{} },[circuitSport]);
+  useEffect(()=>{ try{ localStorage.setItem("grit:lowReason", lowReason||""); }catch{} },[lowReason]);
+  useEffect(()=>{ try{ localStorage.setItem("grit:circuitHistory", JSON.stringify(circuitHistory.slice(-30))); }catch{} },[circuitHistory]);
+  // Sport comes from the picker above the GRITNESS scale (defaults to Softball). Coach-written plans still win per pillar.
+  function selectGritness(n:number){ setCheckinGritness(n); setLowReason(null); setCircuitChecks({}); }
+  const tierKey: "reset"|"build"|"attack"|"noexcuses"|"ask"|null = checkinGritness==null ? null : checkinGritness<=2 ? (lowReason==null ? "ask" : lowReason==="yes" ? "reset" : "noexcuses") : checkinGritness===3 ? "build" : "attack";
+  const tierSportKey = tierKey && tierKey!=="ask" ? `${circuitSport}-${tierKey}` : "";
+  useEffect(()=>{
+    if(!tierKey || tierKey==="ask") return;
+    const recent = circuitHistory.filter(h=>h.startsWith(tierSportKey)).slice(-2);
+    let next = [0,1,2].find(v=>!recent.includes(`${tierSportKey}-v${v}`));
+    if(next==null) next = (circuitVariant+1)%3;
+    setCircuitVariant(next);
+    setCircuitHistory(prev=>[...prev, `${tierSportKey}-v${next}`].slice(-30));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[tierSportKey]);
+  const checkinCircuit = tierKey && tierKey!=="ask" ? buildCircuitVariant(circuitSport, tierKey, circuitVariant) : null;
   const [circuitChecks,setCircuitChecks]=useState<Record<string,boolean>>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:circuitChecks")||"{}"); }catch{ return {}; } });
   useEffect(()=>{ try{ localStorage.setItem("grit:circuitChecks", JSON.stringify(circuitChecks)); }catch{} },[circuitChecks]);
-  const circuitKey = (stepIdx:number,itemIdx:number)=>`${checkinCircuit?.name||"none"}-${stepIdx}-${itemIdx}`;
+  const circuitKey = (stepIdx:number,itemIdx:number)=>`${circuitSport}-${tierKey||"none"}-v${circuitVariant}-${stepIdx}-${itemIdx}`;
   const circuitTotal = checkinCircuit ? checkinCircuit.steps.reduce((n,s)=>n+s.items.length,0) : 0;
   const circuitDone = checkinCircuit ? checkinCircuit.steps.reduce((n,s,si)=>n+s.items.filter((_,ii)=>circuitChecks[circuitKey(si,ii)]).length,0) : 0;
   const checkinTotal = 3 + SECTIONS.length + 1;
   const checkinDoneCount = (checkinGrateful.trim()?1:0) + (checkinProud.trim()?1:0) + (checkinGritness!=null?1:0) + SECTIONS.filter(s=>checkinChecks[s]).length + (checkinChecks["focus"]?1:0);
-  function resetCheckin(){ setCheckinGrateful(""); setCheckinProud(""); setCheckinGritness(null); setCheckinChecks({}); setCircuitChecks({}); setCheckinSavedMsg("Check-in cleared — fresh start for the next athlete."); }
-  async function saveCheckin(){ try{ await callApi("records.create",{collection:"grit_checkins", value:{athleteId:loggedInAthleteId||trainingAthleteId||"", athleteName:unlockedAthlete?.name||trainingAthlete?.name||"", grateful:checkinGrateful, proud:checkinProud, gritness:checkinGritness, circuit:checkinCircuit?.name||"", circuitSteps:checkinCircuit?.steps||[], circuitChecks, checks:checkinChecks, createdAt:new Date().toISOString()}, idempotency_key:safeId()}); setCheckinSavedMsg("Check-in saved."); }catch{ setCheckinSavedMsg("Check-in saved on this device."); } }
+  function resetCheckin(){ setCheckinGrateful(""); setCheckinProud(""); setCheckinGritness(null); setLowReason(null); setCheckinChecks({}); setCircuitChecks({}); setCheckinSavedMsg("Check-in cleared — fresh start for the next athlete."); }
+  async function saveCheckin(){ try{ await callApi("records.create",{collection:"grit_checkins", value:{athleteId:loggedInAthleteId||trainingAthleteId||"", athleteName:unlockedAthlete?.name||trainingAthlete?.name||"", grateful:checkinGrateful, proud:checkinProud, gritness:checkinGritness, circuit:checkinCircuit?.name||"", circuitSport, lowReason:lowReason||"", circuitVariant, circuitSteps:checkinCircuit?.steps||[], circuitChecks, checks:checkinChecks, createdAt:new Date().toISOString()}, idempotency_key:safeId()}); setCheckinSavedMsg("Check-in saved."); }catch{ setCheckinSavedMsg("Check-in saved on this device."); } }
   const [loggedInAthleteId,setLoggedInAthleteId]=useState<string|null>(null);
   const [pinInput,setPinInput]=useState("");
   const [loginError,setLoginError]=useState("");
@@ -622,7 +705,7 @@ export default function App(){
         const m = text.toLowerCase().match(/\b([1-5])\b|\b(one|two|three|four|five)\b/);
         const n = m ? (m[1] ? Number(m[1]) : words[m[2]]) : null;
         if(n==null){ setResult("Didn't catch a number — say a GRITNESS from 1 to 5."); return; }
-        setCheckinGritness(n); setDictStatus("Saved"); setResult(`GRITNESS set to ${n} — your ${n<=2?"RESET":n===3?"BUILD":"ATTACK"} CIRCUIT is up.`); flashSaved(); return;
+        setCheckinGritness(n); setDictStatus("Saved"); setLowReason(null); setResult(n<=2 ? `GRITNESS set to ${n} — now answer this: do you have a good reason?` : `GRITNESS set to ${n} — your ${n===3?"BUILD":"ATTACK"} CIRCUIT is up.`); flashSaved(); return;
       }
     }
     const join = (prev: string) => prev && prev.trim() ? `${prev.trim()} ${text}` : text;
@@ -1268,10 +1351,19 @@ export default function App(){
                 </label>
               </div>
               <div className="mt-4 rounded-2xl border border-white/15 bg-[#2E4038]/80 p-4 lg:p-5">
-                <div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#C9A86A] text-lg font-bold text-black">3</span><h3 className="font-display text-[22px] lg:text-[26px] font-bold leading-tight">Scale of 1-5 — Whats your level of GRITNESS right now?</h3></div>
+                                <div className="mt-4 rounded-2xl border border-white/15 bg-black/30 px-4 py-3">
+                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CIRCUIT SPORT — {SPORT_LABELS[circuitSport].toUpperCase()}</p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {(["softball","baseball","football"] as SportKey[]).map(s=>(
+                      <button key={s} onClick={()=>setCircuitSport(s)} aria-pressed={circuitSport===s} className={`min-h-[44px] rounded-full px-4 py-2 text-[13px] font-bold active:scale-[0.98] ${circuitSport===s?"bg-[#C9A86A] text-black":"border border-white/25 text-white/80"}`}>{SPORT_LABELS[s]}</button>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-xs text-white/60">Draws from your sport&apos;s pool. If Coach wrote a plan for a pillar, that pillar uses Coach&apos;s plan instead.</p>
+                </div>
+<div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#C9A86A] text-lg font-bold text-black">3</span><h3 className="font-display text-[22px] lg:text-[26px] font-bold leading-tight">Scale of 1-5 — Whats your level of GRITNESS right now?</h3></div>
                 <div className="grid grid-cols-5 gap-2 mt-4">
                   {[1,2,3,4,5].map(n=>(
-                    <button key={n} onClick={()=>setCheckinGritness(n)} aria-pressed={checkinGritness===n} className={`min-h-[76px] lg:min-h-[92px] rounded-2xl border-2 px-2 py-3 text-center active:scale-[0.98] ${checkinGritness===n?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/25 bg-black/30 text-white"}`}>
+                    <button key={n} onClick={()=>selectGritness(n)} aria-pressed={checkinGritness===n} className={`min-h-[76px] lg:min-h-[92px] rounded-2xl border-2 px-2 py-3 text-center active:scale-[0.98] ${checkinGritness===n?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/25 bg-black/30 text-white"}`}>
                       <span className="block font-display text-[34px] lg:text-[44px] font-bold leading-none">{n}</span>
                       <span className="mt-1 block text-[10px] lg:text-[11px] font-bold tracking-widest">{n===1?"GOT NOTHING":n===5?"ALL IN":""}</span>
                     </button>
@@ -1281,11 +1373,25 @@ export default function App(){
                   <p><strong className="text-[#D4B483]">1 =</strong> I got nothing, unfocused and checked out</p>
                   <p><strong className="text-[#D4B483]">5 =</strong> Completely on point and determined to make progress today. whatever it is, were doing it!</p>
                 </div>
+                {checkinGritness!=null && checkinGritness<=2 && lowReason==null ? (
+                  <div className="mt-4 rounded-2xl border-2 border-[#FF6B5E] bg-black/45 px-4 py-4 lg:px-5">
+                    <p className="font-display text-[24px] font-bold leading-tight text-[#FF6B5E]">You picked {checkinGritness}. Real talk —</p>
+                    <p className="mt-2 text-[15px] lg:text-[17px] leading-relaxed text-white/85">Do you have a good reason? Injured, sick, sore, no sleep, something real — that counts, and you get the RESET CIRCUIT.</p>
+                    <p className="mt-1 text-[15px] leading-relaxed text-white/85">No good reason, just don&apos;t feel like it? Then you don&apos;t get an easy day. You get the hardest circuit we have.</p>
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      <button onClick={()=>setLowReason("yes")} className="min-h-[56px] rounded-full border-2 border-[#C9A86A] px-4 py-3 text-[15px] font-bold text-[#C9A86A] active:bg-white/10">Yes — real reason → RESET</button>
+                      <button onClick={()=>setLowReason("no")} className="min-h-[56px] rounded-full bg-[#FF6B5E] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">No — just don&apos;t feel like it → NO EXCUSES</button>
+                    </div>
+                    <p className="mt-3 text-xs text-white/60">Be honest. GRIT starts with telling the truth.</p>
+                  </div>
+                ) : null}
                 {checkinCircuit ? (
                   <div className="mt-4 rounded-2xl border-2 border-[#C9A86A] bg-black/45 px-4 py-4 lg:px-5">
                     <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">TODAY&apos;S CIRCUIT • {checkinCircuit.tag}</p>
                     <p className={`font-display text-[28px] lg:text-[36px] font-bold leading-none mt-1 ${checkinCircuit.color}`}>{checkinCircuit.name}</p>
                     <p className="mt-2 text-[15px] lg:text-[17px] leading-relaxed text-white/85">{checkinCircuit.desc}</p>
+                    <p className="mt-2 text-xs font-bold tracking-widest text-white/60">{SPORT_LABELS[circuitSport].toUpperCase()} POOL • VARIANT {circuitVariant+1} OF 3 • WON&apos;T REPEAT UNTIL YOU&apos;VE DONE ALL 3</p>
+                    {lowReason ? <button onClick={()=>setLowReason(null)} className="mt-1 text-xs font-bold text-[#C9A86A] underline underline-offset-2">Not right? Change your answer</button> : null}
                     <div className="mt-4 flex flex-wrap items-end justify-between gap-2">
                       <p className="text-xs font-bold tracking-widest text-white/60">CIRCUIT CHECKLIST</p>
                       <p className="font-display text-2xl font-bold text-[#C9A86A]">{circuitDone} / {circuitTotal} done</p>
