@@ -42,8 +42,3 @@ textarea{resize:vertical}
 button{transition:transform .12s ease, background-color .15s ease}
 button:active{transform:scale(.98)}
 /* Responsive shell: mobile stays a single narrow column; tablet widens; desktop fills the screen. */
-
-/* App shell — not a website: full-height app, bottom nav clears content, no horizontal scroll. */
-html,body,#root{min-height:100dvh}
-body{overscroll-behavior-y:none}
-main{padding-bottom:140px}
