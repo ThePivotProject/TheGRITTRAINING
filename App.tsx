@@ -86,12 +86,13 @@ const placeholderAthletes = (): AthleteProfile[] => {
   return [...ROSTER_NAMES].sort((a,b)=>a.localeCompare(b)).map((name,i)=>({ id:`local-${i+1}`, name, sport:"", position:"", lookUp:"", ageGroup:"", motto:"", remember:"", homework:"", mindset:"", gratitude:"", nonNegotiables:"", disciplineDone:[], pin:"", focus:"", createdAt:new Date().toISOString(), startDate:"", program:"", trainingSections:emptySections(), trainingMinutes:{...DEFAULT_MINUTES}, trainingNotes:{}, progress_doc_url:"", progress_notes:"", progress_notes_last_synced:"" }));
 };
 
-type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"coachLock"|"homework"|"impact"|"become";
+type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become";
 const TABS: {id:View; label:string; icon:any}[] = [
   {id:"athletes", label:"Your GRIT Profile", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
   {id:"homework", label:"Homework", icon: BookOpen},
   {id:"pillars", label:"Mindset & Impact", icon: Brain},
+  {id:"coach", label:"Coaches", icon: ShieldCheck},
 ];
 const SUPABASE_SQL = `-- GRIT Supabase setup — run the WHOLE file at once in Supabase > SQL Editor.
 -- Idempotent: safe to re-run. Athletes is created FIRST, before anything that references it.
@@ -136,12 +137,12 @@ create policy "grit_read" on public.grit_cards for select using (true);
 create policy "grit_write" on public.grit_cards for all using (true) with check (true);`;
 
 function PhotoBackground({ view }: { view?: string }){
-  const bg = fieldNightUrl; // SKIN: field-night.webp on EVERY page
+  const bg = view === "wall" ? fieldNightUrl : bgUrl;
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
-      <img src={bg} alt="" className="absolute inset-0 h-full w-full object-cover" />
-      <div className="absolute inset-0 bg-black/55" />
-      <div className="absolute inset-0" style={{background:"linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
+      <img src={bg} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
+      <img src={bg} alt="" className="absolute inset-0 h-full w-full object-contain bg-[#0F1113] lg:object-cover lg:object-center" />
+      <div className="absolute inset-0" style={{background:"linear-gradient(90deg, rgba(15,17,19,.72) 0%, rgba(15,17,19,.08) 18%, rgba(15,17,19,0) 50%, rgba(15,17,19,.08) 82%, rgba(15,17,19,.72) 100%), linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
     </div>
   );
 }
@@ -167,50 +168,6 @@ export default function App(){
   const [sections,setSections]=useState<Record<string,string>>(emptySections());
   const [minutes,setMinutes]=useState<Record<string,string>>({...DEFAULT_MINUTES});
   const [blockNotes,setBlockNotes]=useState<Record<string,string>>({});
-  // --- Training check-in (MacBook / TV) ---
-  const [checkinGrateful,setCheckinGrateful]=useState(()=>{ try{ return localStorage.getItem("grit:checkinGrateful")||""; }catch{ return ""; } });
-  const [checkinProud,setCheckinProud]=useState(()=>{ try{ return localStorage.getItem("grit:checkinProud")||""; }catch{ return ""; } });
-  const [checkinGritness,setCheckinGritness]=useState<number|null>(()=>{ try{ const v=localStorage.getItem("grit:checkinGritness"); return v?Number(v):null; }catch{ return null; } });
-  const [checkinChecks,setCheckinChecks]=useState<Record<string,boolean>>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:checkinChecks")||"{}"); }catch{ return {}; } });
-  const [checkinSavedMsg,setCheckinSavedMsg]=useState("");
-  useEffect(()=>{ try{ localStorage.setItem("grit:checkinGrateful", checkinGrateful); }catch{} },[checkinGrateful]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:checkinProud", checkinProud); }catch{} },[checkinProud]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:checkinGritness", checkinGritness==null?"":String(checkinGritness)); }catch{} },[checkinGritness]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:checkinChecks", JSON.stringify(checkinChecks)); }catch{} },[checkinChecks]);
-  // --- Generated circuits: built off the 4 pillars in SECTIONS. Never overwrites a coach-written plan. ---
-  const CIRCUITS: Record<string, {name:string; tag:string; desc:string; steps:{pillar:string; focus:string; items:string[]}[]}> = {
-    reset: { name:"RESET CIRCUIT", tag:"1–2 • RESET", color:"text-[#D4B483]", desc:"Low battery, not low standards. Slow it down, breathe, move clean, rebuild. Injury prevention first, then dynamic stretch + core. Leave feeling better than you walked in.",
-      steps: [
-        { pillar:"Dynamic Stretch", focus:"Injury prevention • slow + controlled", items:["Neck rolls + shoulder circles — 30 sec each, easy", "Cat-cow — 8 slow reps, breathe out on the round", "World's greatest stretch — 4 per side, hold 3 sec", "Leg swings front-to-back — 10 per leg, small range", "Walking lunge with reach — 6 per side, tall chest"] },
-        { pillar:"Core", focus:"Brace + breathe — no rushing", items:["Dead bug — 8 per side, low back stays down", "Side plank — 20 sec per side", "Glute bridge hold — 3 × 20 sec, squeeze at the top", "Bird dog — 8 per side, hold 3 sec"] },
-        { pillar:"Main Lift", focus:"Technique only — light or bodyweight", items:["Bodyweight squat to a box — 2 × 8, perfect form", "Wall push-up or light goblet squat — 2 × 8, slow down", "No max effort today. If it hurts, stop and tell Coach."] },
-        { pillar:"Speed and Agility", focus:"Footwork, not speed — stay smooth", items:["Easy high knees in place — 2 × 15 sec, 70% effort", "Lateral shuffles — 2 × 10 yards each way, stay low", "Backpedal to jog — 4 × 10 yards, controlled"] },
-      ] },
-    build: { name:"BUILD CIRCUIT", tag:"3 • BUILD", color:"text-[#C9A86A]", desc:"Steady and locked in. Technique first, then strength. Controlled tempo, full range, finish every rep.",
-      steps: [
-        { pillar:"Dynamic Stretch", focus:"Prep to move — full range", items:["Leg swings front-to-back + side-to-side — 10 each", "Inchworms — 6, walk feet all the way in", "Open-the-gate + close-the-gate — 8 per side", "Arm circles + band pull-aparts — 10 each"] },
-        { pillar:"Core", focus:"Strong middle, every rep", items:["Plank — 3 × 30 sec", "Dead bug — 10 per side", "Side plank with reach — 8 per side", "Hollow hold — 3 × 15 sec"] },
-        { pillar:"Main Lift", focus:"Coach's lift, done right", items:["Main lift — 3 × 6, controlled down, strong up", "Pair it with a row or pull — 3 × 8", "Rest 60–90 sec. Form beats weight."] },
-        { pillar:"Speed and Agility", focus:"Quick feet, clean stops", items:["A-skips — 2 × 15 yards", "Lateral shuffle to sprint — 4 × 10 yards", "5-10-5 shuttle — 3 reps, full effort on the turn"] },
-      ] },
-    attack: { name:"ATTACK CIRCUIT", tag:"4–5 • ATTACK", color:"text-[#C9A86A]", desc:"You came to work. High intent, explosive, push the pace. Whatever it is, we're doing it — all out, no coasting.",
-      steps: [
-        { pillar:"Dynamic Stretch", focus:"Explode-ready — fast + full", items:["Leg swings — 12 each, big range", "Inchworm to push-up — 6", "Walking lunge with twist — 8 per side", "Pogo hops — 2 × 10 sec, quick feet"] },
-        { pillar:"Core", focus:"Brace hard, move fast", items:["Plank to push-up — 10", "Dead bug with pause — 8 per side", "Med-ball slam or plank reach — 10", "Hollow rocks — 3 × 12"] },
-        { pillar:"Main Lift", focus:"Power + strength", items:["Main lift — 4 × 5, drive every rep", "Jump squat or box jump — 3 × 5 between sets", "Finish the set. No half reps."] },
-        { pillar:"Speed and Agility", focus:"Game speed — compete every rep", items:["Sprints — 5 × 10 yards, all out", "Lateral shuffle to sprint — 4 × 15 yards", "Reactive start — Coach calls it, you GO — 5 reps"] },
-      ] },
-  };
-  const checkinCircuit = checkinGritness==null ? null : checkinGritness<=2 ? CIRCUITS.reset : checkinGritness===3 ? CIRCUITS.build : CIRCUITS.attack;
-  const [circuitChecks,setCircuitChecks]=useState<Record<string,boolean>>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:circuitChecks")||"{}"); }catch{ return {}; } });
-  useEffect(()=>{ try{ localStorage.setItem("grit:circuitChecks", JSON.stringify(circuitChecks)); }catch{} },[circuitChecks]);
-  const circuitKey = (stepIdx:number,itemIdx:number)=>`${checkinCircuit?.name||"none"}-${stepIdx}-${itemIdx}`;
-  const circuitTotal = checkinCircuit ? checkinCircuit.steps.reduce((n,s)=>n+s.items.length,0) : 0;
-  const circuitDone = checkinCircuit ? checkinCircuit.steps.reduce((n,s,si)=>n+s.items.filter((_,ii)=>circuitChecks[circuitKey(si,ii)]).length,0) : 0;
-  const checkinTotal = 3 + SECTIONS.length + 1;
-  const checkinDoneCount = (checkinGrateful.trim()?1:0) + (checkinProud.trim()?1:0) + (checkinGritness!=null?1:0) + SECTIONS.filter(s=>checkinChecks[s]).length + (checkinChecks["focus"]?1:0);
-  function resetCheckin(){ setCheckinGrateful(""); setCheckinProud(""); setCheckinGritness(null); setCheckinChecks({}); setCircuitChecks({}); setCheckinSavedMsg("Check-in cleared — fresh start for the next athlete."); }
-  async function saveCheckin(){ try{ await callApi("records.create",{collection:"grit_checkins", value:{athleteId:loggedInAthleteId||trainingAthleteId||"", athleteName:unlockedAthlete?.name||trainingAthlete?.name||"", grateful:checkinGrateful, proud:checkinProud, gritness:checkinGritness, circuit:checkinCircuit?.name||"", circuitSteps:checkinCircuit?.steps||[], circuitChecks, checks:checkinChecks, createdAt:new Date().toISOString()}, idempotency_key:safeId()}); setCheckinSavedMsg("Check-in saved."); }catch{ setCheckinSavedMsg("Check-in saved on this device."); } }
   const [loggedInAthleteId,setLoggedInAthleteId]=useState<string|null>(null);
   const [pinInput,setPinInput]=useState("");
   const [loginError,setLoginError]=useState("");
@@ -245,10 +202,6 @@ export default function App(){
   const [leaderAthleteId,setLeaderAthleteId]=useState("");
   const [coachDocAthleteId,setCoachDocAthleteId]=useState("");
   // --- Coaches dashboard ---
-  const [coachUnlocked,setCoachUnlocked]=useState(false);
-  const [coachPinInput,setCoachPinInput]=useState("");
-  const [coachPinError,setCoachPinError]=useState("");
-  const [coachPinStored,setCoachPinStored]=useState(()=>{ try{ return localStorage.getItem("grit:coachPin")||""; }catch{ return ""; } });
   const [supabaseUrl,setSupabaseUrl]=useState("");
   const [supabaseKey,setSupabaseKey]=useState("");
   const [supabaseStatus,setSupabaseStatus]=useState<"Not Connected"|"Connected">("Not Connected");
@@ -273,7 +226,6 @@ export default function App(){
   const [calendarSyncMsg,setCalendarSyncMsg]=useState("");
   const [calendarEvents,setCalendarEvents]=useState<any[]>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:calendarEvents")||"[]"); }catch{ return []; } });
   const [calendarFeedUrl,setCalendarFeedUrl]=useState(()=>{ try{ return localStorage.getItem("grit:calendarFeedUrl")||""; }catch{ return ""; } });
-  const [calendarId,setCalendarId]=useState(()=>{ try{ return localStorage.getItem("grit:calendarId")||"thepiviotproject@kbuiltsoftball.com"; }catch{ return "thepiviotproject@kbuiltsoftball.com"; } });
   const [calendarIcsText,setCalendarIcsText]=useState("");
   const [nextSessionAthleteId,setNextSessionAthleteId]=useState("");
   const [nextSessionDate,setNextSessionDate]=useState("");
@@ -281,7 +233,6 @@ export default function App(){
   const [nextSessionTitle,setNextSessionTitle]=useState("");
   useEffect(()=>{ try{ localStorage.setItem("grit:calendarEvents", JSON.stringify(calendarEvents)); }catch{} },[calendarEvents]);
   useEffect(()=>{ try{ localStorage.setItem("grit:calendarFeedUrl", calendarFeedUrl); }catch{} },[calendarFeedUrl]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:calendarId", calendarId); }catch{} },[calendarId]);
   function parseIcs(text:string){
     const events:any[]=[]; const blocks=String(text||"").split("BEGIN:VEVENT").slice(1);
     for(const b of blocks){
@@ -946,20 +897,7 @@ export default function App(){
     setBecomeVideoUrl(""); setBecomeVideoCaption("");
   }
 
-  const goTab = (v:View)=>{ if(v==="coach" && !coachUnlocked){ setView("coachLock"); } else { setView(v); } window.scrollTo({top:0, behavior:"smooth"}); };
-  function unlockCoaches(){
-    if(!coachPinStored){
-      const pin=coachPinInput.trim();
-      if(!/^\d{4}$/.test(pin)){ setCoachPinError("Pick a 4-digit Coach PIN."); return; }
-      try{ localStorage.setItem("grit:coachPin", pin); }catch{}
-      setCoachPinStored(pin); setCoachUnlocked(true); setCoachPinInput(""); setCoachPinError(""); setView("coach"); setResult("Coach PIN set. Coaches is unlocked on this device until you lock it.");
-    } else {
-      if(coachPinInput.trim()===coachPinStored){ setCoachUnlocked(true); setCoachPinInput(""); setCoachPinError(""); setView("coach"); }
-      else setCoachPinError("Wrong Coach PIN.");
-    }
-  }
-  function lockCoaches(){ setCoachUnlocked(false); setCoachPinInput(""); setView("wall"); setResult("Coaches locked."); }
-  function resetCoachPin(){ try{ localStorage.removeItem("grit:coachPin"); }catch{} setCoachPinStored(""); setCoachUnlocked(false); setCoachPinInput(""); setCoachPinError(""); setResult("Coach PIN cleared — set a new one next time you open Coaches."); }
+  const goTab = (v:View)=>{ setView(v); window.scrollTo({top:0, behavior:"smooth"}); };
   function handleUnlock(){
     const athlete = selectedAthlete;
     if(!athlete) return;
@@ -1080,7 +1018,7 @@ export default function App(){
       { label:"Supabase", ok: supabaseStatus==="Connected", detail: supabaseStatus==="Connected" ? "Connected" : "Not Connected", synced: supabaseLastChecked || "Not checked yet" },
       { label:"Google Calendar", ok: calendarConnected, detail: calendarConnected ? "Connected" : "Not connected", synced: calendarLastChecked || "Not checked yet" },
       { label:"Progress Docs Sync", ok: docsOk, detail: docsOk ? "At least one Doc synced" : "No Doc synced yet", synced: lastDoc ? new Date(lastDoc).toLocaleString() : "Not synced yet" },
-      { label:"Roster", ok: athletes.length>0, detail: "Roster loaded", synced: stamp },
+      { label:"Roster (28)", ok: athletes.length===28, detail: `${athletes.length} athletes`, synced: stamp },
       { label:"Training Blocks (4)", ok: SECTIONS.length===4, detail: "4 blocks", synced: stamp },
       { label:"PINs Set", ok: pinsOk, detail: pinsOk ? "Every athlete has a 4-digit PIN" : "One or more PINs are missing", synced: stamp },
     ];
@@ -1142,7 +1080,7 @@ export default function App(){
         </div>
       </div>
 
-      <main className={view==="training" ? "relative z-10 mx-auto w-full max-w-[1200px] px-4 pb-[128px] lg:px-8" : "relative z-10 mx-auto max-w-[430px] px-4 pb-[128px] lg:px-8"}>
+      <main className="relative z-10 mx-auto max-w-[430px] px-4 pb-[128px] lg:px-8">
         {view==="wall" ? (
           <div className="md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
             <section className="pt-5 md:col-span-1 lg:col-span-2">
@@ -1178,86 +1116,7 @@ export default function App(){
           </div>
         ) : view==="training" ? (
           <section className="pt-5">
-            {/* TRAINING CHECK-IN — MacBook / flat-screen TV. This is the FIRST thing on the page. */}
-            <div className="rounded-[26px] border-2 border-[#C9A86A] bg-black/55 px-5 py-5 lg:px-8 lg:py-6">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">TRAINING • CHECK-IN CHECKLIST</p>
-                  <h2 className="font-display text-[clamp(30px,4vw,48px)] leading-none mt-2">{unlockedAthlete?.name || trainingAthlete?.name || "Check In"}</h2>
-                  <p className="text-white/75 mt-1 text-[15px]">Answer the 3 questions. Your GRITNESS sets today&apos;s circuit.</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-bold tracking-widest text-white/60">CHECKLIST PROGRESS</p>
-                  <p className="font-display text-3xl font-bold text-[#C9A86A]">{checkinDoneCount} / {checkinTotal}</p>
-                </div>
-              </div>
-              <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width:`${Math.round(checkinDoneCount/checkinTotal*100)}%`}} /></div>
-              <div className="grid gap-4 mt-5 lg:grid-cols-2">
-                <label className="block rounded-2xl border border-white/15 bg-[#2E4038]/80 p-4 lg:p-5">
-                  <span className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#C9A86A] text-lg font-bold text-black">1</span><span className="font-display text-[22px] lg:text-[26px] font-bold leading-tight">What are you grateful for?</span></span>
-                  <textarea value={checkinGrateful} onChange={e=>setCheckinGrateful(e.target.value)} rows={3} placeholder="Say it out loud, then type it here…" className="mt-3 w-full bg-black/30 border border-white/15 rounded-xl p-3 text-[17px] lg:text-[19px] leading-relaxed outline-none focus:border-[#C9A86A]" />
-                </label>
-                <label className="block rounded-2xl border border-white/15 bg-[#2E4038]/80 p-4 lg:p-5">
-                  <span className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#C9A86A] text-lg font-bold text-black">2</span><span className="font-display text-[22px] lg:text-[26px] font-bold leading-tight">What are you proud of?</span></span>
-                  <textarea value={checkinProud} onChange={e=>setCheckinProud(e.target.value)} rows={3} placeholder="Something real — big or small…" className="mt-3 w-full bg-black/30 border border-white/15 rounded-xl p-3 text-[17px] lg:text-[19px] leading-relaxed outline-none focus:border-[#C9A86A]" />
-                </label>
-              </div>
-              <div className="mt-4 rounded-2xl border border-white/15 bg-[#2E4038]/80 p-4 lg:p-5">
-                <div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#C9A86A] text-lg font-bold text-black">3</span><h3 className="font-display text-[22px] lg:text-[26px] font-bold leading-tight">Scale of 1-5 — Whats your level of GRITNESS right now?</h3></div>
-                <div className="grid grid-cols-5 gap-2 mt-4">
-                  {[1,2,3,4,5].map(n=>(
-                    <button key={n} onClick={()=>setCheckinGritness(n)} aria-pressed={checkinGritness===n} className={`min-h-[76px] lg:min-h-[92px] rounded-2xl border-2 px-2 py-3 text-center active:scale-[0.98] ${checkinGritness===n?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/25 bg-black/30 text-white"}`}>
-                      <span className="block font-display text-[34px] lg:text-[44px] font-bold leading-none">{n}</span>
-                      <span className="mt-1 block text-[10px] lg:text-[11px] font-bold tracking-widest">{n===1?"GOT NOTHING":n===5?"ALL IN":""}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="grid gap-2 mt-3 text-[13px] lg:text-[15px] leading-relaxed text-white/80 lg:grid-cols-2">
-                  <p><strong className="text-[#D4B483]">1 =</strong> I got nothing, unfocused and checked out</p>
-                  <p><strong className="text-[#D4B483]">5 =</strong> Completely on point and determined to make progress today. whatever it is, were doing it!</p>
-                </div>
-                {checkinCircuit ? (
-                  <div className="mt-4 rounded-2xl border-2 border-[#C9A86A] bg-black/45 px-4 py-4 lg:px-5">
-                    <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">TODAY&apos;S CIRCUIT • {checkinCircuit.tag}</p>
-                    <p className={`font-display text-[28px] lg:text-[36px] font-bold leading-none mt-1 ${checkinCircuit.color}`}>{checkinCircuit.name}</p>
-                    <p className="mt-2 text-[15px] lg:text-[17px] leading-relaxed text-white/85">{checkinCircuit.desc}</p>
-                    <div className="mt-4 flex flex-wrap items-end justify-between gap-2">
-                      <p className="text-xs font-bold tracking-widest text-white/60">CIRCUIT CHECKLIST</p>
-                      <p className="font-display text-2xl font-bold text-[#C9A86A]">{circuitDone} / {circuitTotal} done</p>
-                    </div>
-                    <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width: circuitTotal?`${Math.round(circuitDone/circuitTotal*100)}%`:"0%"}} /></div>
-                    <div className="grid gap-3 mt-4 lg:grid-cols-2">
-                      {checkinCircuit.steps.map((step,si)=>{
-                        const sectionKey = SECTIONS.find(s=>s.replace(" |","").replace(" |","").trim().toLowerCase()===step.pillar.toLowerCase()) || "";
-                        const coachPlan = sectionKey ? (sections[sectionKey]||"").trim() : "";
-                        return (
-                        <div key={step.pillar} className="rounded-2xl border border-white/15 bg-[#2E4038]/80 p-4">
-                          <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">{step.pillar.toUpperCase()}</p>
-                          <p className="font-display text-[20px] font-bold leading-tight mt-1">{step.focus}</p>
-                          {coachPlan ? <div className="mt-3 rounded-xl border border-[#C9A86A]/50 bg-black/40 p-3"><p className="text-[11px] font-bold tracking-widest text-[#D4B483]">COACH&apos;S PLAN FOR THIS PILLAR — DO THIS FIRST</p><p className="mt-1 text-[14px] leading-relaxed text-white/90 whitespace-pre-wrap">{coachPlan}</p></div> : null}
-                          <ul className="mt-3 space-y-2">
-                            {step.items.map((item,ii)=>{ const done=!!circuitChecks[circuitKey(si,ii)]; return (
-                              <li key={ii}><button onClick={()=>setCircuitChecks(p=>({...p,[circuitKey(si,ii)]:!p[circuitKey(si,ii)]}))} aria-pressed={done} className="flex w-full items-start gap-3 rounded-xl px-2 py-2 text-left active:scale-[0.99]">
-                                <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold ${done?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/40 text-white"}`}>{done?"✓":"○"}</span>
-                                <span className={`text-[15px] lg:text-[16px] leading-relaxed ${done?"line-through opacity-60":"text-white/90"}`}>{item}</span>
-                              </button></li>
-                            ); })}
-                          </ul>
-                        </div> ); })}
-                    </div>
-                    <p className="mt-3 text-xs text-white/60">Generated from your 4 pillars — Dynamic Stretch, Core, Main Lift, Speed and Agility. Coach&apos;s written plan for a pillar always shows on top and is never replaced.</p>
-                  </div>
-                ) : (
-                  <p className="mt-4 text-center text-[15px] text-white/60">Pick 1–5 and your circuit locks in below.</p>
-                )}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button onClick={saveCheckin} className="min-h-[52px] flex-1 rounded-full bg-[#C9A86A] px-5 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Save Check-In</button>
-                <button onClick={resetCheckin} className="min-h-[52px] rounded-full border border-white/25 px-5 py-3 text-sm font-semibold">Clear for Next Athlete</button>
-              </div>
-              {checkinSavedMsg && <p className="mt-2 text-sm font-bold text-[#D4B483]" role="status">{checkinSavedMsg}</p>}
-            </div>
-            <h2 className="font-display text-center font-bold leading-[1.15] break-words text-[clamp(24px,6.8vw,36px)] mt-6">WE COMPETE LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER LOST</span> AND TRAIN LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER WON</span></h2>
+            <h2 className="font-display text-center font-bold leading-[1.15] break-words text-[clamp(24px,6.8vw,36px)]">WE COMPETE LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER LOST</span> AND TRAIN LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER WON</span></h2>
             {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return null; if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
             <section className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
               <h3 className="font-display font-bold leading-[1.1] text-[clamp(24px,7vw,32px)]">Motivation vs. Discipline <span className="text-[#C9A86A]">|</span> You vs. You</h3>
@@ -1301,14 +1160,10 @@ export default function App(){
                   {currentWorkout && <span className="text-xs text-[#D4B483] text-center">Published for {currentWorkout.athlete} • {currentWorkout.week}</span>}
                 </div>
               </div>
-              <p className="mt-5 text-center font-display text-[22px] lg:text-[28px] font-bold">CHECKLIST — TAP EACH BLOCK DONE AS YOU FINISH IT</p>
-              <div className="grid gap-3 mt-3 md:grid-cols-2 lg:grid-cols-4">
-                {SECTIONS.map(s=>{ const done=!!checkinChecks[s]; return (
-                  <div key={s} className={`rounded-2xl border p-4 lg:p-5 ${done?"border-[#C9A86A] bg-[#2E4038]/90":"border-white/15 bg-black/35"}`}>
-                    <button onClick={()=>setCheckinChecks(p=>({...p,[s]:!p[s]}))} aria-pressed={done} className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left active:scale-[0.99] ${done?"text-black":""}`}>
-                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-xl font-bold ${done?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/40 text-white"}`}>{done?"✓":"○"}</span>
-                      <span><span className={`block font-display font-semibold text-[#D4B483] text-lg leading-tight ${done?"line-through opacity-70":""}`}>{s}</span><span className="text-xs font-bold tracking-widest text-white/60">{done?"DONE ✓":"TAP WHEN DONE"}</span></span>
-                    </button>
+              <div className="grid gap-3 mt-3 md:grid-cols-2">
+                {SECTIONS.map(s=>(
+                  <div key={s} className="rounded-2xl border border-white/15 bg-black/35 p-4">
+                    <h3 className="font-display font-semibold text-[#D4B483] text-lg leading-tight">{s}</h3>
                     <label className="block mt-3 text-xs font-bold tracking-widest text-[#C9A86A]"># OF REPS / HOW LONG TO EXECUTE</label>
                     <input type="text" value={minutes[s]||""} onChange={e=>setMinutes({...minutes,[s]:e.target.value})} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-center text-[16px]"/>
                     <label className="block mt-4 text-xs font-bold tracking-widest text-[#C9A86A]">{s} DESCRIPTION</label>
@@ -1317,14 +1172,10 @@ export default function App(){
                     <textarea value={blockNotes[s]||""} onChange={e=>setBlockNotes({...blockNotes,[s]:e.target.value})} rows={2} className="mt-2 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[15px] outline-none focus:border-[#C9A86A]"/>
                     <button disabled={busy} onClick={()=>saveTrainingBlock(s)} className="mt-3 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black px-4 py-2.5 rounded-full text-sm font-bold disabled:opacity-50"><Save size={15}/> Save</button>
                   </div>
-                );})}
+                ))}
               </div>
-              <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3 lg:p-5">
-                <button onClick={()=>setCheckinChecks(p=>({...p,focus:!p.focus}))} className="flex items-center gap-3 text-left active:scale-[0.99]">
-                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-xl font-bold ${checkinChecks["focus"]?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/40 text-white"}`}>{checkinChecks["focus"]?"✓":"○"}</span>
-                  <span className="font-display font-semibold text-lg">YOUR GRIT FOCUS AND WHY <span className="text-xs font-bold tracking-widest text-white/60">{checkinChecks["focus"]?"— DONE ✓":"— TAP WHEN DONE"}</span></span>
-                </button>
-                <label className="block text-xs font-bold tracking-widest text-[#C9A86A] mt-3">YOUR GRIT FOCUS AND WHY</label>
+              <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3">
+                <label className="block text-xs font-bold tracking-widest text-[#C9A86A]">YOUR GRIT FOCUS AND WHY</label>
                 <textarea value={trainingAthlete?.focus || ""} onChange={e=>{ if(trainingAthlete) updateAthlete(trainingAthlete.id,{focus:e.target.value}); }} rows={5} className="mt-2 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/>
                 <button disabled={busy} onClick={saveTrainingFocus} className="mt-3 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black px-4 py-2.5 rounded-full text-sm font-bold disabled:opacity-50"><Save size={15}/> Save</button>
               </div>
@@ -1367,8 +1218,9 @@ export default function App(){
           </section>
         ) : view==="athletes" ? (
           <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">YOUR GRIT PROFILE</p>
+            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">YOUR GRIT PROFILE • {athletes.length} ROSTER SPOTS</p>
             <h2 className="font-display text-[36px] leading-none mt-2">Your GRIT Profile</h2>
+            <p className="mt-3 font-display text-[19px] font-semibold leading-snug text-[#F2EFE9]">28 Athletes — GRIT Starting Nov 1, 2026</p>
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
               <label className="block text-xs font-bold tracking-widest text-[#C9A86A]" htmlFor="profile-name-search">YOUR NAME</label>
               <div className="relative mt-2">
@@ -1415,7 +1267,7 @@ export default function App(){
                     <span className="mt-3 text-[11px] font-bold tracking-[0.28em] text-[#F2EFE9]/80">YOUR GRIT PROFILE</span>
                   </div>
                   <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold text-center mt-4">YOUR GRIT PROFILE</p>
-                  
+                  {(selectedAthlete.program || selectedAthlete.startDate) ? <p className="text-xs text-[#D4B483] mt-2 font-semibold text-center">{selectedAthlete.program || ""}{selectedAthlete.program && selectedAthlete.startDate ? " • " : ""}{selectedAthlete.startDate ? `Starting ${selectedAthlete.startDate}` : ""}</p> : null}
                   <label className="block mt-3 text-xs font-bold tracking-widest text-[#C9A86A]">YOUR NAME</label>
                   <input value={selectedAthlete.name} onChange={e=>updateAthlete(selectedAthlete.id,{name:e.target.value})} className="mt-2 w-full min-h-[52px] bg-white/5 border border-white/15 rounded-xl px-3 py-3 font-display text-2xl outline-none focus:border-[#C9A86A]" />
                   <label className="block mt-4"><span className="text-sm font-semibold text-[#D4B483]">Your Sport</span><input value={selectedAthlete.sport} onChange={e=>updateAthlete(selectedAthlete.id,{sport:e.target.value})} className="mt-1 w-full min-h-[52px] bg-white/5 border border-white/15 rounded-xl px-3 py-3 text-[16px] outline-none focus:border-[#C9A86A]"/></label>
@@ -1562,8 +1414,8 @@ export default function App(){
           <div>
             <section className="pt-5">
               <button onClick={()=>goTab("wall")} className="min-h-[44px] px-2 text-sm font-bold text-[#C9A86A]">← Back</button>
-              <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-2">HOW DO I BECOME…</p>
-              <h2 className="font-display text-[36px] leading-none mt-2">Faster. Stronger.<br/>Built.</h2>
+              <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-normal mt-2">HOW DO I BECOME…</p>
+              <h2 className="font-display font-bold text-[36px] leading-none mt-2">Faster. Harder.<br/>QUICKER.</h2>
               <div className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
                 {becomeContent ? renderBecomeText(becomeContent) : (
                   <div>
@@ -1585,20 +1437,6 @@ export default function App(){
               <button onClick={()=>goTab("formats")} className="mt-4 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Formats | Payment →</button>
             </section>
           </div>
-        ) : view==="coachLock" ? (
-          <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">COACHES • LOCKED</p>
-            <h2 className="font-display text-[36px] leading-none mt-2">Coaches</h2>
-            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">{coachPinStored ? "This area is for coaches only. Enter your Coach PIN to open it." : "This area is for coaches only. Set a Coach PIN now — athletes will need it to get in, so keep it to yourself."}</p>
-            <div className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
-              <label className="block text-sm font-semibold">{coachPinStored ? "Coach PIN" : "Set a 4-digit Coach PIN"}<input value={coachPinInput} onChange={e=>setCoachPinInput(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} onKeyDown={e=>{ if(e.key==="Enter") unlockCoaches(); }} inputMode="numeric" placeholder="••••" className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[20px] tracking-[0.4em] text-center" /></label>
-              {coachPinError && <p className="mt-2 text-sm font-bold text-red-300">{coachPinError}</p>}
-              <button onClick={unlockCoaches} className="mt-3 w-full min-h-[52px] rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">{coachPinStored ? "Unlock Coaches →" : "Set PIN + Unlock Coaches →"}</button>
-              <button onClick={()=>goTab("wall")} className="mt-2 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-sm font-semibold">Back to The GRIT</button>
-              {coachPinStored && <button onClick={resetCoachPin} className="mt-2 w-full min-h-[44px] text-xs text-white/50">Forgot PIN? Clear it and set a new one</button>}
-              <p className="mt-3 text-xs text-white/60">Same app for everyone — Coaches is just PIN-locked. It stays unlocked on this phone until you tap Lock Coaches.</p>
-            </div>
-          </section>
         ) : view==="formats" ? (
           <section className="pt-5">
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">FORMATS | PAYMENT</p>
@@ -1625,7 +1463,6 @@ export default function App(){
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold md:col-span-2 lg:col-span-3">COACHES • DASHBOARD</p>
             <h2 className="font-display text-[36px] leading-none mt-2 md:col-span-2 lg:col-span-3">Coaches</h2>
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed md:col-span-2 lg:col-span-3">Dashboard, setup, and checks — all in one place.</p>
-            <button onClick={lockCoaches} className="mt-3 min-h-[44px] rounded-full border border-white/25 px-4 py-2 text-sm font-semibold md:col-span-2 lg:col-span-3">🔒 Lock Coaches</button>
             {lastSyncedAt && <p className="mt-3 text-sm text-[#D4B483]">Last synced: {lastSyncedAt}</p>}
             {result && <p className="mt-3 text-sm text-[#D4B483] bg-black/35 border border-white/10 rounded-xl px-3 py-2">{result}</p>}
             <div className="mt-4">
@@ -1660,36 +1497,26 @@ export default function App(){
               </div>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
-              <h3 className="font-display text-xl flex items-center gap-2"><CalendarDays size={20} className="text-[#C9A86A]"/> Google Calendar — Connect + Sync</h3>
-              <div className="mt-3 rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4">
-                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">GOOGLE CALENDAR • CALENDAR ID SYNC — NO iCAL</p>
-                <p className="mt-2 text-[14px] leading-relaxed text-white/85">No iCal link here. This app syncs through the <strong>Apps Script + Calendar ID</strong> you already wrote, into <strong>Supabase</strong>.</p>
-                <label className="block text-sm font-semibold mt-3">Google Calendar ID<input value={calendarId} onChange={e=>setCalendarId(e.target.value)} placeholder="thepiviotproject@kbuiltsoftball.com" className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]" /></label>
-                <div className="mt-3 rounded-xl bg-[#2E4038]/90 border border-white/10 p-3 text-[13px] leading-relaxed text-white/80">
-                  <p className="font-bold text-[#C9A86A]">HOW IT SYNCs</p>
-                  <p className="mt-1">1. Script reads this Calendar ID.</p>
-                  <p>2. It keeps only events whose <strong>description contains “GRIT”</strong>.</p>
-                  <p>3. It matches the event to an athlete by <strong>athlete name in the description</strong>.</p>
-                  <p>4. It writes those sessions to Supabase (<strong>grit_calendar_events</strong>).</p>
-                  <p>5. This app reads Supabase — every phone sees the same next session.</p>
-                </div>
-                <p className="mt-2 text-xs leading-relaxed text-white/60">Supabase: {supabaseStatus} • Last checked: {calendarLastChecked || "Not checked yet"}. If sessions aren&apos;t showing, run the script in Apps Script and check that the event description has both “GRIT” and the athlete&apos;s exact name.</p>
-                {calendarSyncMsg && <p className="mt-2 text-sm text-[#D4B483]">{calendarSyncMsg}</p>}
-              </div>
+              <h3 className="font-display text-xl flex items-center gap-2"><CalendarDays size={20} className="text-[#C9A86A]"/> Google Calendar — Connect + Check</h3>
               <p className="text-sm mt-2">Calendar status: <strong className="text-[#C9A86A]">{calendarConnected ? "Connected" : "Not connected"}</strong></p>
-              <p className="text-sm text-white/80 mt-1">Calendar ID: {calendarId}</p>
+              <p className="text-sm text-white/80 mt-1">Account: thepiviotproject@kbuiltsoftball.com</p>
               <p className="text-sm text-white/80">Time zone: America/Detroit</p>
               <p className="text-xs text-white/60 mt-1">Last checked: {calendarLastChecked || "Not checked yet"}</p>
               <label className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#2E4038]/90 border border-white/10 px-3 py-3 text-sm font-semibold"><span>Sync GRIT Sessions to Calendar</span><button role="switch" aria-checked={calendarSyncOn} onClick={toggleCalendarSync} className={`min-h-[32px] min-w-[56px] rounded-full px-2 text-xs font-bold ${calendarSyncOn?"bg-[#C9A86A] text-black":"bg-white/15 text-white"}`}>{calendarSyncOn?"On":"Off"}</button></label>
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={checkCalendar} className="flex-1 min-h-[48px] border border-white/25 px-3 py-2.5 rounded-full text-sm font-semibold">Check Google Calendar Connection</button><button disabled={busy} onClick={syncCalendarSessions} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-3 py-2.5 rounded-full text-sm disabled:opacity-50">Sync GRIT Sessions</button></div>
               <div className="mt-4 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNC FROM GOOGLE CALENDAR — BACKEND SYNC</p>
-                <p className="text-sm text-white/75 mt-1">Apps Script runs on this Calendar ID and writes to Supabase — all phones read the same sessions. Manual add below is only a fallback.</p>
+                <p className="text-sm text-white/75 mt-1">Backend sync runs on Supabase (Edge Function / sync script) every 30 minutes and writes to Supabase — all phones read the same sessions. The options below are for one-off imports and manual adds.</p>
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — SYNCED TO ALL PHONES</p>
                 <label className="block text-sm mt-2">Athlete<select value={nextSessionAthleteId} onChange={e=>setNextSessionAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
                 <div className="flex gap-2 mt-2"><label className="flex-1 text-sm">Date<input type="date" value={nextSessionDate} onChange={e=>setNextSessionDate(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label><label className="flex-1 text-sm">Time<input type="time" value={nextSessionTime} onChange={e=>setNextSessionTime(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label></div>
                 <label className="block text-sm mt-2">Title (optional)<input value={nextSessionTitle} onChange={e=>setNextSessionTitle(e.target.value)} placeholder="GRIT Session" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
                 <button onClick={addManualNextSession} className="mt-2 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Save Next Session to Supabase</button>
+                <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ONE-OFF IMPORT (THIS DEVICE ONLY)</p>
+                <label className="block text-sm mt-2">Public iCal link<input value={calendarFeedUrl} onChange={e=>setCalendarFeedUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+                <button disabled={busy} onClick={fetchCalendarFeed} className="mt-2 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">Sync from iCal Link</button>
+                <label className="block text-sm mt-3">Or paste .ics text<textarea value={calendarIcsText} onChange={e=>setCalendarIcsText(e.target.value)} rows={4} placeholder="BEGIN:VCALENDAR…" className="mt-1 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[13px] font-mono"/></label>
+                <button onClick={()=>importIcsText(calendarIcsText)} className="mt-2 w-full min-h-[48px] border border-white/25 px-4 py-2.5 rounded-full text-sm font-semibold">Import Pasted .ics</button>
                 {calendarEvents.length>0 && <div className="mt-3"><p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNCED EVENTS ({calendarEvents.length})</p><ul className="mt-2 space-y-2">{calendarEvents.slice(0,6).map((e:any)=>(<li key={e.id} className="flex justify-between gap-2 text-[13px] border-b border-white/10 pb-2 last:border-0"><span className="min-w-0"><span className="font-semibold">{e.title}</span><span className="block text-xs text-white/60">{new Date(e.start).toLocaleString()} • {e.source}</span></span><button onClick={async()=>{ setCalendarEvents((p:any[])=>p.filter((x:any)=>x.id!==e.id)); try{ await callApi("records.delete",{collection:"grit_next_sessions", id:e.id}); }catch{} }} className="text-xs text-white/60 shrink-0 px-2">Remove</button></li>))}</ul></div>}
               </div>
               {calendarSyncMsg && <p className="mt-2 text-sm text-[#D4B483]">{calendarSyncMsg}</p>}
@@ -1801,8 +1628,8 @@ export default function App(){
         )}
       </main>
 
-      <nav aria-label="Bottom navigation" className="fixed bottom-0 left-0 right-0 z-40 bg-[#0F1113]/95 border-t-2 border-[#C9A86A]/60 shadow-[0_-8px_30px_rgba(0,0,0,0.6)] backdrop-blur" style={{paddingBottom:"var(--safe-area-inset-bottom, 0px)"}}>
-        <div className="mx-auto max-w-[430px] grid grid-cols-4 lg:px-8">
+      <nav aria-label="Bottom navigation" className="fixed bottom-0 left-0 right-0 z-40 bg-[#0F1113] border-t border-[#C9A86A]/40" style={{paddingBottom:"var(--safe-area-inset-bottom, 0px)"}}>
+        <div className="mx-auto max-w-[430px] grid grid-cols-6 lg:px-8">
           {TABS.map(t=>{
             const active = view===t.id || (t.id==="pillars" && view==="pillars");
             const Icon = t.icon;
