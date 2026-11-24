@@ -1,7 +1,6 @@
 import "./index.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, Users, ShieldCheck, Zap, Brain, Home, Bookmark, ArrowLeft, Save, Target, Medal, CreditCard, Sparkles, Trophy, Search, Copy, Eraser, Flame, Dumbbell, BookOpen, Timer, Star, Mic, MicOff, Share2 } from "lucide-react";
-
+import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, Users, ShieldCheck, Zap, Brain, Home, Bookmark, ArrowLeft, Save, Target, Medal, CreditCard, Sparkles, Trophy, Search, Copy, Eraser, Flame, Dumbbell, BookOpen, Timer, Star, Mic, MicOff, Share2, Library } from "lucide-react";
 import fieldNightUrl from "./field-night.webp";
 import gritIconUrl from "./grit-icon.webp";
 
@@ -79,10 +78,11 @@ const placeholderAthletes = (): AthleteProfile[] => {
   return [...ROSTER_NAMES].sort((a,b)=>a.localeCompare(b)).map((name,i)=>({ id:`local-${i+1}`, name, sport:"", position:"", lookUp:"", ageGroup:"", motto:"", remember:"", homework:"", mindset:"", gratitude:"", nonNegotiables:"", disciplineDone:[], pin:"", focus:"", createdAt:new Date().toISOString(), startDate:"", program:"", trainingSections:emptySections(), trainingMinutes:{...DEFAULT_MINUTES}, trainingNotes:{}, progress_doc_url:"", progress_notes:"", progress_notes_last_synced:"" }));
 };
 
-type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become";
+type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become"|"vault";
 const TABS: {id:View; label:string; icon:any}[] = [
   {id:"athletes", label:"Your GRIT Profile", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
+  {id:"vault", label:"Training Vault", icon: Library},
   {id:"homework", label:"Homework", icon: BookOpen},
   {id:"pillars", label:"Mindset & Impact", icon: Brain},
   {id:"coach", label:"Coaches", icon: ShieldCheck},
@@ -130,22 +130,46 @@ create policy "grit_read" on public.grit_cards for select using (true);
 create policy "grit_write" on public.grit_cards for all using (true) with check (true);`;
 
 function PhotoBackground(){
-  const bg = fieldNightUrl;
+  // Framing knobs: scale < 1 zooms OUT, translateY(-%) moves him UP (only the bottom of his head at the top, focus on the back).
+  const frame = {objectPosition:"50% 50%", transform:"scale(0.88) translateY(-20%)", transformOrigin:"50% 0%"} as const;
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
-      <img src={bg} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
-      <img src={bg} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
-      <div className="absolute inset-0" style={{background:"linear-gradient(90deg, rgba(15,17,19,.72) 0%, rgba(15,17,19,.08) 18%, rgba(15,17,19,0) 50%, rgba(15,17,19,.08) 82%, rgba(15,17,19,.72) 100%), linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
+      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full object-cover opacity-50 blur-2xl" style={frame} />
+      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full object-cover" style={frame} />
+      <div className="absolute inset-0" style={{background:"rgba(15,17,19,0.38)"}} />
+      <div className="absolute inset-0" style={{background:"linear-gradient(180deg, rgba(15,17,19,.72) 0%, rgba(15,17,19,.30) 30%, rgba(15,17,19,.32) 55%, rgba(15,17,19,.60) 85%, rgba(15,17,19,.82) 100%), linear-gradient(90deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.22) 25%, rgba(15,17,19,.22) 75%, rgba(15,17,19,.55) 100%)"}} />
     </div>
   );
 }
 
 declare global { interface Window { SpeechRecognition?: any; webkitSpeechRecognition?: any; } }
 
+
+const VAULT_EXERCISES: {pillar:string; items:string[]}[] = [
+  {pillar:"Dynamic Stretch", items:["Pigeon Pose","Flexor Slow Lunge forward","Elevated 4 point golden ticket stretch","Speed stretch (Calf and Achilles)","Shoulders on smith"]},
+  {pillar:"Core", items:["Flutter Kicks (15 / 20 / 30 seconds)","Hollow Body Hold","Hollow Body Raise","Staggered Sit Ups","The Ferris Wheel Ball Transfer","Windshield Wipers","Russian Twists","Kneeling Landmine Core Half Rotations","All the way up and side to side!","Heel Taps","Planks","Plank Leg Drops","Candlesticks!"]},
+  {pillar:"Main Lift", items:["Goblet Squat Elevators","Trap Bar B Stance Deadlift","Dumbbell RDL Single Leg","Stomp Squats","Battle Rope!","Curtsey Squats","Standing Hip Squats","Low KB Hip Flex","Front Squats","Grip and Hit Curls 3 ways!","Lat Pulldowns","Single Arm Lat Pulldowns","Face Pulls","Stomp Shoulder Press","Jumping Lunges","Reverse Lunge to Knee Up","Chest Flys","Resistance Band Back Flys","The Pitchers Press 3 Ways","Shoulders 3 Ways","Close Grip Lat Pulldowns","Farmers Carries","Trap Bar Squats","Trap Bar Gauntlet!","Iso Trap Bar Holds","Calf Raises 3 Ways!"]},
+  {pillar:"Speed and Agility", items:["U-Drill","Lateral Bounds","Line Hops","Single Leg Line Hops","Pogo Hops","Pogo Jumps","Box Jumps","Seated Box Caroms","Hurdle Lateral drive hops","First Step Drill","Over the shoulder runs","5-10-5 Drill","Studder Steps to CID","Single Leg Hop Ups","Hamstring back Walks","Heel Walks","Calf Raise in Lunge"]},
+];
+const VAULT_TOTAL = VAULT_EXERCISES.reduce((n,g)=>n+g.items.length,0);
+const TRIVIA = ["5-10-5 Drill: 5 yards out, 10 back, 5 out — change of direction is a skill, not luck.","Softball: 60 feet from home to first. First-step quickness wins that race.","GRIT here means: show up, do it right, lift others up — even when it is hard."];
+const FUNNY_FACTS = ["Fun fact: Your coach counts your line hops. All of them.","Fun fact: Skipping Dynamic Stretch is the fastest way to meet the ice bag.","Fun fact: Burpees were invented as a fitness test. GRIT made them a lifestyle."];
+
 export default function App(){
   const [view,setView]=useState<View>("wall");
   const [whatIsOpen,setWhatIsOpen]=useState(false);
   const [aotwOpen,setAotwOpen]=useState(false);
+  const [coachListOpen,setCoachListOpen]=useState(false);
+  const [coachPinInput,setCoachPinInput]=useState("");
+  const [coachListAuthed,setCoachListAuthed]=useState(false);
+  const [coachPinError,setCoachPinError]=useState("");
+  const [generatedChecklist,setGeneratedChecklist]=useState<Record<string,string[]>|null>(null);
+  const [vaultRotation,setVaultRotation]=useState(0);
+  const [checkedItems,setCheckedItems]=useState<Record<string,boolean>>({});
+  const [grittyScore,setGrittyScore]=useState(0);
+  const [checklistTrivia,setChecklistTrivia]=useState(TRIVIA[0]);
+  const [checklistFunny,setChecklistFunny]=useState(FUNNY_FACTS[0]);
+  const [checklistSaved,setChecklistSaved]=useState(false);
   const [workouts,setWorkouts]=useState<Workout[]>([]);
   const [athletes,setAthletes]=useState<AthleteProfile[]>(placeholderAthletes());
   const [selectedAthleteId,setSelectedAthleteId]=useState<string|null>(null);
@@ -220,14 +244,41 @@ export default function App(){
   const [calendarSyncOn,setCalendarSyncOn]=useState(true);
   const [calendarSyncMsg,setCalendarSyncMsg]=useState("");
   const [calendarEvents,setCalendarEvents]=useState<any[]>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:calendarEvents")||"[]"); }catch{ return []; } });
-  
-  
+  const [calendarFeedUrl,setCalendarFeedUrl]=useState(()=>{ try{ return localStorage.getItem("grit:calendarFeedUrl")||""; }catch{ return ""; } });
+  const [calendarIcsText,setCalendarIcsText]=useState("");
   const [nextSessionAthleteId,setNextSessionAthleteId]=useState("");
   const [nextSessionDate,setNextSessionDate]=useState("");
   const [nextSessionTime,setNextSessionTime]=useState("");
   const [nextSessionTitle,setNextSessionTitle]=useState("");
   useEffect(()=>{ try{ localStorage.setItem("grit:calendarEvents", JSON.stringify(calendarEvents)); }catch{} },[calendarEvents]);
-  
+  useEffect(()=>{ try{ localStorage.setItem("grit:calendarFeedUrl", calendarFeedUrl); }catch{} },[calendarFeedUrl]);
+  function parseIcs(text:string){
+    const events:any[]=[]; const blocks=String(text||"").split("BEGIN:VEVENT").slice(1);
+    for(const b of blocks){
+      const get=(k:string)=>{ const m=b.match(new RegExp(k+":([^\r\n]+)")); return m?m[1].trim():""; };
+      const dt=get("DTSTART;TZID=[^:]+")||get("DTSTART");
+      const summary=get("SUMMARY")||"GRIT Session"; const desc=get("DESCRIPTION")||"";
+      let iso=""; const dm=dt.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
+      if(dm) iso=`${dm[1]}-${dm[2]}-${dm[3]}T${dm[4]}:${dm[5]}:00`;
+      else if(/^\d{8}$/.test(dt)) iso=`${dt.slice(0,4)}-${dt.slice(4,6)}-${dt.slice(6,8)}T00:00:00`;
+      if(iso) events.push({ id:`ics-${iso}-${summary}`.replace(/[^a-zA-Z0-9-]/g,""), title:summary, desc, start:iso, source:"iCal" });
+    }
+    return events;
+  }
+  function importIcsText(text:string){
+    const evs=parseIcs(text);
+    if(!evs.length){ setCalendarSyncMsg("No events found in that .ics — check you pasted the whole file."); return; }
+    setCalendarEvents((prev:any[])=>{ const seen=new Set(prev.map((e:any)=>e.id)); const add=evs.filter((e:any)=>!seen.has(e.id)); return [...add, ...prev].sort((a:any,b:any)=>String(a.start).localeCompare(String(b.start))); });
+    setCalendarSyncMsg(`${evs.length} calendar event(s) imported on this device. For all phones, use the backend sync (Edge Function) — see CALENDAR-SYNC-README.md.`);
+    flashSaved();
+  }
+  async function fetchCalendarFeed(){
+    if(!calendarFeedUrl.trim()){ setCalendarSyncMsg("Paste your public iCal link first (Google Calendar > Settings > Integrate calendar > Public address in iCal format)."); return; }
+    setBusy(true);
+    try{ const res=await fetch(calendarFeedUrl.trim()); if(!res.ok) throw new Error(`Calendar returned ${res.status}`); const text=await res.text(); importIcsText(text); }
+    catch(e:any){ setCalendarSyncMsg(`Could not fetch that link from this browser (Google often blocks it). Workaround: open the link, copy all the text, paste it into “Paste .ics text” below and tap Import. ${e.message||""}`); }
+    setBusy(false);
+  }
   async function addManualNextSession(){
     const a=athletes.find(x=>x.id===nextSessionAthleteId); if(!a){ setCalendarSyncMsg("Pick an athlete for the next session first."); return; }
     if(!nextSessionDate){ setCalendarSyncMsg("Pick a date for the next session first."); return; }
@@ -238,63 +289,6 @@ export default function App(){
     setCalendarSyncMsg(`Next session saved for ${a.name} — ${new Date(start).toLocaleString()} — and synced to Supabase so all phones see it.`);
     setNextSessionTitle(""); flashSaved();
   }
-  // --- Google Calendar -> Supabase -> every phone ---
-  // Apps Script reads thepiviotproject@kbuiltsoftball.com, keeps events with GRIT in the
-  // description, and writes them to Supabase (grit_calendar_events, falling back to
-  // grit_sessions). This reads that table directly with the saved Supabase URL + Anon
-  // Key, so a calendar edit reaches every logged-in phone. No iCal, no pasting.
-  function extractGritNotes(desc:string){
-    const t=String(desc||"");
-    const m=t.match(/(?:GRIT\s*NOTES|GRIT\s*NOTE|PROGRESS\s*NOTES|NOTES)\s*[:\-\n]\s*([\s\S]+)/i);
-    if(m) return m[1].trim();
-    return "";
-  }
-  function mapSupabaseCalendarRow(r:any){
-    const start=r.start||r.start_time||r.event_start||r.start_at||r.date||"";
-    const title=r.title||r.summary||r.event_title||"GRIT Session";
-    const desc=r.description||r.desc||r.event_description||"";
-    const athleteName=r.athlete_name||r.athleteName||r.athlete||r.athlete_name_text||"";
-    const match=athletes.find((x:any)=>x.name && athleteName && x.name.toLowerCase()===String(athleteName).toLowerCase());
-    return { id:`gcal-${r.id||r.event_id||`${title}|${start}|${athleteName}`}`, title, desc, start, source:"Google Calendar", athleteId:match?.id||"", athleteName: athleteName||"", gritNotes: r.grit_notes||r.gritNotes||r.notes||extractGritNotes(desc) };
-  }
-  async function fetchSupabaseCalendar(){
-    const base=String(supabaseUrl||"").trim().replace(/\/$/,"");
-    const key=String(supabaseKey||"").trim();
-    if(!base || !key){ setCalendarSyncMsg("Add your Supabase Project URL + Anon Key in Coaches → Supabase first, then tap Sync Google Calendar Now."); return; }
-    setBusy(true);
-    try{
-      let rows:any[]=[]; let usedTable="";
-      for(const table of ["grit_calendar_events","grit_sessions"]){
-        try{
-          const res=await fetch(`${base}/rest/v1/${table}?select=*&order=start.asc`, { headers:{ apikey:key, Authorization:`Bearer ${key}` } });
-          if(!res.ok) continue;
-          const data=await res.json();
-          if(Array.isArray(data) && data.length){ rows=data; usedTable=table; break; }
-          if(Array.isArray(data) && !rows.length){ rows=data; usedTable=table; }
-        }catch{}
-      }
-      const mapped=rows.filter((r:any)=>(r.start||r.start_time||r.event_start||r.start_at||r.date)).map(mapSupabaseCalendarRow);
-      setCalendarEvents((prev:any[])=>{
-        const manual=prev.filter((e:any)=>e.source==="Manual");
-        const seen=new Set<string>(); const merged:any[]=[];
-        for(const e of [...mapped, ...manual]){ const k=`${e.title||""}|${e.start||""}|${e.athleteName||""}`; if(seen.has(k)) continue; seen.add(k); merged.push(e); }
-        return merged.sort((a:any,b:any)=>String(a.start).localeCompare(String(b.start)));
-      });
-      const now=new Date().toLocaleString();
-      setCalendarLastChecked(now);
-      await persistSettings({ calendarLastChecked: now });
-      setCalendarSyncMsg(mapped.length ? `${mapped.length} GRIT session${mapped.length===1?"":"s"} pulled from Google Calendar via Supabase (${usedTable}) — every phone sees them.` : "Connected to Supabase, but no GRIT sessions found in the calendar table yet. Check the Apps Script ran and the table has rows.");
-    }catch(e:any){ setCalendarSyncMsg(`Could not pull the calendar from Supabase — ${e.message||"check the Supabase URL + Anon Key and that the table allows anon reads."}`); }
-    setBusy(false);
-  }
-  // Pull the calendar when the Supabase settings load, and keep polling while the app stays open.
-  useEffect(()=>{ if(!String(supabaseUrl||"").trim() || !String(supabaseKey||"").trim()) return; fetchSupabaseCalendar(); const t=setInterval(()=>{ fetchSupabaseCalendar(); }, 5*60*1000); return ()=>clearInterval(t); },[supabaseUrl, supabaseKey]);
-  const calendarNotesForAthlete = (athleteId?:string)=>{
-    if(!athleteId) return null;
-    const a=athletes.find(x=>x.id===athleteId); if(!a) return null;
-    const withNotes=calendarEvents.map((e:any)=>({ ...e, notes: e.gritNotes||extractGritNotes(e.desc||"") })).filter((e:any)=>e.notes && (!e.athleteId || e.athleteId===athleteId || `${e.title||""} ${e.desc||""} ${e.athleteName||""}`.toLowerCase().includes(a.name.toLowerCase()))).sort((x:any,y:any)=>String(y.start).localeCompare(String(x.start)));
-    return withNotes[0] || null;
-  };
   const nextSessionForAthlete = (athleteId?:string)=>{
     if(!athleteId) return null;
     const a=athletes.find(x=>x.id===athleteId); if(!a) return null;
@@ -923,6 +917,26 @@ export default function App(){
   }
 
   const goTab = (v:View)=>{ setView(v); window.scrollTo({top:0, behavior:"smooth"}); };
+  const generateChecklist = ()=>{
+    const out: Record<string,string[]> = {};
+    VAULT_EXERCISES.forEach(g=>{
+      const start = (vaultRotation*3) % g.items.length;
+      out[g.pillar] = [0,1,2].map(k=>g.items[(start+k)%g.items.length]);
+    });
+    setGeneratedChecklist(out);
+    setVaultRotation(vaultRotation+1);
+    setChecklistTrivia(TRIVIA[Math.floor(Math.random()*TRIVIA.length)]);
+    setChecklistFunny(FUNNY_FACTS[Math.floor(Math.random()*FUNNY_FACTS.length)]);
+    setCheckedItems({});
+    setGrittyScore(0);
+    setChecklistSaved(false);
+  };
+  const unlockCoachList = ()=>{
+    const stored = localStorage.getItem("grit-coach-pin") || "";
+    if(!stored){ localStorage.setItem("grit-coach-pin", coachPinInput); setCoachListAuthed(true); setCoachPinError(""); }
+    else if(coachPinInput===stored){ setCoachListAuthed(true); setCoachPinError(""); }
+    else setCoachPinError("Wrong PIN — try again.");
+  };
   function handleUnlock(){
     const athlete = selectedAthlete;
     if(!athlete) return;
@@ -1043,7 +1057,7 @@ export default function App(){
       { label:"Supabase", ok: supabaseStatus==="Connected", detail: supabaseStatus==="Connected" ? "Connected" : "Not Connected", synced: supabaseLastChecked || "Not checked yet" },
       { label:"Google Calendar", ok: calendarConnected, detail: calendarConnected ? "Connected" : "Not connected", synced: calendarLastChecked || "Not checked yet" },
       { label:"Progress Docs Sync", ok: docsOk, detail: docsOk ? "At least one Doc synced" : "No Doc synced yet", synced: lastDoc ? new Date(lastDoc).toLocaleString() : "Not synced yet" },
-      { label:"Roster (28)", ok: athletes.length===28, detail: `${athletes.length} athletes`, synced: stamp },
+      { label:"Roster", ok: athletes.length>0, detail: `${athletes.length} athletes`, synced: stamp },
       { label:"Training Blocks (4)", ok: SECTIONS.length===4, detail: "4 blocks", synced: stamp },
       { label:"PINs Set", ok: pinsOk, detail: pinsOk ? "Every athlete has a 4-digit PIN" : "One or more PINs are missing", synced: stamp },
     ];
@@ -1083,8 +1097,8 @@ export default function App(){
   return (
     <div data-safe-area-inset-root="" className="min-h-[100dvh] bg-[#0F1113] text-[#F2EFE9] overflow-x-clip" style={{boxSizing: 'border-box', paddingTop: 'var(--safe-area-inset-top)'}}>
       <PhotoBackground />
-      {/* Top: THE GRIT + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
-      <div className="relative z-10 mx-auto max-w-[430px] px-3 pt-2">
+      {/* Top: GRIT icon + THE GRIT + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
+      <div className="relative z-10 mx-auto max-w-[430px] md:max-w-[820px] lg:max-w-[1100px] px-3 pt-2">
         <div className="flex items-center justify-between gap-2">
           <button onClick={()=>goTab("wall")} className="flex min-h-[44px] min-w-0 items-center gap-2" aria-label="The GRIT home">
             <span className="font-display font-bold text-[17px] leading-none tracking-[0.12em] whitespace-nowrap">THE GRIT<span className="text-[#C9A86A]">.</span></span>
@@ -1100,11 +1114,11 @@ export default function App(){
         {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
         <div className="pt-2 text-center">
           <p className="text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND, MI • TRAIN WITH PURPOSE</p>
-          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9] mt-2">We Are.<br/><span className="text-[#C9A86A]">Built.</span></p>
+          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9] mt-2">We Are <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
         </div>
       </div>
 
-      <main className="relative z-10 mx-auto max-w-[430px] px-4 pb-[128px] lg:px-8">
+      <main className="relative z-10 mx-auto max-w-[430px] md:max-w-[820px] lg:max-w-[1100px] px-4 pb-[128px] lg:px-8">
         {view==="wall" ? (
           <div className="md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
             <section className="pt-5 md:col-span-1 lg:col-span-2">
@@ -1149,9 +1163,57 @@ export default function App(){
           </div>
         ) : view==="training" ? (
           <section className="pt-5">
+            <div className="flex justify-end"><button onClick={()=>setCoachListOpen(!coachListOpen)} className="min-h-[32px] rounded-full border border-[#C9A86A]/60 px-3 py-1 text-[11px] font-bold text-[#C9A86A]">COACH CHECKLIST {coachListOpen?"▾":"▸"}</button></div>
             <h2 className="font-display text-center font-bold leading-[1.15] break-words text-[clamp(24px,6.8vw,36px)]">WE COMPETE LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER LOST</span> AND TRAIN LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER WON</span></h2>
+            {coachListOpen && (
+              <div className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
+                <div className="flex items-center justify-between gap-2"><h3 className="font-display text-[22px] font-bold">Coach Checklist</h3><button onClick={()=>setCoachListOpen(false)} className="text-sm font-bold text-[#C9A86A]">Close ✕</button></div>
+                {!coachListAuthed ? (
+                  <div className="mt-4">
+                    <p className="text-sm text-white/75">Coach-only. Enter your 4-digit Coach PIN. First time? This sets it.</p>
+                    <input value={coachPinInput} onChange={e=>setCoachPinInput(e.target.value.replace(/\D/g,"").slice(0,4))} inputMode="numeric" placeholder="••••" className="mt-3 w-full min-h-[52px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px] text-center tracking-[0.5em]" />
+                    {coachPinError && <p className="mt-2 text-sm text-red-300">{coachPinError}</p>}
+                    <button onClick={unlockCoachList} className="mt-3 w-full min-h-[48px] rounded-full bg-[#C9A86A] text-black font-bold text-[15px]">Unlock Checklist</button>
+                  </div>
+                ) : (
+                  <div className="mt-4">
+                    <button onClick={generateChecklist} className="w-full min-h-[48px] rounded-full bg-[#C9A86A] text-black font-bold text-[15px]">Generate Checklist →</button>
+                    <button onClick={()=>goTab("vault")} className="mt-2 w-full min-h-[44px] rounded-full border border-white/25 text-sm font-semibold">Open The Training Vault ({VAULT_TOTAL} exercises)</button>
+                    {generatedChecklist ? (
+                      <div className="mt-5 space-y-5">
+                        {VAULT_EXERCISES.map(g=>(
+                          <div key={g.pillar}>
+                            <h4 className="font-display text-[18px] font-bold text-[#C9A86A]">{g.pillar}</h4>
+                            <div className="mt-2 space-y-2">
+                              {(generatedChecklist[g.pillar]||[]).map(ex=>{
+                                const key=g.pillar+":"+ex; const done=!!checkedItems[key];
+                                return <button key={key} onClick={()=>setCheckedItems(prev=>({...prev,[key]:!prev[key]}))} className="flex w-full items-center gap-3 rounded-xl border border-white/10 bg-black/35 px-3 py-3 text-left"><span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${done?"bg-[#C9A86A] text-black border-[#C9A86A]":"border-white/40 text-transparent"}`}><Check size={14}/></span><span className={`text-[15px] ${done?"line-through text-white/50":"text-white/90"}`}>{ex}</span></button>;
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                        <div className="rounded-2xl border border-white/15 bg-black/35 p-4">
+                          <p className="font-display text-[18px] font-bold">Who are you and why are you GRITTY?</p>
+                          <p className="text-sm text-white/70 mt-1">Coach scores the answer out loud, 1–10.</p>
+                          <div className="mt-3 flex flex-wrap gap-2">{[1,2,3,4,5,6,7,8,9,10].map(n=><button key={n} onClick={()=>setGrittyScore(n)} className={`h-10 w-10 rounded-full border font-bold ${grittyScore===n?"bg-[#C9A86A] text-black border-[#C9A86A]":"border-white/30 text-white/80"}`}>{n}</button>)}</div>
+                          {grittyScore>0 && <p className="mt-2 text-sm text-[#C9A86A] font-bold">GRITTY score: {grittyScore}/10</p>}
+                        </div>
+                        <div className="rounded-2xl border border-white/15 bg-black/35 p-4">
+                          <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">SPORT TRIVIA + FUNNY FACT</p>
+                          <p className="mt-2 text-[15px] leading-relaxed text-white/85">{checklistTrivia}</p>
+                          <p className="mt-2 text-[15px] leading-relaxed text-white/85">{checklistFunny}</p>
+                        </div>
+                        <button onClick={()=>{localStorage.setItem("grit-checklist-"+week, JSON.stringify({checklist: generatedChecklist, checked: checkedItems, gritty: grittyScore})); setChecklistSaved(true);}} className="w-full min-h-[48px] rounded-full border border-[#C9A86A] text-[#C9A86A] font-bold text-[15px]">Save Checklist</button>
+                        {checklistSaved && <p className="text-center text-sm text-[#C9A86A] font-bold">Saved ✓</p>}
+                      </div>
+                    ) : (
+                      <p className="mt-4 text-sm text-white/70">Tap Generate Checklist to deal 3 exercises per pillar from The Training Vault — no repeats until the vault cycles.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return null; if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-black/45 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
-            {(()=>{ const n=calendarNotesForAthlete(loggedInAthleteId); if(!loggedInAthleteId || !n) return null; return <div className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">GRIT NOTES — FROM CALENDAR</p><p className="text-sm text-white/85 whitespace-pre-wrap mt-1 leading-relaxed">{n.notes}</p><p className="text-xs text-white/60 mt-1">{n.title} • {new Date(n.start).toLocaleDateString()}</p></div>; })()}
             <section className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
               <h3 className="font-display font-bold leading-[1.1] text-[clamp(24px,7vw,32px)]">Motivation vs. Discipline <span className="text-[#C9A86A]">|</span> You vs. You</h3>
               <p className="mt-1 text-[12px] font-bold tracking-widest text-white/60">EVERY SINGLE DAY</p>
@@ -1181,7 +1243,7 @@ export default function App(){
             ) : (
               <>
               <p className="text-center font-display text-[clamp(30px,8vw,40px)] font-bold leading-none mt-5">{unlockedAthlete?.name}</p>
-              <p className="text-center text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-3">TRAINING PROGRAM • 4 BLOCKS</p>
+              <p className="text-center text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-3">TRAINING PROGRAM</p>
               <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
                 <label className="text-sm block">Week<br/><input value={week} onChange={e=>setWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
                 <label className="text-sm block mt-3">Motto<br/><input value={trainingMotto} onChange={e=>setTrainingMotto(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
@@ -1254,8 +1316,7 @@ export default function App(){
           <section className="pt-5">
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">YOUR GRIT PROFILE • {athletes.length} ROSTER SPOTS</p>
             <h2 className="font-display text-[36px] leading-none mt-2">Your GRIT Profile</h2>
-            <p className="mt-3 font-display text-[19px] font-semibold leading-snug text-[#F2EFE9]">28 Athletes — GRIT Starting Nov 1, 2026</p>
-            <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
+                        <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
               <label className="block text-xs font-bold tracking-widest text-[#C9A86A]" htmlFor="profile-name-search">YOUR NAME</label>
               <div className="relative mt-2">
                 <input id="profile-name-search" value={profileSearch} onChange={e=>{ setProfileSearch(e.target.value); setProfileDropdownOpen(true); }} onFocus={()=>setProfileDropdownOpen(true)} autoComplete="off" className="w-full min-h-[52px] bg-black/35 border border-white/15 rounded-xl px-3 py-3 text-[16px] font-semibold outline-none focus:border-[#C9A86A]" />
@@ -1331,7 +1392,6 @@ export default function App(){
                       {selectedAthlete.progress_doc_url?.trim() ? <a href={selectedAthlete.progress_doc_url} target="_blank" rel="noopener" className="inline-block mt-2 min-h-[40px] text-sm font-bold text-[#C9A86A] underline">Open Progress Notes Doc</a> : null}
                     </div>
                     <button disabled={busy} onClick={()=>syncProgressNotesFor(selectedAthlete)} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">Sync Progress Notes</button>
-                    {(()=>{ const n=calendarNotesForAthlete(selectedAthlete.id); if(!n) return null; return <div className="mt-3 rounded-xl bg-black/35 border border-white/10 px-4 py-3"><p className="text-xs font-bold tracking-widest text-[#C9A86A]">GRIT NOTES — FROM CALENDAR</p><p className="text-[15px] text-white/85 whitespace-pre-wrap mt-2 leading-relaxed">{n.notes}</p><p className="text-xs text-white/60 mt-2">{n.title} • {new Date(n.start).toLocaleDateString()}</p></div>; })()}
                   </div>
                   <div className="mt-6 border-t border-white/10 pt-4">
                     <h3 className="font-display text-xl">Published Workouts for This Athlete</h3>
@@ -1493,7 +1553,26 @@ export default function App(){
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3"><h3 className="font-display text-xl flex items-center gap-2"><Sparkles size={18} className="text-[#C9A86A]"/> What stays the same</h3><p className="text-[15px] text-white/80 mt-2 leading-relaxed">Every format runs on the same wall: Dynamic Stretch, Core, Main Lift, Speed, Agility, Explode, mindset, homework, and the reminder.</p></div>
             <button onClick={()=>goTab("wall")} className="mt-4 w-full min-h-[48px] border border-white/25 rounded-full text-sm font-semibold">Back to The GRIT</button>
           </section>
-        ) : (
+                ) : view==="vault" ? (
+          <section className="pt-5">
+            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">THE TRAINING VAULT</p>
+            <h2 className="font-display text-[36px] leading-none mt-2">{VAULT_TOTAL} Exercises.</h2>
+            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">Every exercise Generate Checklist draws from — 3 per pillar, no repeats until the vault cycles.</p>
+            <button onClick={()=>{generateChecklist(); goTab("training");}} className="mt-4 w-full min-h-[48px] rounded-full bg-[#C9A86A] text-black font-bold text-[15px]">Generate Checklist →</button>
+            <div className="mt-5 space-y-5 md:grid md:grid-cols-2 md:gap-5 md:space-y-0">
+              {VAULT_EXERCISES.map(g=>(
+                <div key={g.pillar} className="rounded-[22px] border border-white/15 bg-black/35 p-4">
+                  <h3 className="font-display text-[20px] font-bold">{g.pillar} <span className="text-[#C9A86A]">• {g.items.length}</span></h3>
+                  <div className="mt-3 space-y-2">
+                    {g.items.map(ex=>(
+                      <div key={ex} className="flex items-center gap-3 rounded-xl border border-white/10 bg-black/25 px-3 py-2.5"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-white/40 text-[11px] text-white/60">○</span><span className="text-[15px] text-white/90">{ex}</span></div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+) : (
           <section className="pt-5 md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold md:col-span-2 lg:col-span-3">COACHES • DASHBOARD</p>
             <h2 className="font-display text-[36px] leading-none mt-2 md:col-span-2 lg:col-span-3">Coaches</h2>
@@ -1541,14 +1620,17 @@ export default function App(){
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={checkCalendar} className="flex-1 min-h-[48px] border border-white/25 px-3 py-2.5 rounded-full text-sm font-semibold">Check Google Calendar Connection</button><button disabled={busy} onClick={syncCalendarSessions} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-3 py-2.5 rounded-full text-sm disabled:opacity-50">Sync GRIT Sessions</button></div>
               <div className="mt-4 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNC FROM GOOGLE CALENDAR — BACKEND SYNC</p>
-                <p className="text-sm text-white/75 mt-1">Apps Script reads thepiviotproject@kbuiltsoftball.com, keeps events with GRIT in the description, and writes them to Supabase (grit_calendar_events). Every phone reads that table — a calendar edit shows up on all phones after the next script run + app refresh. No iCal link, no pasting.</p>
+                <p className="text-sm text-white/75 mt-1">Backend sync runs on Supabase (Edge Function / sync script) every 30 minutes and writes to Supabase — all phones read the same sessions. The options below are for one-off imports and manual adds.</p>
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — SYNCED TO ALL PHONES</p>
                 <label className="block text-sm mt-2">Athlete<select value={nextSessionAthleteId} onChange={e=>setNextSessionAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
                 <div className="flex gap-2 mt-2"><label className="flex-1 text-sm">Date<input type="date" value={nextSessionDate} onChange={e=>setNextSessionDate(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label><label className="flex-1 text-sm">Time<input type="time" value={nextSessionTime} onChange={e=>setNextSessionTime(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label></div>
                 <label className="block text-sm mt-2">Title (optional)<input value={nextSessionTitle} onChange={e=>setNextSessionTitle(e.target.value)} placeholder="GRIT Session" className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
                 <button onClick={addManualNextSession} className="mt-2 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Save Next Session to Supabase</button>
-                <button disabled={busy} onClick={fetchSupabaseCalendar} className="mt-4 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Sync Google Calendar Now</button>
-                <p className="text-xs text-white/60 mt-2">Pulls the latest sessions + GRIT Notes from Supabase right now. Phones also pull automatically when the app opens and every 5 minutes while it stays open.</p>
+                <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ONE-OFF IMPORT (THIS DEVICE ONLY)</p>
+                <label className="block text-sm mt-2">Public iCal link<input value={calendarFeedUrl} onChange={e=>setCalendarFeedUrl(e.target.value)} placeholder="https://calendar.google.com/calendar/ical/…/basic.ics" className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+                <button disabled={busy} onClick={fetchCalendarFeed} className="mt-2 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">Sync from iCal Link</button>
+                <label className="block text-sm mt-3">Or paste .ics text<textarea value={calendarIcsText} onChange={e=>setCalendarIcsText(e.target.value)} rows={4} placeholder="BEGIN:VCALENDAR…" className="mt-1 w-full bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[13px] font-mono"/></label>
+                <button onClick={()=>importIcsText(calendarIcsText)} className="mt-2 w-full min-h-[48px] border border-white/25 px-4 py-2.5 rounded-full text-sm font-semibold">Import Pasted .ics</button>
                 {calendarEvents.length>0 && <div className="mt-3"><p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNCED EVENTS ({calendarEvents.length})</p><ul className="mt-2 space-y-2">{calendarEvents.slice(0,6).map((e:any)=>(<li key={e.id} className="flex justify-between gap-2 text-[13px] border-b border-white/10 pb-2 last:border-0"><span className="min-w-0"><span className="font-semibold">{e.title}</span><span className="block text-xs text-white/60">{new Date(e.start).toLocaleString()} • {e.source}</span></span><button onClick={async()=>{ setCalendarEvents((p:any[])=>p.filter((x:any)=>x.id!==e.id)); try{ await callApi("records.delete",{collection:"grit_next_sessions", id:e.id}); }catch{} }} className="text-xs text-white/60 shrink-0 px-2">Remove</button></li>))}</ul></div>}
               </div>
               {calendarSyncMsg && <p className="mt-2 text-sm text-[#D4B483]">{calendarSyncMsg}</p>}
@@ -1661,7 +1743,7 @@ export default function App(){
       </main>
 
       <nav aria-label="Bottom navigation" className="fixed bottom-0 left-0 right-0 z-40 bg-[#0F1113] border-t border-[#C9A86A]/40" style={{paddingBottom:"var(--safe-area-inset-bottom, 0px)"}}>
-        <div className="mx-auto max-w-[430px] grid grid-cols-6 lg:px-8">
+        <div className="mx-auto max-w-[430px] md:max-w-[820px] lg:max-w-[1100px] grid grid-cols-6 lg:px-8">
           {TABS.map(t=>{
             const active = view===t.id || (t.id==="pillars" && view==="pillars");
             const Icon = t.icon;
@@ -1709,7 +1791,7 @@ export default function App(){
           </div>
         </div>
       )}
-      <footer className="relative z-10 mx-auto max-w-[430px] px-4 pb-[92px] pt-2 text-center text-xs text-white/65 lg:px-8">
+      <footer className="relative z-10 mx-auto max-w-[430px] md:max-w-[820px] lg:max-w-[1100px] px-4 pb-[92px] pt-2 text-center text-xs text-white/65 lg:px-8">
         <button onClick={()=>goTab("formats")} className="min-h-[44px] px-3 font-bold text-[#C9A86A]">Formats | Payment</button>
         <p className="mt-1">The GRIT — We are Built. We are Family. We are Rising. • Ink / Champagne / Bone / Moss</p>
         <p className="mt-2">Use the Share button in the header to share the GRIT icon.</p>

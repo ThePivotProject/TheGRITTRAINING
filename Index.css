@@ -3,32 +3,32 @@
 @tailwind components;
 @tailwind utilities;
 
-/* The GRIT skin: modern, clean. Ink black, champagne gold, cream. Glass boxes. Photo background on every page. */
+/* The GRIT origin-app system: ink black, champagne gold, deep moss, cream. */
 :root{
   --black:#0F1113;
-  --pine:#17191C;
-  --pine-deep:#0F1113;
+  --pine:#2E4038;
+  --pine-deep:#22302A;
   --champagne:#C9A86A;
   --champagne-light:#D4B483;
   --cream:#F2EFE9;
   --muted:#8A9196;
-  /* Glass: frosted, with a champagne edge. */
-  --glass-bg:rgba(255,255,255,0.06);
-  --glass-border:1px solid rgba(201,168,106,0.28);
+  /* Near-clear glass, no borders — the origin-app look. */
+  --glass-bg:rgba(242,239,233,0.07);
+  --glass-border:transparent;
   --surface:var(--black);
   --surface-2:var(--pine);
   --text:var(--cream);
 }
 @media (prefers-color-scheme: dark){
-  :root{ --surface:#0F1113; --surface-2:#17191C; --text:#F2EFE9; }
+  :root{ --surface:#0F1113; --surface-2:#2E4038; --text:#F2EFE9; }
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--black);color:var(--cream);font-family:'Barlow',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
 .font-display{font-family:'Oswald','Barlow',sans-serif;letter-spacing:.04em}
-/* Glass bar + glass boxes: frosted, bordered, squared off. */
-.glass-nav{background:rgba(18,22,23,0.78);border:1px solid rgba(201,168,106,0.30);border-radius:12px;backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2);box-shadow:0 8px 30px rgba(0,0,0,0.35)}
-.glass{background:var(--glass-bg);border:var(--glass-border);border-radius:12px;backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);box-shadow:0 8px 30px rgba(0,0,0,0.28)}
-.glass-strong{background:rgba(255,255,255,0.08);border:var(--glass-border);border-radius:12px;backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2)}
+/* One solid glass bar, no borders, white font — origin nav. */
+.glass-nav{background:var(--glass-bg);border:none;border-radius:999px;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;box-shadow:none !important}
+.glass{background:var(--glass-bg);border:none;backdrop-filter:none !important;-webkit-backdrop-filter:none !important;box-shadow:none !important}
+.glass-strong{background:rgba(242,239,233,0.07);border:none;backdrop-filter:none !important}
 .champagne{color:var(--champagne)}
 .pine-bg{background:var(--pine)}
 .sprinter-bg{background:transparent}
@@ -42,22 +42,3 @@ textarea{resize:vertical}
 button{transition:transform .12s ease, background-color .15s ease}
 button:active{transform:scale(.98)}
 /* Responsive shell: mobile stays a single narrow column; tablet widens; desktop fills the screen. */
-
-/* SQUARED-OFF SKIN: the app's cards and encasings use tight 12px corners, not big soft rounds.
-   Pill buttons (rounded-full) stay pill — this is the boxes, not the buttons. */
-main [class*="rounded-[22px]"], main [class*="rounded-[26px]"], main [class*="rounded-2xl"], main [class*="rounded-xl"]{border-radius:12px !important}
-/* GLASS ENCASINGS: every dark card inside main becomes frosted glass with a champagne edge. */
-main div[class*="bg-black/"]{border:1px solid rgba(201,168,106,0.22) !important;background:rgba(255,255,255,0.05) !important;backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2)}
-/* Keep gold buttons + gold highlights solid — they are not glass. */
-main a[class*="bg-[#C9A86A]"], main button[class*="bg-[#C9A86A]"]{background:#C9A86A !important;border-color:#C9A86A !important;backdrop-filter:none;-webkit-backdrop-filter:none}
-
-/* App shell — not a website: full-height app, bottom nav clears content, no horizontal scroll. */
-html,body,#root{min-height:100dvh}
-body{overscroll-behavior-y:none}
-main{padding-bottom:140px}
-
-/* ONE BUTTON SYSTEM (flipped): no solid gold. Every action button inside the pages is a gold outline.
-   Dropdown headers (aria-expanded) stay quiet glass. Header + bottom nav chrome is untouched. */
-main button{background:rgba(201,168,106,0.08) !important;color:#C9A86A !important;border:1px solid #C9A86A !important;}
-main button[aria-expanded]{background:rgba(255,255,255,0.05) !important;color:var(--cream) !important;border:1px solid rgba(201,168,106,0.22) !important;backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);}
-main a[class*="rounded-full"]{background:rgba(201,168,106,0.08) !important;color:#C9A86A !important;border:1px solid #C9A86A !important;}
