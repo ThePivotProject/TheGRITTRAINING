@@ -1,17 +1,10 @@
 import "./index.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, Users, ShieldCheck, Zap, Brain, Home, Bookmark, ArrowLeft, Save, Target, Medal, CreditCard, Sparkles, Trophy, Search, Copy, Eraser, Flame, Dumbbell, BookOpen, Timer, Star, Mic, MicOff, Share2 } from "lucide-react";
-import bgUrl from "./sprinter.webp";
+
 import fieldNightUrl from "./field-night.webp";
 import gritIconUrl from "./grit-icon.webp";
 
-function GritIcon({ size = 44, rounded = 10 }: { size?: number; rounded?: number }) {
-  return (
-    <span className="relative block shrink-0 overflow-hidden bg-[#111111]" style={{ width: size, height: size, borderRadius: rounded, boxShadow: "none", filter: "none", outline: "none" }} aria-hidden="true">
-      <img src={gritIconUrl} alt="" className="absolute max-w-none" style={{ width: "127.6%", height: "128.2%", left: "-13.8%", top: "-14.1%", boxShadow: "none", filter: "none" }} />
-    </span>
-  );
-}
 async function croppedGritPng(size = 1024): Promise<Blob> {
   const img = new Image();
   img.src = gritIconUrl;
@@ -136,8 +129,8 @@ create policy "grit_write" on public.progress_notes for all using (true) with ch
 create policy "grit_read" on public.grit_cards for select using (true);
 create policy "grit_write" on public.grit_cards for all using (true) with check (true);`;
 
-function PhotoBackground({ view }: { view?: string }){
-  const bg = view === "wall" ? fieldNightUrl : bgUrl;
+function PhotoBackground(){
+  const bg = fieldNightUrl;
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
       <img src={bg} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
@@ -151,6 +144,8 @@ declare global { interface Window { SpeechRecognition?: any; webkitSpeechRecogni
 
 export default function App(){
   const [view,setView]=useState<View>("wall");
+  const [whatIsOpen,setWhatIsOpen]=useState(false);
+  const [aotwOpen,setAotwOpen]=useState(false);
   const [workouts,setWorkouts]=useState<Workout[]>([]);
   const [athletes,setAthletes]=useState<AthleteProfile[]>(placeholderAthletes());
   const [selectedAthleteId,setSelectedAthleteId]=useState<string|null>(null);
@@ -1087,12 +1082,11 @@ export default function App(){
 
   return (
     <div data-safe-area-inset-root="" className="min-h-[100dvh] bg-[#0F1113] text-[#F2EFE9] overflow-x-clip" style={{boxSizing: 'border-box', paddingTop: 'var(--safe-area-inset-top)'}}>
-      <PhotoBackground view={view} />
-      {/* Top: GRIT icon + THE GRIT + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
+      <PhotoBackground />
+      {/* Top: THE GRIT + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
       <div className="relative z-10 mx-auto max-w-[430px] px-3 pt-2">
         <div className="flex items-center justify-between gap-2">
           <button onClick={()=>goTab("wall")} className="flex min-h-[44px] min-w-0 items-center gap-2" aria-label="The GRIT home">
-            <GritIcon size={36} rounded={9} />
             <span className="font-display font-bold text-[17px] leading-none tracking-[0.12em] whitespace-nowrap">THE GRIT<span className="text-[#C9A86A]">.</span></span>
           </button>
           {savedFlash && <span className="inline-flex min-h-[28px] shrink-0 items-center gap-1 rounded-full bg-[#C9A86A] px-2.5 text-[11px] font-bold text-black" role="status">Saved</span>}
@@ -1105,8 +1099,8 @@ export default function App(){
         </div>
         {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
         <div className="pt-2 text-center">
-          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9]">We Are.<br/><span className="text-[#C9A86A]">Built.</span></p>
-          <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
+          <p className="text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND, MI • TRAIN WITH PURPOSE</p>
+          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9] mt-2">We Are.<br/><span className="text-[#C9A86A]">Built.</span></p>
         </div>
       </div>
 
@@ -1114,13 +1108,13 @@ export default function App(){
         {view==="wall" ? (
           <div className="md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
             <section className="pt-5 md:col-span-1 lg:col-span-2">
-              <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
-                <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
-                <div className="grit-logo-big mt-4 flex justify-center"><GritIcon size={230} rounded={34} /></div>
-                <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(30px,8.5vw,42px)]">THE GRIT<span className="text-[#C9A86A]">.</span></p>
-                <div className="mt-5 flex justify-center">
-                  <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
-                </div>
+              <div className="space-y-3">
+                <button onClick={()=>goTab("athletes")} className="block w-full rounded-full border border-[#C9A86A] bg-[rgba(201,168,106,0.08)] px-6 py-4 text-left text-[15px] font-bold text-[#C9A86A]">Athlete Login →</button>
+                <button onClick={()=>goTab("formats")} className="block w-full rounded-full border border-[#C9A86A] bg-[rgba(201,168,106,0.08)] px-6 py-4 text-left text-[15px] font-bold text-[#C9A86A]">Explore Programs →</button>
+              </div>
+              <div className="glass overflow-hidden mt-6">
+                <button onClick={()=>setWhatIsOpen(!whatIsOpen)} aria-expanded={whatIsOpen} className="flex w-full items-center justify-between px-5 py-5 text-left"><span className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">WHAT IS THE GRIT?</span><span className="text-xl text-[#C9A86A]">{whatIsOpen?"−":"+"}</span></button>
+                {whatIsOpen && <div className="space-y-4 px-5 pb-5 text-[15px] leading-relaxed text-white/70"><p>GRIT is mindset first: show up, do it right, and lift others up — even when it is hard.</p><p>It is movement training on four pillars, built to make you stronger, faster, and harder to break.</p></div>}
               </div>
             </section>
 
@@ -1130,11 +1124,17 @@ export default function App(){
               </section>
             ) : null}
             <section className="mt-6">
-              <button onClick={()=>goTab("become")} className="block w-full rounded-[26px] border-2 border-[#C9A86A] bg-[#2E4038] px-5 py-6 text-left active:bg-[#35493F]">
+              <button onClick={()=>goTab("become")} className="block w-full rounded-[26px] border-2 border-[#C9A86A] bg-black/35 px-5 py-6 text-left active:bg-white/10">
                 <p className="font-display font-bold leading-[1.05] text-[clamp(30px,8.5vw,40px)] text-[#F2EFE9]">HOW DO I<br/>BECOME<span className="text-[#C9A86A]">…</span></p>
                 <p className="mt-3 text-[16px] leading-relaxed text-white/90">Faster? Swing harder? Quicker off the bases? Block the D-line better? Change speed &amp; direction quicker?</p>
                 <p className="mt-4 text-[15px] font-bold text-[#C9A86A]">Tap to find out →</p>
               </button>
+            </section>
+            <section className="mt-6">
+              <div className="glass overflow-hidden">
+                <button onClick={()=>setAotwOpen(!aotwOpen)} aria-expanded={aotwOpen} className="flex w-full items-center justify-between px-5 py-5 text-left"><span className="text-[15px] font-bold text-[#C9A86A]">Athlete of the Week: {spotlightAthlete ? spotlightAthlete.name : "Mackenzie Mercer"}</span><span className="text-xl text-[#C9A86A]">{aotwOpen?"−":"+"}</span></button>
+                {aotwOpen && <p className="px-5 pb-5 text-[15px] leading-relaxed text-white/70">Showing up. Doing it right. Lifting others up. That&apos;s GRIT.</p>}
+              </div>
             </section>
             <section className="mt-6 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
               <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">THE MONTHLY CHALLENGE • {week.toUpperCase()}</p>
@@ -1143,16 +1143,19 @@ export default function App(){
               <p className="mt-1.5 text-xs text-white/75">{challengeProgress}% of the team in — {challengeDoneCount} of {athletes.length} • {currentChallenge.points} pts</p>
               <button onClick={()=>goTab("pillars")} className="mt-4 w-full min-h-[48px] rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Mark It Complete →</button></> : <p className="text-[15px] text-white/85 mt-2">No challenge set yet — your coach sets one on Mindset &amp; Impact.</p>}
             </section>
+            <section className="mt-6">
+              <a href="mailto:thepiviotproject@kbuiltsoftball.com?subject=Get Started with The GRIT" className="block w-full rounded-full border border-[#C9A86A] bg-[rgba(201,168,106,0.08)] px-6 py-4 text-center text-[15px] font-bold text-[#C9A86A]">Get Started →</a>
+            </section>
           </div>
         ) : view==="training" ? (
           <section className="pt-5">
             <h2 className="font-display text-center font-bold leading-[1.15] break-words text-[clamp(24px,6.8vw,36px)]">WE COMPETE LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER LOST</span> AND TRAIN LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER WON</span></h2>
-            {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return null; if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
+            {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return null; if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-black/45 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
             {(()=>{ const n=calendarNotesForAthlete(loggedInAthleteId); if(!loggedInAthleteId || !n) return null; return <div className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">GRIT NOTES — FROM CALENDAR</p><p className="text-sm text-white/85 whitespace-pre-wrap mt-1 leading-relaxed">{n.notes}</p><p className="text-xs text-white/60 mt-1">{n.title} • {new Date(n.start).toLocaleDateString()}</p></div>; })()}
             <section className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
               <h3 className="font-display font-bold leading-[1.1] text-[clamp(24px,7vw,32px)]">Motivation vs. Discipline <span className="text-[#C9A86A]">|</span> You vs. You</h3>
               <p className="mt-1 text-[12px] font-bold tracking-widest text-white/60">EVERY SINGLE DAY</p>
-              <div className="mt-3 rounded-2xl border border-white/15 bg-[#2E4038]/90 px-4 py-4">
+              <div className="mt-3 rounded-2xl border border-white/15 bg-black/45 px-4 py-4">
                 {dailyContent ? renderBecomeText(dailyContent) : <p className="text-[15px] leading-relaxed text-white/85">Your coach is laying out what you should be doing every single day — check back soon.</p>}
               </div>
             </section>
@@ -1180,10 +1183,10 @@ export default function App(){
               <p className="text-center font-display text-[clamp(30px,8vw,40px)] font-bold leading-none mt-5">{unlockedAthlete?.name}</p>
               <p className="text-center text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-3">TRAINING PROGRAM • 4 BLOCKS</p>
               <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
-                <label className="text-sm block">Week<br/><input value={week} onChange={e=>setWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
-                <label className="text-sm block mt-3">Motto<br/><input value={trainingMotto} onChange={e=>setTrainingMotto(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
-                {trainingAthlete && (trainingAthlete.remember || trainingAthlete.sport || trainingAthlete.ageGroup) ? <div className="mt-3 rounded-xl bg-[#2E4038]/90 border border-white/10 px-3 py-2.5 text-[15px] leading-relaxed">{trainingAthlete.remember ? <span><span className="text-[#D4B483] font-bold">Remember, you are:</span> {trainingAthlete.remember} </span> : null}<span className="text-white/60">{trainingAthlete.sport}{trainingAthlete.ageGroup ? ` • ${trainingAthlete.ageGroup}` : ""}</span></div> : null}
-                <div className="mt-4 flex items-center gap-2 rounded-2xl bg-[#2E4038]/90 border border-white/10 p-3"><CalendarDays size={16} className="text-[#C9A86A] shrink-0"/><p className="text-[13px] text-white/80">{calendarConnected ? "Google Calendar: Connected" : "Google Calendar: Not connected — queued"}{queued>0 && !calendarConnected ? ` • ${queued} queued.` : ""}</p></div>
+                <label className="text-sm block">Week<br/><input value={week} onChange={e=>setWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
+                <label className="text-sm block mt-3">Motto<br/><input value={trainingMotto} onChange={e=>setTrainingMotto(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
+                {trainingAthlete && (trainingAthlete.remember || trainingAthlete.sport || trainingAthlete.ageGroup) ? <div className="mt-3 rounded-xl bg-black/45 border border-white/10 px-3 py-2.5 text-[15px] leading-relaxed">{trainingAthlete.remember ? <span><span className="text-[#D4B483] font-bold">Remember, you are:</span> {trainingAthlete.remember} </span> : null}<span className="text-white/60">{trainingAthlete.sport}{trainingAthlete.ageGroup ? ` • ${trainingAthlete.ageGroup}` : ""}</span></div> : null}
+                <div className="mt-4 flex items-center gap-2 rounded-2xl bg-black/45 border border-white/10 p-3"><CalendarDays size={16} className="text-[#C9A86A] shrink-0"/><p className="text-[13px] text-white/80">{calendarConnected ? "Google Calendar: Connected" : "Google Calendar: Not connected — queued"}{queued>0 && !calendarConnected ? ` • ${queued} queued.` : ""}</p></div>
                 <div className="flex flex-col gap-2 mt-3">
                   <button onClick={loadCurrentWorkout} className="min-h-[48px] border border-white/25 px-3 py-2 rounded-full text-sm font-semibold">Load This Week’s Workout</button>
                   <button onClick={duplicateLastWeek} className="min-h-[48px] inline-flex items-center justify-center gap-1 border border-white/25 px-3 py-2 rounded-full text-sm font-semibold"><Copy size={14}/> Duplicate Last Week</button>
@@ -1196,7 +1199,7 @@ export default function App(){
                   <div key={s} className="rounded-2xl border border-white/15 bg-black/35 p-4">
                     <h3 className="font-display font-semibold text-[#D4B483] text-lg leading-tight">{s}</h3>
                     <label className="block mt-3 text-xs font-bold tracking-widest text-[#C9A86A]"># OF REPS / HOW LONG TO EXECUTE</label>
-                    <input type="text" value={minutes[s]||""} onChange={e=>setMinutes({...minutes,[s]:e.target.value})} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-center text-[16px]"/>
+                    <input type="text" value={minutes[s]||""} onChange={e=>setMinutes({...minutes,[s]:e.target.value})} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-center text-[16px]"/>
                     <label className="block mt-4 text-xs font-bold tracking-widest text-[#C9A86A]">{s} DESCRIPTION</label>
                     <textarea value={sections[s]||""} onChange={e=>setSections({...sections,[s]:e.target.value})} rows={4} className="mt-2 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/>
                     <label className="block mt-4 text-xs font-bold tracking-widest text-[#C9A86A]">QUESTIONS / PROGRESS NOTES</label>
@@ -1232,8 +1235,8 @@ export default function App(){
             <h2 className="font-display text-[36px] leading-none mt-2">Homework</h2>
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed">Coach edits homework per athlete, per week. It shows on the athlete’s card and publishes with their workout. Tap a card to mark it done for today.</p>
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
-              <label className="text-sm block">Athlete<br/><select value={trainingAthleteId} onChange={e=>setTrainingAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
-              <label className="text-sm block mt-3">Week<br/><input value={week} onChange={e=>setWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
+              <label className="text-sm block">Athlete<br/><select value={trainingAthleteId} onChange={e=>setTrainingAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
+              <label className="text-sm block mt-3">Week<br/><input value={week} onChange={e=>setWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
               <label className="block mt-4 text-xs font-bold tracking-widest text-[#C9A86A]">HOMEWORK — {trainingAthlete?.name.toUpperCase() || ""} • {week.toUpperCase()}</label>
               <textarea value={homeworkText} onChange={e=>setHomeworkText(e.target.value)} rows={5} className="mt-2 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/>
               <button disabled={busy} onClick={saveHomework} className="mt-3 w-full min-h-[52px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px] disabled:opacity-50"><Save size={16}/> {busy?"Saving…":"Save / Publish Homework"}</button>
@@ -1255,18 +1258,18 @@ export default function App(){
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
               <label className="block text-xs font-bold tracking-widest text-[#C9A86A]" htmlFor="profile-name-search">YOUR NAME</label>
               <div className="relative mt-2">
-                <input id="profile-name-search" value={profileSearch} onChange={e=>{ setProfileSearch(e.target.value); setProfileDropdownOpen(true); }} onFocus={()=>setProfileDropdownOpen(true)} autoComplete="off" className="w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-xl px-3 py-3 text-[16px] font-semibold outline-none focus:border-[#C9A86A]" />
+                <input id="profile-name-search" value={profileSearch} onChange={e=>{ setProfileSearch(e.target.value); setProfileDropdownOpen(true); }} onFocus={()=>setProfileDropdownOpen(true)} autoComplete="off" className="w-full min-h-[52px] bg-black/35 border border-white/15 rounded-xl px-3 py-3 text-[16px] font-semibold outline-none focus:border-[#C9A86A]" />
                 {profileDropdownOpen && (
                   <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-[220px] overflow-y-auto rounded-xl border border-white/15 bg-[#0F1113] shadow-2xl">
                     {filteredProfileAthletes.length===0 && <p className="px-3 py-3 text-sm text-white/70">No match.</p>}
                     {filteredProfileAthletes.map(a=>(
-                      <button key={a.id} type="button" onClick={()=>{ setSelectedAthleteId(a.id); setProfileSearch(a.name); setProfileDropdownOpen(false); setLoginError(""); setPinInput(""); setProfilePinEdit(""); setResult(""); }} className={`block w-full px-3 py-3 text-left text-[16px] active:bg-white/10 ${a.id===selectedAthleteId?"bg-[#2E4038] text-[#C9A86A] font-bold":""}`}>{a.name}</button>
+                      <button key={a.id} type="button" onClick={()=>{ setSelectedAthleteId(a.id); setProfileSearch(a.name); setProfileDropdownOpen(false); setLoginError(""); setPinInput(""); setProfilePinEdit(""); setResult(""); }} className={`block w-full px-3 py-3 text-left text-[16px] active:bg-white/10 ${a.id===selectedAthleteId?"bg-black/35 text-[#C9A86A] font-bold":""}`}>{a.name}</button>
                     ))}
                   </div>
                 )}
               </div>
               <label className="block mt-4 text-xs font-bold tracking-widest text-[#C9A86A]">4-DIGIT PIN</label>
-              <input type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={pinInput} onChange={e=>setPinInput(e.target.value.replace(/\D/g,"").slice(0,4))} onKeyDown={e=>{ if(e.key==="Enter") handleUnlock(); }} className="mt-2 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-xl px-3 py-3 text-center text-[22px] tracking-[0.5em]" />
+              <input type="password" inputMode="numeric" autoComplete="off" maxLength={4} value={pinInput} onChange={e=>setPinInput(e.target.value.replace(/\D/g,"").slice(0,4))} onKeyDown={e=>{ if(e.key==="Enter") handleUnlock(); }} className="mt-2 w-full min-h-[52px] bg-black/35 border border-white/15 rounded-xl px-3 py-3 text-center text-[22px] tracking-[0.5em]" />
               {loginError && <p className="mt-3 text-sm text-center text-[#D4B483] font-semibold">{loginError}</p>}
               {isProfileUnlocked ? (
                 <button onClick={handleLock} className="mt-4 w-full min-h-[52px] border border-white/25 px-5 py-3 rounded-full text-[15px] font-bold">Switch Athlete / Lock</button>
@@ -1284,7 +1287,7 @@ export default function App(){
               </div>
             ) : !isProfileUnlocked ? (
               <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-4 text-center">
-                <div className="relative mx-auto flex h-[220px] w-full max-w-[300px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#C9A86A]/40" style={{background:"linear-gradient(160deg, #2E4038 0%, #0F1113 62%, #22302A 100%)"}}>
+                <div className="relative mx-auto flex h-[220px] w-full max-w-[300px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#C9A86A]/40" style={{background:"linear-gradient(160deg, #17191C 0%, #0F1113 62%, #17191C 100%)"}}>
                   <span className="font-display text-[64px] font-bold leading-none text-[#C9A86A]">{selectedAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span>
                   <span className="mt-3 text-[11px] font-bold tracking-[0.28em] text-[#F2EFE9]/80">YOUR GRIT PROFILE</span>
                 </div>
@@ -1293,7 +1296,7 @@ export default function App(){
             ) : (
               <div className="mt-4">
                 <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-2 md:grid md:grid-cols-2 md:gap-x-6 md:items-start">
-                  <div className="relative mx-auto flex h-[340px] w-full max-w-[340px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#C9A86A]/40 md:col-span-2" style={{background:"linear-gradient(160deg, #2E4038 0%, #0F1113 62%, #22302A 100%)"}}>
+                  <div className="relative mx-auto flex h-[340px] w-full max-w-[340px] flex-col items-center justify-center overflow-hidden rounded-2xl border border-[#C9A86A]/40 md:col-span-2" style={{background:"linear-gradient(160deg, #17191C 0%, #0F1113 62%, #17191C 100%)"}}>
                     <span className="font-display text-[84px] font-bold leading-none text-[#C9A86A]">{selectedAthlete.name.split(/[\s/]+/).filter(Boolean).map((w)=>w[0]).slice(0,2).join("").toUpperCase()}</span>
                     <span className="mt-3 text-[11px] font-bold tracking-[0.28em] text-[#F2EFE9]/80">YOUR GRIT PROFILE</span>
                   </div>
@@ -1321,7 +1324,7 @@ export default function App(){
                     <h3 className="font-display text-xl">GRIT Progress Notes</h3>
                     <p className="text-sm text-white/70 mt-1">Synced from {selectedAthlete.name}&rsquo;s Google Doc only.</p>
                     <label className="block mt-3"><span className="text-sm font-semibold text-[#D4B483]">Progress Doc URL</span><input value={selectedAthlete.progress_doc_url || ""} onChange={e=>updateAthlete(selectedAthlete.id,{progress_doc_url:e.target.value})} className="mt-1 w-full min-h-[52px] bg-white/5 border border-white/15 rounded-xl px-3 py-3 text-[15px] outline-none focus:border-[#C9A86A]"/></label>
-                    <div className="mt-3 rounded-xl bg-[#2E4038]/90 border border-white/10 px-4 py-3">
+                    <div className="mt-3 rounded-xl bg-black/45 border border-white/10 px-4 py-3">
                       <p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNC STATUS: {docSyncStatus(selectedAthlete).toUpperCase()}</p>
                       <p className="text-[15px] text-white/85 whitespace-pre-wrap mt-2 leading-relaxed">{selectedAthlete.progress_notes?.trim() || "No Progress Notes synced yet."}</p>
                       <p className="text-xs text-white/60 mt-2">Last Synced: {selectedAthlete.progress_notes_last_synced ? new Date(selectedAthlete.progress_notes_last_synced).toLocaleString() : "Never"}</p>
@@ -1332,11 +1335,11 @@ export default function App(){
                   </div>
                   <div className="mt-6 border-t border-white/10 pt-4">
                     <h3 className="font-display text-xl">Published Workouts for This Athlete</h3>
-                    {workouts.filter(w=>w.athlete===selectedAthlete.name || w.athleteId===selectedAthlete.id).length===0 ? <p className="text-sm text-white/70 mt-2">No published workout yet.</p> : workouts.filter(w=>w.athlete===selectedAthlete.name || w.athleteId===selectedAthlete.id).map(w=><div key={w.id} className="mt-2 rounded-xl border border-white/10 bg-[#2E4038]/90 px-4 py-3 flex justify-between gap-3"><div><p className="font-semibold">{w.week}</p><p className="text-xs text-white/60">{new Date(w.createdAt).toLocaleDateString()}</p></div><span className="text-xs text-[#D4B483]">{w.calendar}</span></div>)}
+                    {workouts.filter(w=>w.athlete===selectedAthlete.name || w.athleteId===selectedAthlete.id).length===0 ? <p className="text-sm text-white/70 mt-2">No published workout yet.</p> : workouts.filter(w=>w.athlete===selectedAthlete.name || w.athleteId===selectedAthlete.id).map(w=><div key={w.id} className="mt-2 rounded-xl border border-white/10 bg-black/45 px-4 py-3 flex justify-between gap-3"><div><p className="font-semibold">{w.week}</p><p className="text-xs text-white/60">{new Date(w.createdAt).toLocaleDateString()}</p></div><span className="text-xs text-[#D4B483]">{w.calendar}</span></div>)}
                   </div>
                   <div className="mt-6 border-t border-white/10 pt-4">
                     <h3 className="font-display text-xl">GRIT Cards for This Athlete</h3>
-                    {cards.filter(c=>c.toId===selectedAthlete.id || c.fromId===selectedAthlete.id).length===0 ? <p className="text-sm text-white/70 mt-2">No GRIT Cards yet.</p> : cards.filter(c=>c.toId===selectedAthlete.id || c.fromId===selectedAthlete.id).map(c=><div key={c.id} className="mt-2 rounded-xl border border-[#C9A86A]/30 bg-[#2E4038]/90 px-4 py-3"><p className="text-sm font-bold">{c.fromName} → {c.toName} • {c.week}</p><p className="text-[15px] text-white/85 mt-1 whitespace-pre-wrap">{c.message}</p></div>)}
+                    {cards.filter(c=>c.toId===selectedAthlete.id || c.fromId===selectedAthlete.id).length===0 ? <p className="text-sm text-white/70 mt-2">No GRIT Cards yet.</p> : cards.filter(c=>c.toId===selectedAthlete.id || c.fromId===selectedAthlete.id).map(c=><div key={c.id} className="mt-2 rounded-xl border border-[#C9A86A]/30 bg-black/45 px-4 py-3"><p className="text-sm font-bold">{c.fromName} → {c.toName} • {c.week}</p><p className="text-[15px] text-white/85 mt-1 whitespace-pre-wrap">{c.message}</p></div>)}
                   </div>
                 </div>
               </div>
@@ -1356,12 +1359,12 @@ export default function App(){
               <button disabled={busy} onClick={savePillars} className="mt-3 w-full min-h-[52px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px] disabled:opacity-50"><Save size={16}/> {busy?"Saving…":"Save Pillars"}</button>
             </div>
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3">
-              <div className="flex flex-col gap-2"><h3 className="font-display text-xl leading-tight">Per-Athlete Mindset, Gratitude & Discipline</h3><select value={trainingAthleteId} onChange={e=>setTrainingAthleteId(e.target.value)} className="min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></div>
+              <div className="flex flex-col gap-2"><h3 className="font-display text-xl leading-tight">Per-Athlete Mindset, Gratitude & Discipline</h3><select value={trainingAthleteId} onChange={e=>setTrainingAthleteId(e.target.value)} className="min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></div>
               {!trainingAthlete ? <p className="text-sm text-white/70 mt-3">Select an athlete.</p> : <div className="mt-4 space-y-3">
-                <div className="rounded-xl bg-[#2E4038]/90 border border-white/10 p-3"><p className="text-xs font-bold tracking-widest text-[#C9A86A]">REMEMBER, YOU ARE:</p><p className="mt-1 text-[15px]">{trainingAthlete.remember||""}</p></div>
+                <div className="rounded-xl bg-black/45 border border-white/10 p-3"><p className="text-xs font-bold tracking-widest text-[#C9A86A]">REMEMBER, YOU ARE:</p><p className="mt-1 text-[15px]">{trainingAthlete.remember||""}</p></div>
                 <label className="block"><span className="text-sm font-semibold text-[#D4B483]">Mindset entry — editable</span><textarea value={trainingAthlete.mindset} onChange={e=>updateAthlete(trainingAthlete.id,{mindset:e.target.value})} rows={3} className="mt-1 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/></label>
                 <label className="block"><span className="text-sm font-semibold text-[#D4B483]">Gratitude — Expect nothing. Appreciate everything.</span><textarea value={trainingAthlete.gratitude} onChange={e=>updateAthlete(trainingAthlete.id,{gratitude:e.target.value})} rows={3} className="mt-1 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/></label>
-                <div><p className="text-sm font-semibold text-[#D4B483]">Non-Negotiables checklist — tap to check off</p>{trainingAthlete.nonNegotiables.split("\n").filter(x=>x.trim()).length===0 ? <p className="text-sm text-white/70 mt-1">Add Non-Negotiables on the athlete’s profile — one per line — then tick them here.</p> : trainingAthlete.nonNegotiables.split("\n").filter(x=>x.trim()).map((item,i)=>{ const done = !!(trainingAthlete.disciplineDone||[])[i]; return <button key={i} onClick={()=>{ const next=[...(trainingAthlete.disciplineDone||[])]; while(next.length<=i) next.push(false); next[i]=!next[i]; updateAthlete(trainingAthlete.id,{disciplineDone:next}); }} className="mt-2 w-full min-h-[52px] flex items-center gap-3 text-left rounded-xl border border-white/10 bg-[#2E4038]/90 px-3 py-2.5 active:scale-[0.99]"><span className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${done?"bg-[#C9A86A] text-black border-[#C9A86A]":"border-white/40"}`}>{done?<Check size={16}/>:null}</span><span className={`text-[15px] ${done?"line-through text-white/60":""}`}>{item}</span></button>; })}</div>
+                <div><p className="text-sm font-semibold text-[#D4B483]">Non-Negotiables checklist — tap to check off</p>{trainingAthlete.nonNegotiables.split("\n").filter(x=>x.trim()).length===0 ? <p className="text-sm text-white/70 mt-1">Add Non-Negotiables on the athlete’s profile — one per line — then tick them here.</p> : trainingAthlete.nonNegotiables.split("\n").filter(x=>x.trim()).map((item,i)=>{ const done = !!(trainingAthlete.disciplineDone||[])[i]; return <button key={i} onClick={()=>{ const next=[...(trainingAthlete.disciplineDone||[])]; while(next.length<=i) next.push(false); next[i]=!next[i]; updateAthlete(trainingAthlete.id,{disciplineDone:next}); }} className="mt-2 w-full min-h-[52px] flex items-center gap-3 text-left rounded-xl border border-white/10 bg-black/45 px-3 py-2.5 active:scale-[0.99]"><span className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${done?"bg-[#C9A86A] text-black border-[#C9A86A]":"border-white/40"}`}>{done?<Check size={16}/>:null}</span><span className={`text-[15px] ${done?"line-through text-white/60":""}`}>{item}</span></button>; })}</div>
                 <div className="flex flex-col gap-2"><button onClick={()=>{ setSelectedAthleteId(trainingAthlete.id); setProfileSearch(trainingAthlete.name); setView("athletes"); }} className="min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Open Athlete to Save</button><button onClick={()=>goTab("training")} className="min-h-[48px] border border-white/25 px-4 py-2.5 rounded-full text-sm font-semibold">Training Program</button></div>
               </div>}
             </div>
@@ -1381,7 +1384,7 @@ export default function App(){
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed">One challenge a week. Points for challenges, workouts, and GRIT Cards received. One GRIT Card per athlete per week — to show how one other athlete made them better.</p>
             <section className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
               <div className="flex items-end justify-between gap-2"><h2 className="font-display text-[28px] leading-none">This Month on <span className="text-[#C9A86A]">Impact</span></h2><span className="text-xs text-white/70 shrink-0">{week}</span></div>
-              <div className="mt-4 rounded-2xl border border-white/10 bg-[#2E4038]/90 p-4">
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/45 p-4">
                 <p className="text-[11px] tracking-widest text-[#C9A86A] font-bold">THE MONTHLY CHALLENGE • {week.toUpperCase()}</p>
                 {currentChallenge ? <><h3 className="font-display text-xl mt-1 leading-tight">{currentChallenge.title}</h3><p className="text-[15px] text-white/85 mt-1 leading-relaxed">{currentChallenge.description}</p>
                 <div className="mt-3 flex items-center gap-2 text-xs"><Timer size={14} className="text-[#C9A86A]"/><span className="font-bold">{daysLeft===null ? "This week" : daysLeft>=0 ? `${daysLeft} day${daysLeft===1?"":"s"} left` : "Due — still counts"}</span><span className="text-white/70">• {currentChallenge.points} pts • {challengeDoneCount} complete</span></div>
@@ -1400,12 +1403,12 @@ export default function App(){
               <div className="mt-3 flex flex-wrap items-center gap-2"><span className="inline-flex min-h-[36px] items-center gap-1 rounded-full bg-[#C9A86A] text-black px-3 text-xs font-bold"><Timer size={14}/> {daysLeft===null ? "This week" : daysLeft>=0 ? `${daysLeft} day${daysLeft===1?"":"s"} left` : "Due — still counts"}</span><span className="text-sm text-[#D4B483] font-bold">{currentChallenge.points} pts • {challengeDoneCount} athletes complete</span></div>
               <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width:`${challengeProgress}%`}} /></div><p className="mt-1.5 text-xs text-white/75">{challengeProgress}% of the team in — {challengeDoneCount} of {athletes.length}</p></> : <p className="mt-2 text-white/85 text-[15px]">No challenge for this week yet — coach sets ONE below.</p>}
               {celebrated && <p className="mt-3 rounded-xl bg-[#C9A86A] text-black px-3 py-2.5 text-sm font-bold text-center animate-pulse">🎉 Way to rise, {celebrated}! +{currentChallenge?.points} pts!</p>}
-              <label className="text-sm block mt-4">Mark Complete — Athlete<br/><select value={completeAthleteId} onChange={e=>setCompleteAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
+              <label className="text-sm block mt-4">Mark Complete — Athlete<br/><select value={completeAthleteId} onChange={e=>setCompleteAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
               <button disabled={busy || !currentChallenge} onClick={markComplete} className="mt-3 w-full min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px] disabled:opacity-50 inline-flex items-center justify-center gap-2 active:scale-[0.98]"><Check size={18}/> Mark Complete — Celebrate It!</button>
               <div className="mt-5 border-t border-white/10 pt-4">
                 <h4 className="font-display font-semibold text-lg leading-tight">Coach: Set ONE Challenge for {week}</h4>
-                <label className="text-sm block mt-3">Title<br/><input value={chTitle} onChange={e=>setChTitle(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
-                <div className="grid grid-cols-2 gap-2 mt-3"><label className="text-sm">Points<br/><input type="number" value={chPoints} onChange={e=>setChPoints(Number(e.target.value))} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label><label className="text-sm">Due Date<br/><input type="date" value={chDue} onChange={e=>setChDue(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label></div>
+                <label className="text-sm block mt-3">Title<br/><input value={chTitle} onChange={e=>setChTitle(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
+                <div className="grid grid-cols-2 gap-2 mt-3"><label className="text-sm">Points<br/><input type="number" value={chPoints} onChange={e=>setChPoints(Number(e.target.value))} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label><label className="text-sm">Due Date<br/><input type="date" value={chDue} onChange={e=>setChDue(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label></div>
                 <label className="block text-sm mt-3">Description<br/><textarea value={chDesc} onChange={e=>setChDesc(e.target.value)} rows={2} className="mt-1 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/></label>
                 <button disabled={busy} onClick={saveChallenge} className="mt-3 w-full min-h-[48px] bg-white/10 border border-white/20 px-4 py-2.5 rounded-full text-sm font-bold disabled:opacity-50">Save Challenge</button>
               </div>
@@ -1413,8 +1416,8 @@ export default function App(){
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <div className="flex items-end justify-between gap-2"><h3 className="font-display text-2xl flex items-center gap-2 leading-none"><Trophy size={22} className="text-[#C9A86A] shrink-0"/> Leaderboard</h3></div>
               <p className="text-xs text-white/65 mt-1.5">Leaderboard is paused.</p>
-              <label className="block text-sm mt-3">Select Athlete<br/><select value={leaderAthleteId} onChange={e=>setLeaderAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
-              <div className="mt-3 rounded-xl border border-white/10 bg-[#2E4038]/90 px-3 py-3">
+              <label className="block text-sm mt-3">Select Athlete<br/><select value={leaderAthleteId} onChange={e=>setLeaderAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
+              <div className="mt-3 rounded-xl border border-white/10 bg-black/45 px-3 py-3">
                 {!leaderAthlete ? <p className="text-sm text-white/70">Select an athlete.</p> : <p className="text-sm text-white/80">Leaderboard is paused — no rankings shown for {leaderAthlete.name}.</p>}
               </div>
             </div>
@@ -1423,20 +1426,20 @@ export default function App(){
               <p className="text-sm text-white/80 mt-1 leading-relaxed">One card per athlete per week. Tell one other GRIT athlete how they made you better.</p>
               {existingCardForSender && !editingCardId && <div className="mt-3 rounded-xl bg-[#C9A86A]/15 border border-[#C9A86A]/40 px-3 py-2.5 text-sm font-semibold">You already sent your GRIT Card this week — from {existingCardForSender.fromName} to {existingCardForSender.toName}. You can view / edit it below.</div>}
               {editingCardId && <p className="mt-3 text-sm text-[#D4B483] font-semibold">Editing your GRIT Card for {week} — save to update it.</p>}
-              <label className="text-sm block mt-4">From (athlete)<br/><select value={cardFrom} onChange={e=>{setCardFrom(e.target.value); setEditingCardId(null);}} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
-              <label className="text-sm block mt-3">To — pick ONE other athlete<br/><select value={cardTo} onChange={e=>setCardTo(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions(cardFrom)}</select></label>
-              <label className="text-sm block mt-3">Week<br/><input value={week} onChange={e=>setWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
+              <label className="text-sm block mt-4">From (athlete)<br/><select value={cardFrom} onChange={e=>{setCardFrom(e.target.value); setEditingCardId(null);}} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
+              <label className="text-sm block mt-3">To — pick ONE other athlete<br/><select value={cardTo} onChange={e=>setCardTo(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions(cardFrom)}</select></label>
+              <label className="text-sm block mt-3">Week<br/><input value={week} onChange={e=>setWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
               <label className="block text-sm mt-3">Message — How they made me better<br/><textarea value={cardMessage} onChange={e=>setCardMessage(e.target.value)} rows={3} className="mt-1 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/></label>
               <button disabled={busy} onClick={saveGritCard} className="mt-3 w-full min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px] disabled:opacity-50 active:scale-[0.98]">{editingCardId?"Update GRIT Card":"Send a GRIT Card"}</button>
               {savedFlash && <p className="mt-3 text-sm text-[#D4B483] font-bold" role="status">Saved</p>}
               {result && <p className="mt-3 text-sm text-[#D4B483]">{result}</p>}
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
-              <div className="flex items-end justify-between gap-2"><h3 className="font-display text-2xl leading-none">GRIT Cards</h3><label className="text-xs">Week <select value={cardWeekFilter} onChange={e=>setCardWeekFilter(e.target.value)} className="ml-1 min-h-[40px] bg-[#2E4038] border border-white/15 rounded-lg px-2 py-1.5 text-[15px]"><option>All Weeks</option>{cardWeeks.map(w=><option key={w}>{w}</option>)}</select></label></div>
+              <div className="flex items-end justify-between gap-2"><h3 className="font-display text-2xl leading-none">GRIT Cards</h3><label className="text-xs">Week <select value={cardWeekFilter} onChange={e=>setCardWeekFilter(e.target.value)} className="ml-1 min-h-[40px] bg-black/35 border border-white/15 rounded-lg px-2 py-1.5 text-[15px]"><option>All Weeks</option>{cardWeeks.map(w=><option key={w}>{w}</option>)}</select></label></div>
               <p className="text-xs text-white/65 mt-1.5">Tap a card to flip it open. Tap fire to react.</p>
               <div className="space-y-3 mt-3">
                 {cards.filter(c=>cardWeekFilter==="All Weeks"||c.week===cardWeekFilter).length===0 && <p className="text-sm text-white/70">No GRIT Cards yet for this filter. Send the first one above.</p>}
-                {cards.filter(c=>cardWeekFilter==="All Weeks"||c.week===cardWeekFilter).map(c=>{ const toAthlete = athletes.find(a=>a.id===c.toId); const open = expandedCardId===c.id; const react = reactions[c.id||""]; return <article key={c.id} className={`rounded-2xl border bg-[#2E4038]/95 p-4 transition ${open?"border-[#C9A86A]":"border-[#C9A86A]/30"}`}><button onClick={()=>setExpandedCardId(open?null:c.id)} className="w-full text-left min-h-[48px]"><p className="font-display font-semibold leading-tight">{c.fromName} <span className="text-[#C9A86A]">→</span> {c.toName}</p><p className="text-xs text-white/60 mt-1">{c.week} • {toAthlete?.sport||""} • {new Date(c.createdAt).toLocaleDateString()} • {open?"Tap to collapse":"Tap to flip open"}</p><p className={`text-[15px] text-white/85 whitespace-pre-wrap mt-2 leading-relaxed ${open?"":"line-clamp-2"}`}>{c.message}</p></button><div className="mt-3 flex items-center gap-2"><button onClick={()=>toggleReaction(c.id||"", "fire")} aria-pressed={react==="fire"} className={`min-h-[44px] flex-1 rounded-full border px-3 py-2 text-sm font-bold inline-flex items-center justify-center gap-1.5 active:scale-[0.97] ${react==="fire"?"bg-[#C9A86A] text-black border-[#C9A86A]":"border-white/20 bg-white/5"}`}><Flame size={16}/> Fire</button><button onClick={()=>startEditCard(c)} className="min-h-[44px] px-3 py-2 text-xs font-bold text-[#C9A86A]">View / Edit</button></div></article>; })}
+                {cards.filter(c=>cardWeekFilter==="All Weeks"||c.week===cardWeekFilter).map(c=>{ const toAthlete = athletes.find(a=>a.id===c.toId); const open = expandedCardId===c.id; const react = reactions[c.id||""]; return <article key={c.id} className={`rounded-2xl border bg-black/45 p-4 transition ${open?"border-[#C9A86A]":"border-[#C9A86A]/30"}`}><button onClick={()=>setExpandedCardId(open?null:c.id)} className="w-full text-left min-h-[48px]"><p className="font-display font-semibold leading-tight">{c.fromName} <span className="text-[#C9A86A]">→</span> {c.toName}</p><p className="text-xs text-white/60 mt-1">{c.week} • {toAthlete?.sport||""} • {new Date(c.createdAt).toLocaleDateString()} • {open?"Tap to collapse":"Tap to flip open"}</p><p className={`text-[15px] text-white/85 whitespace-pre-wrap mt-2 leading-relaxed ${open?"":"line-clamp-2"}`}>{c.message}</p></button><div className="mt-3 flex items-center gap-2"><button onClick={()=>toggleReaction(c.id||"", "fire")} aria-pressed={react==="fire"} className={`min-h-[44px] flex-1 rounded-full border px-3 py-2 text-sm font-bold inline-flex items-center justify-center gap-1.5 active:scale-[0.97] ${react==="fire"?"bg-[#C9A86A] text-black border-[#C9A86A]":"border-white/20 bg-white/5"}`}><Flame size={16}/> Fire</button><button onClick={()=>startEditCard(c)} className="min-h-[44px] px-3 py-2 text-xs font-bold text-[#C9A86A]">View / Edit</button></div></article>; })}
               </div>
             </div>
           </section>
@@ -1516,15 +1519,15 @@ export default function App(){
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-4">
               <h3 className="font-display text-xl">Supabase — Connect + Configure</h3>
               <p className="text-sm text-white/75 mt-1">Status: <strong className={supabaseStatus==="Connected"?"text-[#C9A86A]":"text-white"}>{supabaseStatus}</strong>{supabaseLastChecked ? ` • Last checked ${supabaseLastChecked}` : ""}</p>
-              <label className="block text-sm mt-3">Supabase Project URL<input value={supabaseUrl} onChange={e=>setSupabaseUrl(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
-              <label className="block text-sm mt-3">Supabase Anon Key<input type="password" value={supabaseKey} onChange={e=>setSupabaseKey(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
+              <label className="block text-sm mt-3">Supabase Project URL<input value={supabaseUrl} onChange={e=>setSupabaseUrl(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
+              <label className="block text-sm mt-3">Supabase Anon Key<input type="password" value={supabaseKey} onChange={e=>setSupabaseKey(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={connectSupabase} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">Connect Supabase</button><button disabled={busy} onClick={testSupabase} className="flex-1 min-h-[48px] border border-white/25 px-4 py-2.5 rounded-full text-sm font-semibold">Test Connection</button></div>
               <div className="mt-4 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A]">CONFIGURE SUPABASE — REQUIRED TABLES</p>
                 <ul className="mt-2 space-y-1.5 text-[15px]">{["athletes","grit_focus","training_blocks","athlete_notes","progress_notes"].map(t=>(<li key={t} className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full shrink-0 ${supabaseStatus==="Connected"?"bg-[#C9A86A]":"bg-white/25"}`} aria-hidden="true"/><span className="font-mono text-sm">{t}</span><span className="text-xs text-white/60">{supabaseStatus==="Connected"?"Ready":"Not checked"}</span></li>))}</ul>
-                <label className="block text-sm mt-3">Table / Realtime status note<input value={supabaseNote} onChange={e=>setSupabaseNote(e.target.value)} onBlur={()=>persistSettings({supabaseNote})} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
+                <label className="block text-sm mt-3">Table / Realtime status note<input value={supabaseNote} onChange={e=>setSupabaseNote(e.target.value)} onBlur={()=>persistSettings({supabaseNote})} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
                 <button onClick={copySql} className="mt-3 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Copy Supabase SQL</button>
-                <p className="mt-3 rounded-xl bg-[#2E4038]/90 border border-[#C9A86A]/30 px-3 py-2.5 text-sm leading-relaxed text-white/85">Run the WHOLE file at once in Supabase &gt; SQL Editor. If you ran an old version first and got &lsquo;relation public.athletes does not exist&rsquo;, just run this whole fixed file — it creates athletes first.</p>
+                <p className="mt-3 rounded-xl bg-black/45 border border-[#C9A86A]/30 px-3 py-2.5 text-sm leading-relaxed text-white/85">Run the WHOLE file at once in Supabase &gt; SQL Editor. If you ran an old version first and got &lsquo;relation public.athletes does not exist&rsquo;, just run this whole fixed file — it creates athletes first.</p>
                 {showSql && <div className="mt-3"><textarea id="supabase-sql-text" readOnly value={SUPABASE_SQL} rows={8} className="w-full bg-[#0F1113] border border-white/15 rounded-xl p-3 text-[12px] font-mono leading-relaxed"/><p className="text-xs text-white/60 mt-1">{sqlCopied ? "Copied — paste it in the Supabase SQL editor." : "Setup SQL for the tables above."}</p></div>}
               </div>
             </div>
@@ -1534,15 +1537,15 @@ export default function App(){
               <p className="text-sm text-white/80 mt-1">Account: thepiviotproject@kbuiltsoftball.com</p>
               <p className="text-sm text-white/80">Time zone: America/Detroit</p>
               <p className="text-xs text-white/60 mt-1">Last checked: {calendarLastChecked || "Not checked yet"}</p>
-              <label className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#2E4038]/90 border border-white/10 px-3 py-3 text-sm font-semibold"><span>Sync GRIT Sessions to Calendar</span><button role="switch" aria-checked={calendarSyncOn} onClick={toggleCalendarSync} className={`min-h-[32px] min-w-[56px] rounded-full px-2 text-xs font-bold ${calendarSyncOn?"bg-[#C9A86A] text-black":"bg-white/15 text-white"}`}>{calendarSyncOn?"On":"Off"}</button></label>
+              <label className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-black/45 border border-white/10 px-3 py-3 text-sm font-semibold"><span>Sync GRIT Sessions to Calendar</span><button role="switch" aria-checked={calendarSyncOn} onClick={toggleCalendarSync} className={`min-h-[32px] min-w-[56px] rounded-full px-2 text-xs font-bold ${calendarSyncOn?"bg-[#C9A86A] text-black":"bg-white/15 text-white"}`}>{calendarSyncOn?"On":"Off"}</button></label>
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={checkCalendar} className="flex-1 min-h-[48px] border border-white/25 px-3 py-2.5 rounded-full text-sm font-semibold">Check Google Calendar Connection</button><button disabled={busy} onClick={syncCalendarSessions} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-3 py-2.5 rounded-full text-sm disabled:opacity-50">Sync GRIT Sessions</button></div>
               <div className="mt-4 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNC FROM GOOGLE CALENDAR — BACKEND SYNC</p>
                 <p className="text-sm text-white/75 mt-1">Apps Script reads thepiviotproject@kbuiltsoftball.com, keeps events with GRIT in the description, and writes them to Supabase (grit_calendar_events). Every phone reads that table — a calendar edit shows up on all phones after the next script run + app refresh. No iCal link, no pasting.</p>
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — SYNCED TO ALL PHONES</p>
-                <label className="block text-sm mt-2">Athlete<select value={nextSessionAthleteId} onChange={e=>setNextSessionAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
-                <div className="flex gap-2 mt-2"><label className="flex-1 text-sm">Date<input type="date" value={nextSessionDate} onChange={e=>setNextSessionDate(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label><label className="flex-1 text-sm">Time<input type="time" value={nextSessionTime} onChange={e=>setNextSessionTime(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label></div>
-                <label className="block text-sm mt-2">Title (optional)<input value={nextSessionTitle} onChange={e=>setNextSessionTitle(e.target.value)} placeholder="GRIT Session" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
+                <label className="block text-sm mt-2">Athlete<select value={nextSessionAthleteId} onChange={e=>setNextSessionAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
+                <div className="flex gap-2 mt-2"><label className="flex-1 text-sm">Date<input type="date" value={nextSessionDate} onChange={e=>setNextSessionDate(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label><label className="flex-1 text-sm">Time<input type="time" value={nextSessionTime} onChange={e=>setNextSessionTime(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label></div>
+                <label className="block text-sm mt-2">Title (optional)<input value={nextSessionTitle} onChange={e=>setNextSessionTitle(e.target.value)} placeholder="GRIT Session" className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
                 <button onClick={addManualNextSession} className="mt-2 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Save Next Session to Supabase</button>
                 <button disabled={busy} onClick={fetchSupabaseCalendar} className="mt-4 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Sync Google Calendar Now</button>
                 <p className="text-xs text-white/60 mt-2">Pulls the latest sessions + GRIT Notes from Supabase right now. Phones also pull automatically when the app opens and every 5 minutes while it stays open.</p>
@@ -1556,11 +1559,11 @@ export default function App(){
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">GRIT Progress Notes — Google Doc Sync</h3>
               <p className="text-sm text-white/75 mt-1">Each athlete&rsquo;s Doc syncs only to their own profile.</p>
-              <label className="block text-sm mt-3">Select Athlete<select value={coachDocAthleteId} onChange={e=>setCoachDocAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
+              <label className="block text-sm mt-3">Select Athlete<select value={coachDocAthleteId} onChange={e=>setCoachDocAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
               <button disabled={busy} onClick={syncAllProgressNotes} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">Sync All</button>
               <div className="mt-3">
                 {!coachDocAthlete ? <p className="text-sm text-white/70">Select an athlete.</p> : (
-                  <div className="rounded-xl border border-white/10 bg-[#2E4038]/90 p-3">
+                  <div className="rounded-xl border border-white/10 bg-black/45 p-3">
                     <p className="font-semibold text-[15px]">{coachDocAthlete.name}</p>
                     <p className="text-xs text-white/70 mt-0.5">Sync Status: <strong className="text-[#D4B483]">{docSyncStatus(coachDocAthlete)}</strong> • Last Synced: {coachDocAthlete.progress_notes_last_synced ? new Date(coachDocAthlete.progress_notes_last_synced).toLocaleString() : "Never"}</p>
                     <input value={coachDocAthlete.progress_doc_url || ""} onChange={e=>updateAthlete(coachDocAthlete.id,{progress_doc_url:e.target.value})} className="mt-2 w-full min-h-[44px] bg-[#0F1113] border border-white/15 rounded-lg px-3 py-2 text-[14px]"/>
@@ -1575,22 +1578,22 @@ export default function App(){
               <p className="text-sm mt-1">{published ? <span className="font-bold text-[#C9A86A]">Published • Version {publishVersion}</span> : <span className="text-white/70">Not published yet</span>}</p>
               <div className="flex flex-col gap-2 mt-3"><button disabled={busy} onClick={saveSite} className="min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px] disabled:opacity-50">Save Site</button><button disabled={busy} onClick={publishSite} className="min-h-[52px] border border-[#C9A86A] px-5 py-3 rounded-full text-[15px] font-bold disabled:opacity-50">Publish Site</button><button onClick={checkEverything} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Check Everything</button></div>
               {checkResults && <ul className="mt-3 space-y-2">{checkResults.map(c=>(<li key={c.label} className="text-sm"><span className="flex items-center justify-between gap-2"><span>{c.label}</span><span className={`font-bold ${c.ok?"text-[#C9A86A]":"text-white"}`}>{c.ok?"● Green":"● Red"} <span className="font-normal text-white/60">— {c.detail}</span></span></span><span className="mt-0.5 block text-xs text-white/60">Last synced: {c.synced}</span></li>))}</ul>}
-              <button onClick={()=>setDictOpen(true)} className="mt-4 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-[#2E4038] border border-[#C9A86A]/50 px-4 py-2.5 rounded-full text-sm font-bold">Open Dictation <ChevronRight size={16}/></button>
+              <button onClick={()=>setDictOpen(true)} className="mt-4 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-black/35 border border-[#C9A86A]/50 px-4 py-2.5 rounded-full text-sm font-bold">Open Dictation <ChevronRight size={16}/></button>
               <div className="mt-3 flex flex-col gap-2"><button onClick={()=>goTab("training")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Training Program</button><button onClick={()=>goTab("athletes")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">GRIT Athletes</button><button onClick={()=>goTab("pillars")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Impact</button><button onClick={()=>goTab("formats")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Formats | Payment</button></div>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">Payment Links</h3>
               <p className="text-sm text-white/75 mt-1">Paste your PayPal Payment Link and/or Stripe Payment Link. They show as buttons on Formats | Payment for every athlete. Change them here any time — no redeploy needed. The links live in Supabase (grit_settings).</p>
-              <label className="block text-sm mt-3">PayPal Payment Link<input value={paypalLink} onChange={e=>setPaypalLink(e.target.value)} placeholder="https://www.paypal.com/ncp/payment/…" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
-              <label className="block text-sm mt-2">Stripe Payment Link (card)<input value={stripeLink} onChange={e=>setStripeLink(e.target.value)} placeholder="https://buy.stripe.com/…" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
-              <label className="block text-sm mt-2">Payment note shown to families<textarea value={payNote} onChange={e=>setPayNote(e.target.value)} rows={2} className="mt-1 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+              <label className="block text-sm mt-3">PayPal Payment Link<input value={paypalLink} onChange={e=>setPaypalLink(e.target.value)} placeholder="https://www.paypal.com/ncp/payment/…" className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+              <label className="block text-sm mt-2">Stripe Payment Link (card)<input value={stripeLink} onChange={e=>setStripeLink(e.target.value)} placeholder="https://buy.stripe.com/…" className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+              <label className="block text-sm mt-2">Payment note shown to families<textarea value={payNote} onChange={e=>setPayNote(e.target.value)} rows={2} className="mt-1 w-full bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
               <button onClick={async()=>{ await persistSettings({ paypalLink, stripeLink, payNote }); setResult("Payment links saved — they now show on Formats | Payment."); flashSaved(); }} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Payment Links</button>
               <p className="text-xs text-white/60 mt-2">How to get the links: PayPal → Send & Request → Payment Links → Create (set amount or let them enter it). Stripe Dashboard → Payment Links → Create (set amount, card + Apple/Google Pay on). Both are free to set up — you only pay a fee per payment. See PAYMENTS-README.md in the zip.</p>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">Quote</h3>
               <p className="text-sm text-white/75 mt-1">Type the quote here. On the homepage it shows as just the words in quotes — no heading, no label, nothing calling it anything. Change it any time; every phone sees the new one.</p>
-              <textarea value={quoteDraft} onChange={e=>setQuoteDraft(e.target.value)} rows={3} placeholder="Write the quote exactly as you want it to read…" className="mt-3 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px] leading-relaxed" />
+              <textarea value={quoteDraft} onChange={e=>setQuoteDraft(e.target.value)} rows={3} placeholder="Write the quote exactly as you want it to read…" className="mt-3 w-full bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[15px] leading-relaxed" />
               <button onClick={saveQuote} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Quote</button>
               {quoteText ? <p className="mt-3 text-center text-[15px] italic text-white/85">“{quoteText}”</p> : null}
             </div>
@@ -1600,7 +1603,7 @@ export default function App(){
               <div className="mt-3 flex gap-2">
                 <button onClick={()=>{ setDailyDraft(dailyContent); }} className="flex-1 min-h-[44px] rounded-full border border-white/25 px-3 py-2 text-sm font-semibold">Start Editing (loads current list)</button>
               </div>
-              <textarea value={dailyDraft} onChange={e=>setDailyDraft(e.target.value)} rows={14} placeholder={"## Every single day\n- 10 minutes of footwork\n- 20 swings off the tee\n- …\n\n**No days off from the standard.**"} className="mt-3 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px] leading-relaxed font-mono" />
+              <textarea value={dailyDraft} onChange={e=>setDailyDraft(e.target.value)} rows={14} placeholder={"## Every single day\n- 10 minutes of footwork\n- 20 swings off the tee\n- …\n\n**No days off from the standard.**"} className="mt-3 w-full bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px] leading-relaxed font-mono" />
               <button onClick={saveDaily} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Daily List</button>
               <p className="text-xs text-white/60 mt-2">Saved to Supabase (grit_daily) — every phone sees it on the Training page.</p>
             </div>
@@ -1627,14 +1630,14 @@ export default function App(){
                   {renderBecomeVideos(becomeDraftVideos)}
                 </div>
               ) : (
-                <textarea value={becomeDraft} onChange={e=>setBecomeDraft(e.target.value)} rows={14} placeholder={"# How do I become faster?\n\n**Show up.** Speed is built, not born.\n\n## Speed\n- Sprint 2x a week\n- …"} className="mt-3 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px] leading-relaxed font-mono" />
+                <textarea value={becomeDraft} onChange={e=>setBecomeDraft(e.target.value)} rows={14} placeholder={"# How do I become faster?\n\n**Show up.** Speed is built, not born.\n\n## Speed\n- Sprint 2x a week\n- …"} className="mt-3 w-full bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px] leading-relaxed font-mono" />
               )}
               <div className="mt-4 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A]">HOW-TO VIDEOS ON THIS PAGE</p>
                 <p className="text-sm text-white/75 mt-1">Short clips only — film it on your phone, trim to under ~30 seconds, then upload here. They play right on the page for every athlete. YouTube links work too.</p>
-                <label className="block text-sm mt-3">Video caption (what it shows)<input value={becomeVideoCaption} onChange={e=>setBecomeVideoCaption(e.target.value)} placeholder="e.g. First-step quickness drill" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
-                <label className="block text-sm mt-2">Upload a short video file (under 10MB)<input type="file" accept="video/*" onChange={e=>{ const f=(e.target as HTMLInputElement).files?.[0]; handleBecomeVideoFile(f); (e.target as HTMLInputElement).value=""; }} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
-                <label className="block text-sm mt-2">Or paste a video link (YouTube / mp4)<input value={becomeVideoUrl} onChange={e=>setBecomeVideoUrl(e.target.value)} placeholder="https://…" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+                <label className="block text-sm mt-3">Video caption (what it shows)<input value={becomeVideoCaption} onChange={e=>setBecomeVideoCaption(e.target.value)} placeholder="e.g. First-step quickness drill" className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+                <label className="block text-sm mt-2">Upload a short video file (under 10MB)<input type="file" accept="video/*" onChange={e=>{ const f=(e.target as HTMLInputElement).files?.[0]; handleBecomeVideoFile(f); (e.target as HTMLInputElement).value=""; }} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
+                <label className="block text-sm mt-2">Or paste a video link (YouTube / mp4)<input value={becomeVideoUrl} onChange={e=>setBecomeVideoUrl(e.target.value)} placeholder="https://…" className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
                 <button onClick={addBecomeVideoUrl} className="mt-2 w-full min-h-[44px] rounded-full border border-white/25 px-3 py-2 text-sm font-semibold">Add Video Link</button>
                 {becomeDraftVideos.length>0 && <ul className="mt-3 space-y-2">{becomeDraftVideos.map((v:any)=>(<li key={v.id} className="flex items-center justify-between gap-2 rounded-xl bg-black/40 px-3 py-2 text-[13px]"><span className="min-w-0 truncate">{v.caption||v.name||"Video"}</span><button onClick={()=>setBecomeDraftVideos((p:any[])=>p.filter((x:any)=>x.id!==v.id))} className="shrink-0 px-2 text-white/60">Remove</button></li>))}</ul>}
                 <p className="text-xs text-white/60 mt-2">Videos save with the page — same Save button below. If a clip won't upload, it's almost always over 10MB: trim it shorter in Photos first.</p>
@@ -1645,8 +1648,8 @@ export default function App(){
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">Reset a Player&rsquo;s PIN</h3>
               <p className="text-sm text-white/75 mt-1">Only the PIN you just reset is shown here.</p>
-              <label className="block text-sm mt-3">Athlete<select value={resetAthleteId} onChange={e=>{setResetAthleteId(e.target.value); setJustReset(null);}} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
-              <label className="block text-sm mt-3">New PIN (4 digits)<input type="password" inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-center text-[18px] tracking-[0.5em]"/></label>
+              <label className="block text-sm mt-3">Athlete<select value={resetAthleteId} onChange={e=>{setResetAthleteId(e.target.value); setJustReset(null);}} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
+              <label className="block text-sm mt-3">New PIN (4 digits)<input type="password" inputMode="numeric" value={newPin} onChange={e=>setNewPin(e.target.value.replace(/\D/g,"").slice(0,4))} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-center text-[18px] tracking-[0.5em]"/></label>
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={resetPin} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">Reset PIN</button><button onClick={generatePin} className="flex-1 min-h-[48px] border border-white/25 px-4 py-2.5 rounded-full text-sm font-semibold">Generate New PIN</button></div>
               {justReset && <p className="mt-3 rounded-xl bg-[#C9A86A] text-black px-3 py-2.5 text-sm font-bold text-center" role="status">PIN Updated — {justReset.name}: {justReset.pin}</p>}
               <button disabled={busy} onClick={resetAllPins} className="mt-3 w-full min-h-[48px] border border-white/25 px-4 py-2.5 rounded-full text-sm font-semibold disabled:opacity-50">Reset All PINs to 1234</button>
@@ -1676,11 +1679,11 @@ export default function App(){
           <div className="w-full max-w-[480px] max-h-[92vh] overflow-y-auto bg-[#0F1113] border border-[#C9A86A]/40 rounded-t-[22px] sm:rounded-[22px] shadow-2xl">
             <div className="sticky top-0 bg-[#0F1113] px-4 py-4 flex items-center justify-between border-b border-white/10"><div><h2 className="font-display text-2xl">Dictation Voice</h2><p className="text-xs text-white/65" role="status">{dictStatus === "Listening" ? "Listening..." : dictStatus}</p></div><button onClick={()=>setDictOpen(false)} className="min-h-[44px] min-w-[44px] p-2 rounded-full border border-white/20 flex items-center justify-center" aria-label="Close dictation"><X size={18}/></button></div>
             <div className="p-4">
-              {!dictSupported && <p className="rounded-xl bg-[#2E4038] border border-white/10 px-3 py-2.5 text-sm text-[#D4B483]">Mic not available — use keyboard dictation</p>}
+              {!dictSupported && <p className="rounded-xl bg-black/35 border border-white/10 px-3 py-2.5 text-sm text-[#D4B483]">Mic not available — use keyboard dictation</p>}
               <label className="block text-xs font-bold tracking-widest text-[#C9A86A] mt-3">SELECT ATHLETE</label>
-              <select value={dictAthleteId} onChange={e=>setDictAthleteId(e.target.value)} className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-xl px-3 py-3 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select>
+              <select value={dictAthleteId} onChange={e=>setDictAthleteId(e.target.value)} className="mt-1 w-full min-h-[52px] bg-black/35 border border-white/15 rounded-xl px-3 py-3 text-[16px]"><option value="">Select Athlete</option>{athleteOptions()}</select>
               <label className="block text-xs font-bold tracking-widest text-[#C9A86A] mt-4">DESTINATION</label>
-              <select value={dictDestination} onChange={e=>setDictDestination(e.target.value)} className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-xl px-3 py-3 text-[16px]">
+              <select value={dictDestination} onChange={e=>setDictDestination(e.target.value)} className="mt-1 w-full min-h-[52px] bg-black/35 border border-white/15 rounded-xl px-3 py-3 text-[16px]">
                 <option value="">Select Destination</option>
                 {SECTIONS.map(s=><option key={s} value={s}>{s}</option>)}
                 <option value="focus">Your GRIT Focus and Why</option>
@@ -1689,9 +1692,9 @@ export default function App(){
               </select>
               {dictDestination==="questions" && (
                 <><label className="block text-xs font-bold tracking-widest text-[#C9A86A] mt-4">TRAINING BLOCK</label>
-                <select value={dictQuestionBlock} onChange={e=>setDictQuestionBlock(e.target.value)} className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-xl px-3 py-3 text-[16px]"><option value="">Select Block</option>{SECTIONS.map(s=><option key={s} value={s}>{s}</option>)}</select></>
+                <select value={dictQuestionBlock} onChange={e=>setDictQuestionBlock(e.target.value)} className="mt-1 w-full min-h-[52px] bg-black/35 border border-white/15 rounded-xl px-3 py-3 text-[16px]"><option value="">Select Block</option>{SECTIONS.map(s=><option key={s} value={s}>{s}</option>)}</select></>
               )}
-              <label className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-[#2E4038]/90 border border-white/10 px-3 py-3 text-sm font-semibold"><span className="inline-flex items-center gap-2">{dictHandsFree ? <Mic size={16} className="text-[#C9A86A]"/> : <MicOff size={16}/>} Hands-Free</span><button role="switch" aria-checked={dictHandsFree} onClick={()=>setDictHandsFree(v=>!v)} className={`min-h-[32px] min-w-[56px] rounded-full px-2 text-xs font-bold ${dictHandsFree?"bg-[#C9A86A] text-black":"bg-white/15 text-white"}`}>{dictHandsFree?"On":"Off"}</button></label>
+              <label className="mt-4 flex items-center justify-between gap-3 rounded-xl bg-black/45 border border-white/10 px-3 py-3 text-sm font-semibold"><span className="inline-flex items-center gap-2">{dictHandsFree ? <Mic size={16} className="text-[#C9A86A]"/> : <MicOff size={16}/>} Hands-Free</span><button role="switch" aria-checked={dictHandsFree} onClick={()=>setDictHandsFree(v=>!v)} className={`min-h-[32px] min-w-[56px] rounded-full px-2 text-xs font-bold ${dictHandsFree?"bg-[#C9A86A] text-black":"bg-white/15 text-white"}`}>{dictHandsFree?"On":"Off"}</button></label>
               <div className="flex gap-2 mt-4">
                 {dictStatus==="Listening" ? <button onClick={stopManualDictation} className="flex-1 min-h-[52px] border border-white/25 rounded-full px-4 py-3 text-sm font-bold">Stop</button> : <button disabled={!dictSupported} onClick={startManualDictation} className="flex-1 min-h-[52px] bg-[#C9A86A] text-black font-bold px-4 py-3 rounded-full text-sm disabled:opacity-50">Start Dictation</button>}
                 <button disabled={busy} onClick={()=>saveDictation()} className="flex-1 min-h-[52px] border border-[#C9A86A] px-4 py-3 rounded-full text-sm font-bold disabled:opacity-50">Save Dictation</button>
