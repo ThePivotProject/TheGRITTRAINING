@@ -80,12 +80,12 @@ const placeholderAthletes = (): AthleteProfile[] => {
 
 type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become"|"vault";
 const TABS: {id:View; label:string; icon:any}[] = [
-  {id:"athletes", label:"Your GRIT Profile", icon: Users},
+  {id:"wall", label:"Home", icon: Home},
+  {id:"formats", label:"Programs", icon: Zap},
+  {id:"athletes", label:"Athletes", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
-  {id:"vault", label:"Training Vault", icon: Library},
   {id:"homework", label:"Homework", icon: BookOpen},
-  {id:"pillars", label:"Mindset & Impact", icon: Brain},
-  {id:"coach", label:"Coaches", icon: ShieldCheck},
+  {id:"vault", label:"Vault", icon: Library},
 ];
 const SUPABASE_SQL = `-- GRIT Supabase setup — run the WHOLE file at once in Supabase > SQL Editor.
 -- Idempotent: safe to re-run. Athletes is created FIRST, before anything that references it.
@@ -159,6 +159,7 @@ export default function App(){
   const [view,setView]=useState<View>("wall");
   const [whatIsOpen,setWhatIsOpen]=useState(false);
   const [aotwOpen,setAotwOpen]=useState(false);
+  const [waysOpen,setWaysOpen]=useState(false);
   const [coachListOpen,setCoachListOpen]=useState(false);
   const [coachPinInput,setCoachPinInput]=useState("");
   const [coachListAuthed,setCoachListAuthed]=useState(false);
@@ -1114,7 +1115,7 @@ export default function App(){
         {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
         <div className="pt-2 text-center">
           <p className="text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND, MI • TRAIN WITH PURPOSE</p>
-          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9] mt-2">We Are <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
+          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9] mt-2">WE ARE.<br/><span className="text-[#C9A86A]">BUILT.</span></p>
         </div>
       </div>
 
@@ -1126,29 +1127,38 @@ export default function App(){
                 <button onClick={()=>goTab("athletes")} className="block w-full rounded-full border border-[#C9A86A] bg-[rgba(201,168,106,0.08)] px-6 py-4 text-left text-[15px] font-bold text-[#C9A86A]">Athlete Login →</button>
                 <button onClick={()=>goTab("formats")} className="block w-full rounded-full border border-[#C9A86A] bg-[rgba(201,168,106,0.08)] px-6 py-4 text-left text-[15px] font-bold text-[#C9A86A]">Explore Programs →</button>
               </div>
-              <div className="glass overflow-hidden mt-6">
+            </section>
+
+            <section className="mt-6">
+              <div className="rounded-[32px] border border-[#C9A86A]/40 bg-black/45 overflow-hidden">
+                <button onClick={()=>setAotwOpen(!aotwOpen)} aria-expanded={aotwOpen} className="flex w-full items-center justify-between px-5 py-5 text-left"><span className="text-[15px] font-bold text-[#C9A86A]">Athlete of the Week: {spotlightAthlete ? spotlightAthlete.name : "Mackenzie Mercer"}</span><span className="text-xl text-[#C9A86A]">{aotwOpen?"−":"+"}</span></button>
+                {aotwOpen && <p className="px-5 pb-5 text-[15px] leading-relaxed text-white/70">Showing up. Doing it right. Lifting others up. That&apos;s GRIT.</p>}
+              </div>
+            </section>
+            <section className="mt-6">
+              <div className="rounded-[32px] border border-[#C9A86A]/40 bg-black/45 overflow-hidden">
                 <button onClick={()=>setWhatIsOpen(!whatIsOpen)} aria-expanded={whatIsOpen} className="flex w-full items-center justify-between px-5 py-5 text-left"><span className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">WHAT IS THE GRIT?</span><span className="text-xl text-[#C9A86A]">{whatIsOpen?"−":"+"}</span></button>
                 {whatIsOpen && <div className="space-y-4 px-5 pb-5 text-[15px] leading-relaxed text-white/70"><p>GRIT is mindset first: show up, do it right, and lift others up — even when it is hard.</p><p>It is movement training on four pillars, built to make you stronger, faster, and harder to break.</p></div>}
               </div>
             </section>
-
-            {quoteText ? (
-              <section className="mt-6 px-2 text-center">
-                <p className="text-[17px] italic leading-relaxed text-white/90">“{quoteText}”</p>
-              </section>
-            ) : null}
+            <section className="mt-6">
+              <div className="rounded-[32px] border border-[#C9A86A]/40 bg-black/45 overflow-hidden">
+                <button onClick={()=>setWaysOpen(!waysOpen)} aria-expanded={waysOpen} className="flex w-full items-center justify-between px-5 py-5 text-left"><span className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">GRIT WAYS TO TRAIN</span><span className="text-xl text-[#C9A86A]">{waysOpen?"−":"+"}</span></button>
+                {waysOpen && <div className="space-y-4 px-5 pb-5 text-[15px] leading-relaxed text-white/70">
+                  <p><span className="font-bold text-[#F2EFE9]">GRIT Athlete — 1-on-1:</span> Individual coaching built around your sport, position, and goals.</p>
+                  <p><span className="font-bold text-[#F2EFE9]">GRIT Team:</span> Team sessions that build strength, speed, and a shared standard.</p>
+                  <p><span className="font-bold text-[#F2EFE9]">GRIT On Turf:</span> Field-based training where movement, agility, and conditioning meet.</p>
+                  <p><span className="font-bold text-[#F2EFE9]">GRIT Accountability:</span> Check-ins, habits, and follow-through that keep you consistent.</p>
+                  <button onClick={()=>goTab("formats")} className="w-full min-h-[44px] rounded-full border border-[#C9A86A]/60 text-[14px] font-bold text-[#C9A86A]">See all programs →</button>
+                </div>}
+              </div>
+            </section>
             <section className="mt-6">
               <button onClick={()=>goTab("become")} className="block w-full rounded-[26px] border-2 border-[#C9A86A] bg-black/35 px-5 py-6 text-left active:bg-white/10">
                 <p className="font-display font-bold leading-[1.05] text-[clamp(30px,8.5vw,40px)] text-[#F2EFE9]">HOW DO I<br/>BECOME<span className="text-[#C9A86A]">…</span></p>
                 <p className="mt-3 text-[16px] leading-relaxed text-white/90">Faster? Swing harder? Quicker off the bases? Block the D-line better? Change speed &amp; direction quicker?</p>
                 <p className="mt-4 text-[15px] font-bold text-[#C9A86A]">Tap to find out →</p>
               </button>
-            </section>
-            <section className="mt-6">
-              <div className="glass overflow-hidden">
-                <button onClick={()=>setAotwOpen(!aotwOpen)} aria-expanded={aotwOpen} className="flex w-full items-center justify-between px-5 py-5 text-left"><span className="text-[15px] font-bold text-[#C9A86A]">Athlete of the Week: {spotlightAthlete ? spotlightAthlete.name : "Mackenzie Mercer"}</span><span className="text-xl text-[#C9A86A]">{aotwOpen?"−":"+"}</span></button>
-                {aotwOpen && <p className="px-5 pb-5 text-[15px] leading-relaxed text-white/70">Showing up. Doing it right. Lifting others up. That&apos;s GRIT.</p>}
-              </div>
             </section>
             <section className="mt-6 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
               <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">THE MONTHLY CHALLENGE • {week.toUpperCase()}</p>
@@ -1220,6 +1230,7 @@ export default function App(){
               <div className="mt-3 rounded-2xl border border-white/15 bg-black/45 px-4 py-4">
                 {dailyContent ? renderBecomeText(dailyContent) : <p className="text-[15px] leading-relaxed text-white/85">Your coach is laying out what you should be doing every single day — check back soon.</p>}
               </div>
+              {quoteText && <p className="mt-3 text-center text-[15px] italic leading-relaxed text-white/85">“{quoteText}”</p>}
             </section>
             {!loggedInAthleteId ? (
               <div>
@@ -1311,7 +1322,9 @@ export default function App(){
               {homeworkRecords.map(h=>{ const done=!!homeworkDone[h.id||""]; return <button key={h.id} onClick={()=>setHomeworkDone(p=>({...p,[h.id||""]:!done}))} className="w-full text-left rounded-xl border border-white/15 bg-black/35 p-4 active:scale-[0.99]"><span className="flex items-center justify-between gap-2"><span className="font-semibold">{h.athleteName} • {h.week}</span><span className={`min-h-[36px] inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold ${done?"bg-[#C9A86A] text-black":"bg-white/10 text-white"}`}>{done?<Check size={14}/>:null} {done?"Done ✓":"Tap: Done"}</span></span><span className={`block text-[15px] text-white/85 whitespace-pre-wrap mt-2 leading-relaxed ${done?"line-through opacity-70":""}`}>{h.text}</span></button>; })}
               {homeworkRecords.length===0 && athletes.slice(0,4).map(a=> a.homework ? <div key={a.id} className="rounded-xl border border-white/15 bg-black/35 p-4"><p className="font-semibold">{a.name} • Current</p><p className="text-[15px] text-white/85 whitespace-pre-wrap mt-1">{a.homework}</p></div>:null)}
             </div>
-          </section>
+          
+            <button onClick={()=>goTab("pillars")} className="mt-4 w-full min-h-[48px] border border-white/25 rounded-full text-sm font-semibold">Mindset &amp; Impact →</button>
+</section>
         ) : view==="athletes" ? (
           <section className="pt-5">
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">YOUR GRIT PROFILE • {athletes.length} ROSTER SPOTS</p>
@@ -1529,31 +1542,37 @@ export default function App(){
                 )}
                 {renderBecomeVideos(becomeVideos)}
               </div>
-              <button onClick={()=>goTab("formats")} className="mt-4 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Formats | Payment →</button>
+              <button onClick={()=>goTab("formats")} className="mt-4 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Programs →</button>
             </section>
           </div>
         ) : view==="formats" ? (
           <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">FORMATS | PAYMENT</p>
-            <h2 className="font-display text-[36px] leading-none mt-2">Formats | Payment</h2>
-            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">Choose how you train. Tap a button below to pay — you leave the app for PayPal / Stripe checkout, then come back. No card details are ever typed into, stored by, or seen by the GRIT app.</p>
-            <div className="space-y-3 mt-4">
-              {[{t:"1:1 Training",d:"One athlete. One plan. Full attention."},{t:"Small Group",d:"Train with your crew. Same standard."},{t:"Team Training",d:"Built together, session by session."}].map(x=>(
-                <div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-display text-xl">{x.t}</h3><span className="text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-[#C9A86A] text-black shrink-0">COMING SOON!</span></div><p className="text-[15px] text-white/80 mt-2">{x.d}</p><p className="text-xs text-white/60 mt-2">Details and scheduling — Coming Soon!</p></div>
+            <h2 className="font-display font-bold leading-[0.95] break-words text-[clamp(40px,12vw,64px)]">PROGRAMS</h2>
+            <p className="text-white/70 mt-3 text-[16px] leading-relaxed">Four ways to train. One standard.</p>
+            <div className="mt-6 space-y-4">
+              {[
+                {t:"GRIT ATHLETE — 1-ON-1", d:"Individual coaching built around your sport, position, and goals."},
+                {t:"GRIT TEAM", d:"Team sessions that build strength, speed, and a shared standard."},
+                {t:"GRIT ON TURF", d:"Field-based training where movement, agility, and conditioning meet."},
+                {t:"GRIT ACCOUNTABILITY", d:"Check-ins, habits, and follow-through that keep you consistent."},
+              ].map(x=>(
+                <div key={x.t} className="rounded-[22px] border border-[#C9A86A]/40 bg-black/45 px-5 py-6">
+                  <h3 className="font-display font-bold leading-tight text-[clamp(24px,7vw,32px)]">{x.t}</h3>
+                  <p className="text-[16px] text-white/75 mt-3 leading-relaxed">{x.d}</p>
+                </div>
               ))}
             </div>
-            <div className="rounded-2xl border border-[#C9A86A]/50 bg-black/35 p-4 mt-3">
+            <div className="rounded-2xl border border-[#C9A86A]/50 bg-black/35 p-4 mt-4">
               <div className="flex items-center gap-3"><CreditCard size={22} className="text-[#C9A86A] shrink-0"/><div><h3 className="font-display text-xl">Pay for GRIT</h3><p className="text-sm text-white/80">{payNote}</p></div></div>
               <div className="mt-3 space-y-2">
                 {paypalLink ? <a href={paypalLink} target="_blank" rel="noreferrer" className="block min-h-[48px] rounded-full bg-[#C9A86A] px-4 py-3 text-center text-[15px] font-bold text-black active:scale-[0.98]">Pay with PayPal / Card →</a> : <p className="rounded-xl bg-black/40 px-3 py-2.5 text-sm text-white/70">PayPal link not set yet — your coach adds it in Coaches → Payment Links.</p>}
                 {stripeLink ? <a href={stripeLink} target="_blank" rel="noreferrer" className="block min-h-[48px] rounded-full border border-white/30 px-4 py-3 text-center text-[15px] font-bold active:bg-white/10">Pay with Card (Stripe) →</a> : null}
-                {!paypalLink && !stripeLink ? <p className="text-xs text-white/60">Until a link is set, no payment button shows here — nothing can be charged by mistake.</p> : <p className="text-xs text-white/60">You pay on PayPal / Stripe's secure page. The GRIT app never sees or stores your card.</p>}
+                {!paypalLink && !stripeLink ? <p className="text-xs text-white/60">Until a link is set, no payment button shows here — nothing can be charged by mistake.</p> : <p className="text-xs text-white/60">You pay on PayPal / Stripe&apos;s secure page. The GRIT app never sees or stores your card.</p>}
               </div>
             </div>
-            <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3"><h3 className="font-display text-xl flex items-center gap-2"><Sparkles size={18} className="text-[#C9A86A]"/> What stays the same</h3><p className="text-[15px] text-white/80 mt-2 leading-relaxed">Every format runs on the same wall: Dynamic Stretch, Core, Main Lift, Speed, Agility, Explode, mindset, homework, and the reminder.</p></div>
-            <button onClick={()=>goTab("wall")} className="mt-4 w-full min-h-[48px] border border-white/25 rounded-full text-sm font-semibold">Back to The GRIT</button>
+            <a href="mailto:thepiviotproject@kbuiltsoftball.com?subject=Get Started with The GRIT" className="mt-4 block w-full rounded-full border border-[#C9A86A] bg-[rgba(201,168,106,0.08)] px-6 py-4 text-center text-[15px] font-bold text-[#C9A86A]">Get Started →</a>
           </section>
-                ) : view==="vault" ? (
+) : view==="vault" ? (
           <section className="pt-5">
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">THE TRAINING VAULT</p>
             <h2 className="font-display text-[36px] leading-none mt-2">{VAULT_TOTAL} Exercises.</h2>
@@ -1661,15 +1680,15 @@ export default function App(){
               <div className="flex flex-col gap-2 mt-3"><button disabled={busy} onClick={saveSite} className="min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px] disabled:opacity-50">Save Site</button><button disabled={busy} onClick={publishSite} className="min-h-[52px] border border-[#C9A86A] px-5 py-3 rounded-full text-[15px] font-bold disabled:opacity-50">Publish Site</button><button onClick={checkEverything} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Check Everything</button></div>
               {checkResults && <ul className="mt-3 space-y-2">{checkResults.map(c=>(<li key={c.label} className="text-sm"><span className="flex items-center justify-between gap-2"><span>{c.label}</span><span className={`font-bold ${c.ok?"text-[#C9A86A]":"text-white"}`}>{c.ok?"● Green":"● Red"} <span className="font-normal text-white/60">— {c.detail}</span></span></span><span className="mt-0.5 block text-xs text-white/60">Last synced: {c.synced}</span></li>))}</ul>}
               <button onClick={()=>setDictOpen(true)} className="mt-4 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-black/35 border border-[#C9A86A]/50 px-4 py-2.5 rounded-full text-sm font-bold">Open Dictation <ChevronRight size={16}/></button>
-              <div className="mt-3 flex flex-col gap-2"><button onClick={()=>goTab("training")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Training Program</button><button onClick={()=>goTab("athletes")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">GRIT Athletes</button><button onClick={()=>goTab("pillars")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Impact</button><button onClick={()=>goTab("formats")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Formats | Payment</button></div>
+              <div className="mt-3 flex flex-col gap-2"><button onClick={()=>goTab("training")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Training Program</button><button onClick={()=>goTab("athletes")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">GRIT Athletes</button><button onClick={()=>goTab("pillars")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Impact</button><button onClick={()=>goTab("formats")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Programs</button></div>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">Payment Links</h3>
-              <p className="text-sm text-white/75 mt-1">Paste your PayPal Payment Link and/or Stripe Payment Link. They show as buttons on Formats | Payment for every athlete. Change them here any time — no redeploy needed. The links live in Supabase (grit_settings).</p>
+              <p className="text-sm text-white/75 mt-1">Paste your PayPal Payment Link and/or Stripe Payment Link. They show as buttons on Programs for every athlete. Change them here any time — no redeploy needed. The links live in Supabase (grit_settings).</p>
               <label className="block text-sm mt-3">PayPal Payment Link<input value={paypalLink} onChange={e=>setPaypalLink(e.target.value)} placeholder="https://www.paypal.com/ncp/payment/…" className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
               <label className="block text-sm mt-2">Stripe Payment Link (card)<input value={stripeLink} onChange={e=>setStripeLink(e.target.value)} placeholder="https://buy.stripe.com/…" className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
               <label className="block text-sm mt-2">Payment note shown to families<textarea value={payNote} onChange={e=>setPayNote(e.target.value)} rows={2} className="mt-1 w-full bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
-              <button onClick={async()=>{ await persistSettings({ paypalLink, stripeLink, payNote }); setResult("Payment links saved — they now show on Formats | Payment."); flashSaved(); }} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Payment Links</button>
+              <button onClick={async()=>{ await persistSettings({ paypalLink, stripeLink, payNote }); setResult("Payment links saved — they now show on Programs."); flashSaved(); }} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Payment Links</button>
               <p className="text-xs text-white/60 mt-2">How to get the links: PayPal → Send & Request → Payment Links → Create (set amount or let them enter it). Stripe Dashboard → Payment Links → Create (set amount, card + Apple/Google Pay on). Both are free to set up — you only pay a fee per payment. See PAYMENTS-README.md in the zip.</p>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
@@ -1792,7 +1811,7 @@ export default function App(){
         </div>
       )}
       <footer className="relative z-10 mx-auto max-w-[430px] md:max-w-[820px] lg:max-w-[1100px] px-4 pb-[92px] pt-2 text-center text-xs text-white/65 lg:px-8">
-        <button onClick={()=>goTab("formats")} className="min-h-[44px] px-3 font-bold text-[#C9A86A]">Formats | Payment</button>
+        <button onClick={()=>goTab("formats")} className="min-h-[44px] px-3 font-bold text-[#C9A86A]">Programs</button>
         <p className="mt-1">The GRIT — We are Built. We are Family. We are Rising. • Ink / Champagne / Bone / Moss</p>
         <p className="mt-2">Use the Share button in the header to share the GRIT icon.</p>
         {(view==="wall" || view==="coach") && <TinyAddToHomeLink />}
