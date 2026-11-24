@@ -168,6 +168,21 @@ const CHALLENGE_POOL = [
   { title: "Film Study", desc: "Watch 15 minutes of your own game film and write down 3 things to fix.", points: 20 },
   { title: "Hydration + Sleep", desc: "Half your body weight in ounces of water daily, and in bed by 9:30 PM, all week.", points: 15 },
 ];
+// ---- Hard finisher challenge dealt with every Generate ----
+const HARD_WORKOUT_CHALLENGES = [
+  "100-YARD BEAR CRAWL — No stopping. No knees. If you stop, start over.",
+  "50 BURPEES, NO BREAK — Chest to floor every rep. 50 straight or it does not count.",
+  "2-MINUTE WALL SIT + 50 MOUNTAIN CLIMBERS — Wall sit the full 2 minutes, then 50 climbers right away.",
+  "10 x 20-YARD ALL-OUT SPRINTS — 20 seconds rest between each. Last one fastest.",
+  "100 PUSH-UPS IN 5 MINUTES — Break as needed, but the clock does not stop.",
+  "60-SECOND PLANK + 30 HOLLOW ROCKS + 60-SECOND PLANK — No rest between the three.",
+  "50 MED BALL SLAMS AS FAST AS YOU CAN — Every slam full power. No soft ones.",
+  "20-YARD LUNGE + 20-YARD BACKPEDAL x 5 — No standing up. Legs on fire is the point.",
+  "200 JUMP ROPES, NO MISSES — Miss once, start back at zero.",
+  "5 ROUNDS: 10 SQUAT JUMPS + 10 PUSH-UPS + 10 SIT-UPS — Rest 30 seconds between rounds only.",
+  "30-SECOND DEAD HANG + 20 PULL-UPS OR 30 INVERTED ROWS — Hang first, then pull.",
+  "40-YARD SPRINT, 20 PUSH-UPS, 40-YARD SPRINT, 20 SIT-UPS x 4 — Go until all 4 rounds are done.",
+];
 const COACH_TRIVIA = [
   "Trivia: How many stitches are on a softball? (Answer: 88)",
   "Trivia: How far is it from home plate to second base in softball? (Answer: 84 ft 10 in)",
@@ -689,6 +704,7 @@ export default function App(){
   const [gritness,setGritness]=useState<number|null>(null);
   const [goodReason,setGoodReason]=useState("");
   const [genVariant,setGenVariant]=useState(0);
+  const [workoutChallenge,setWorkoutChallenge]=useState("");
   const [coachOpen,setCoachOpen]=useState(false);
   const [coachPinInput,setCoachPinInput]=useState("");
   const [coachUnlocked,setCoachUnlocked]=useState(false);
@@ -1377,25 +1393,36 @@ export default function App(){
     if(!trainingAthlete){ setResult("Pick an athlete first."); return; }
     const lvl = gritness ?? 3;
     const noExcuses = (lvl===1 || lvl===2) && goodReason==="no";
-    const variant = (genVariant + 1) % 3;
+    // 4 rotations x 3 exercises = all 12 exercises in each pool, no repeats until the cycle completes.
+    const variant = (genVariant + 1) % 4;
     setGenVariant(variant);
     const nextSections: Record<string,string> = {};
     const nextMinutes: Record<string,string> = {};
     const mins: Record<string,string> = { "Dynamic Stretch |":"5 min", "Core |":"5 min", "Main Lift |":"10 min", "Speed and Agility |":"10 min" };
-    SECTIONS.forEach((s,i)=>{
+    SECTIONS.forEach((s)=>{
       const pool = GRIT_POOLS[s] || [];
-      const ex = pool[(variant*3 + i) % pool.length] || "";
-      nextSections[s] = noExcuses && s==="Main Lift |" ? `NO EXCUSES — ${ex} + extra set. No quitting.` : ex;
+      const start = (variant * 3) % pool.length;
+      const picks = [0, 1, 2].map((k)=> pool[(start + k) % pool.length] || "").filter(Boolean);
+      let text = picks.map((ex, idx)=> `${idx + 1}. ${ex}`).join("\n");
+      if(noExcuses && s==="Main Lift |") text = `NO EXCUSES — extra set on every lift. No quitting.\n${text}`;
+      nextSections[s] = text;
       nextMinutes[s] = mins[s] || "";
     });
-    if(noExcuses){ nextSections["Core |"] = `${nextSections["Core |"]} + NO EXCUSES finisher: Plank Hold 60s.`; }
+    if(noExcuses){ nextSections["Core |"] = `${nextSections["Core |"]}\n4. NO EXCUSES finisher: Plank Hold 60s.`; }
+    // 1 hard challenge, dealt fresh every time Generate is clicked — never the same one twice in a row.
+    let ci = Math.floor(Math.random() * HARD_WORKOUT_CHALLENGES.length);
+    if (HARD_WORKOUT_CHALLENGES[ci] === workoutChallenge) ci = (ci + 1) % HARD_WORKOUT_CHALLENGES.length;
+    const hard = HARD_WORKOUT_CHALLENGES[ci];
+    setWorkoutChallenge(hard);
+    nextSections["Speed and Agility |"] = `${nextSections["Speed and Agility |"]}\n\n🔥 HARD CHALLENGE: ${hard}`;
     setSections(nextSections);
     setMinutes(nextMinutes);
     const sport = (trainingAthlete.sport||"").toLowerCase();
     const focus = sport.includes("soft") || sport.includes("base") ? "Bat speed + first-step quickness focus." : sport.includes("foot") ? "Explosive first step + change of direction focus." : "Speed + power focus.";
     setBlockNotes(prev=>({...prev, [SECTIONS[0]]: `GRIT Check-In — Grateful: ${checkGrateful||"—"} | Proud: ${checkProud||"—"} | GRITNESS: ${lvl}${noExcuses?" — NO EXCUSES":""} | ${focus}`}));
-    setResult(noExcuses ? `NO EXCUSES circuit generated for ${trainingAthlete.name} — 30 minutes, no quitting.` : `Workout generated for ${trainingAthlete.name} (Variant ${variant+1} of 3) — 30 minutes. Review it, then Publish.`);
+    setResult(noExcuses ? `NO EXCUSES circuit generated for ${trainingAthlete.name} — 30 minutes, 3 per pillar + hard challenge. No quitting.` : `Workout generated for ${trainingAthlete.name} — 3 exercises per pillar + 1 hard challenge (Rotation ${variant+1} of 4) — 30 minutes. Review it, then Publish.`);
   }
+
 
   async function saveChallenge(){
     if(!chTitle.trim()){ setResult("Add a challenge title first."); return; }
@@ -1850,6 +1877,13 @@ export default function App(){
                   </div>
                 )}
                 <button onClick={generateWorkout} className="mt-4 w-full min-h-[52px] rounded-full bg-[#C9A86A] px-5 py-3 text-[15px] font-bold text-black active:scale-[0.98]">⚡ Generate Today's Workout (30 min)</button>
+                {workoutChallenge && (
+                  <div className="mt-3 rounded-2xl border-2 border-[#C9A86A] bg-black/50 p-4">
+                    <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">🔥 HARD CHALLENGE — PART OF THIS WORKOUT</p>
+                    <p className="mt-1 text-[15px] font-bold leading-snug">{workoutChallenge}</p>
+                    <p className="mt-1 text-[12px] text-white/65">Finish the 4 pillars, then finish this. It counts as part of the 30 minutes.</p>
+                  </div>
+                )}
                 <button onClick={()=>{ if(!trainingAthlete){ setResult("Pick an athlete first."); return; } saveMeasurement(`GRIT Check-In — Grateful: ${checkGrateful||"—"} | Proud: ${checkProud||"—"} | GRITNESS: ${gritness ?? "—"}`); }} className="mt-2 w-full min-h-[48px] rounded-full border border-white/25 px-5 py-3 text-[14px] font-bold">Save Check-In to Profile</button>
                 <p className="mt-2 text-center text-[11px] text-white/55">Generate fills the 4 blocks below. Review them, then Publish. Variants rotate so circuits don't repeat.</p>
               </div>
