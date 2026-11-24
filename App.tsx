@@ -11,207 +11,6 @@ function GritIcon({ size = 44, rounded = 10 }: { size?: number; rounded?: number
     </span>
   );
 }
-
-// ---- Camera Measure Tool: vertical jump, broad jump, swing speed, sprint ----
-// How it works: the coach records a clip (slow-mo for swings), then marks frames/points
-// right on the video. No pose library, no uploads — everything runs on the phone.
-// Vertical: flight time -> height = 48.27 * t^2 (inches).
-// Broad / Swing: two taps on a known length (tape measure / bat) set the scale,
-// then two more taps measure the real distance. Sprint: known distance + two frame times.
-type MeasureTest = "vertical" | "broad" | "swing" | "sprint";
-type Pt = { x: number; y: number; t: number };
-function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; onSave: (text: string) => void; onClose: () => void }) {
-  const [test, setTest] = useState<MeasureTest>("vertical");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [fps, setFps] = useState(240);
-  const [curTime, setCurTime] = useState(0);
-  const [tapFor, setTapFor] = useState<string | null>(null);
-  const [calA, setCalA] = useState<Pt | null>(null);
-  const [calB, setCalB] = useState<Pt | null>(null);
-  const [ptA, setPtA] = useState<Pt | null>(null);
-  const [ptB, setPtB] = useState<Pt | null>(null);
-  const [takeoffT, setTakeoffT] = useState<number | null>(null);
-  const [landingT, setLandingT] = useState<number | null>(null);
-  const [startT, setStartT] = useState<number | null>(null);
-  const [finishT, setFinishT] = useState<number | null>(null);
-  const [knownLen, setKnownLen] = useState(33);
-  const [sprintYards, setSprintYards] = useState(20);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  const fileRef2 = useRef<HTMLInputElement | null>(null);
-
-  function loadFile(f: File | undefined) {
-    if (!f) return;
-    if (videoUrl) URL.revokeObjectURL(videoUrl);
-    setVideoUrl(URL.createObjectURL(f));
-    setCalA(null); setCalB(null); setPtA(null); setPtB(null);
-    setTakeoffT(null); setLandingT(null); setStartT(null); setFinishT(null);
-    setTapFor(null); setCurTime(0);
-  }
-  function step(d: number) {
-    const v = videoRef.current; if (!v) return;
-    v.pause();
-    const nt = Math.max(0, v.currentTime + d * (1 / fps));
-    v.currentTime = nt; setCurTime(nt);
-  }
-  function handleTap(e: React.MouseEvent<HTMLDivElement>) {
-    if (!tapFor) return;
-    const v = videoRef.current; if (!v) return;
-    v.pause();
-    const r = e.currentTarget.getBoundingClientRect();
-    const pt: Pt = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height, t: v.currentTime };
-    if (tapFor === "calA") setCalA(pt);
-    else if (tapFor === "calB") setCalB(pt);
-    else if (tapFor === "ptA") setPtA(pt);
-    else if (tapFor === "ptB") setPtB(pt);
-    setTapFor(null); setCurTime(v.currentTime);
-  }
-  function dist(a: Pt | null, b: Pt | null) {
-    if (!a || !b) return null;
-    return Math.hypot(a.x - b.x, a.y - b.y);
-  }
-  function result(): { line: string; save: string } | null {
-    if (test === "vertical") {
-      if (takeoffT === null || landingT === null) return null;
-      const t = landingT - takeoffT;
-      if (t <= 0) return null;
-      const inches = 48.27 * t * t;
-      const ft = Math.floor(inches / 12);
-      const rem = inches - ft * 12;
-      return { line: `${inches.toFixed(1)} in  (${ft} ft ${rem.toFixed(1)} in)  •  flight time ${t.toFixed(3)}s`, save: `Vertical Jump: ${inches.toFixed(1)} in` };
-    }
-    if (test === "broad") {
-      const d = dist(ptA, ptB); const c = dist(calA, calB);
-      if (d === null || c === null || c === 0 || !knownLen) return null;
-      const inches = (d / c) * knownLen;
-      return { line: `${inches.toFixed(1)} in  (${(inches / 12).toFixed(2)} ft)`, save: `Broad Jump: ${inches.toFixed(1)} in` };
-    }
-    if (test === "swing") {
-      const d = dist(ptA, ptB); const c = dist(calA, calB);
-      if (d === null || c === null || c === 0 || !knownLen || !ptA || !ptB) return null;
-      const t = Math.abs(ptB.t - ptA.t);
-      if (t <= 0) return null;
-      const inches = (d / c) * knownLen;
-      const mph = (inches / 12 / t) * 0.6818;
-      return { line: `${mph.toFixed(1)} mph  •  barrel moved ${inches.toFixed(1)} in over ${t.toFixed(3)}s`, save: `Swing Speed: ${mph.toFixed(1)} mph` };
-    }
-    if (test === "sprint") {
-      if (startT === null || finishT === null) return null;
-      const t = finishT - startT;
-      if (t <= 0) return null;
-      const feet = sprintYards * 3;
-      const mph = (feet / t) * 0.6818;
-      return { line: `${t.toFixed(2)}s for ${sprintYards} yards  •  ${mph.toFixed(1)} mph`, save: `Sprint (${sprintYards} yd): ${t.toFixed(2)}s — ${mph.toFixed(1)} mph` };
-    }
-    return null;
-  }
-  const res = result();
-  const dateStr = new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
-  const marks: { pt: Pt; label: string; color: string }[] = [];
-  if (calA) marks.push({ pt: calA, label: "1", color: "#C9A86A" });
-  if (calB) marks.push({ pt: calB, label: "2", color: "#C9A86A" });
-  if (ptA) marks.push({ pt: ptA, label: "A", color: "#7BC47F" });
-  if (ptB) marks.push({ pt: ptB, label: "B", color: "#7BC47F" });
-  const instructions: Record<MeasureTest, string> = {
-    vertical: "Film from the SIDE. Athlete jumps once. Pause, step frames, and mark the exact frame the toes leave the ground (Takeoff) and the first frame the toes touch again (Landing).",
-    broad: "Film from the SIDE with a tape measure on the ground in frame. Tap the two ends of a known stretch of tape, enter that length, then tap the takeoff heel and the landing heel.",
-    swing: "Record in SLOW-MO (240fps) from the SIDE. Tap the bat knob, then the barrel tip, and enter the bat length. Then tap the barrel in one frame, step a few frames, and tap the barrel again.",
-    sprint: "Film from the SIDE. Enter the cone-to-cone distance. Mark the frame the athlete crosses the first cone and the frame they cross the second.",
-  };
-  const tapBtn = (key: string, label: string, done: boolean) => (
-    <button key={key} onClick={() => setTapFor(key)} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${tapFor === key ? "bg-[#C9A86A] text-black border-[#C9A86A]" : done ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25 text-white/85"}`}>{done ? "✓ " : ""}{label}</button>
-  );
-  return (
-    <div className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/55 px-4 py-5">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <h3 className="font-display text-2xl font-bold leading-tight">📏 Measure — {athleteName}</h3>
-          <p className="mt-1 text-xs text-white/65">Record in slow-mo for swings. Everything is measured on this phone — nothing uploads.</p>
-        </div>
-        <button onClick={onClose} className="shrink-0 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold">Close</button>
-      </div>
-      <div className="mt-4 flex gap-2">
-        {(["vertical", "broad", "swing", "sprint"] as MeasureTest[]).map((t) => (
-          <button key={t} onClick={() => { setTest(t); setTapFor(null); }} className={`min-h-[44px] flex-1 rounded-full px-2 py-2 text-[12px] font-bold ${test === t ? "bg-[#C9A86A] text-black" : "border border-white/25 text-white/85"}`}>{t === "vertical" ? "Vertical" : t === "broad" ? "Broad Jump" : t === "swing" ? "Swing Speed" : "Sprint"}</button>
-        ))}
-      </div>
-      <p className="mt-3 text-[13px] leading-relaxed text-white/80">{instructions[test]}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button onClick={() => fileRef.current?.click()} className="min-h-[48px] flex-1 rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">🎥 Record a clip</button>
-        <button onClick={() => fileRef2.current?.click()} className="min-h-[48px] flex-1 rounded-full border border-white/30 px-4 py-2 text-[14px] font-bold">📁 Choose a clip</button>
-      </div>
-      <input ref={fileRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ""; }} />
-      <input ref={fileRef2} type="file" accept="video/*" className="hidden" onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ""; }} />
-      {videoUrl ? (
-        <>
-          <div className="relative mt-4 overflow-hidden rounded-xl border border-white/20 bg-black" onClick={handleTap}>
-            <video ref={videoRef} src={videoUrl} controls playsInline preload="metadata" className="block w-full" onTimeUpdate={(e) => setCurTime((e.target as HTMLVideoElement).currentTime)} onSeeked={(e) => setCurTime((e.target as HTMLVideoElement).currentTime)} />
-            {marks.map((m, i) => (
-              <span key={i} className="pointer-events-none absolute z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[11px] font-bold text-black" style={{ left: `${m.pt.x * 100}%`, top: `${m.pt.y * 100}%`, background: m.color }}>{m.label}</span>
-            ))}
-            {tapFor && <p className="pointer-events-none absolute bottom-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/80 px-3 py-1 text-[12px] font-bold text-[#C9A86A]">Tap the video to place this mark</p>}
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <button onClick={() => step(-1)} className="min-h-[44px] flex-1 rounded-full border border-white/25 px-3 py-2 text-[13px] font-bold">◀ 1 frame</button>
-            <p className="min-w-[92px] text-center text-sm font-bold">{curTime.toFixed(3)}s</p>
-            <button onClick={() => step(1)} className="min-h-[44px] flex-1 rounded-full border border-white/25 px-3 py-2 text-[13px] font-bold">1 frame ▶</button>
-            <label className="flex items-center gap-1 text-xs font-bold text-white/70">fps
-              <select value={fps} onChange={(e) => setFps(Number(e.target.value))} className="min-h-[44px] rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[14px] text-white">
-                <option value={30}>30</option><option value={60}>60</option><option value={120}>120</option><option value={240}>240</option>
-              </select>
-            </label>
-          </div>
-          {test === "vertical" && (
-            <div className="mt-3 flex gap-2">
-              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setTakeoffT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${takeoffT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Takeoff {takeoffT !== null ? `(${takeoffT.toFixed(3)}s)` : ""}</button>
-              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setLandingT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${landingT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Landing {landingT !== null ? `(${landingT.toFixed(3)}s)` : ""}</button>
-            </div>
-          )}
-          {test === "sprint" && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <label className="flex items-center gap-2 text-sm font-bold">Distance (yards)
-                <input type="number" value={sprintYards} onChange={(e) => setSprintYards(Number(e.target.value))} className="min-h-[44px] w-20 rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[15px]" />
-              </label>
-              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setStartT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${startT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Start {startT !== null ? `(${startT.toFixed(3)}s)` : ""}</button>
-              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setFinishT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${finishT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Finish {finishT !== null ? `(${finishT.toFixed(3)}s)` : ""}</button>
-            </div>
-          )}
-          {(test === "broad" || test === "swing") && (
-            <div className="mt-3 space-y-2">
-              <label className="flex items-center gap-2 text-sm font-bold">{test === "broad" ? "Known distance between gold marks (inches)" : "Bat length (inches)"}
-                <input type="number" value={knownLen} onChange={(e) => setKnownLen(Number(e.target.value))} className="min-h-[44px] w-20 rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[15px]" />
-              </label>
-              <div className="flex gap-2">
-                {tapBtn("calA", test === "broad" ? "Tap: Tape Start ①" : "Tap: Bat Knob ①", !!calA)}
-                {tapBtn("calB", test === "broad" ? "Tap: Tape End ②" : "Tap: Barrel Tip ②", !!calB)}
-              </div>
-              <div className="flex gap-2">
-                {tapBtn("ptA", test === "broad" ? "Tap: Takeoff Heel A" : "Tap: Barrel — Frame A", !!ptA)}
-                {tapBtn("ptB", test === "broad" ? "Tap: Landing Heel B" : "Tap: Barrel — Frame B", !!ptB)}
-              </div>
-              <p className="text-xs text-white/60">For swings: tap Barrel A, step 2–4 frames, then tap Barrel B. The app uses the time between those two taps.</p>
-            </div>
-          )}
-          <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/70 px-4 py-4 text-center">
-            {res ? (
-              <>
-                <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">RESULT</p>
-                <p className="mt-1 font-display text-2xl font-bold leading-tight">{res.line}</p>
-                <button onClick={() => onSave(`📏 ${res.save} (${dateStr})`)} className="mt-3 min-h-[48px] w-full rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">Save to {athleteName}'s profile</button>
-                <p className="mt-2 text-[11px] text-white/55">Vertical is the most accurate. Swing speed is an estimate — within a few mph of a bat sensor.</p>
-              </>
-            ) : (
-              <p className="text-sm text-white/70">Mark the frames / points above and the number shows up here.</p>
-            )}
-          </div>
-        </>
-      ) : (
-        <p className="mt-4 rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-center text-sm text-white/70">Record a clip or pick one from your library to start measuring.</p>
-      )}
-    </div>
-  );
-}
-
 async function croppedGritPng(size = 1024): Promise<Blob> {
   const img = new Image();
   img.src = gritIconUrl;
@@ -286,7 +85,7 @@ const placeholderAthletes = (): AthleteProfile[] => {
   return [...ROSTER_NAMES].sort((a,b)=>a.localeCompare(b)).map((name,i)=>({ id:`local-${i+1}`, name, sport:"", position:"", lookUp:"", ageGroup:"", motto:"", remember:"", homework:"", mindset:"", gratitude:"", nonNegotiables:"", disciplineDone:[], pin:"", focus:"", createdAt:new Date().toISOString(), startDate:"", program:"", trainingSections:emptySections(), trainingMinutes:{...DEFAULT_MINUTES}, trainingNotes:{}, progress_doc_url:"", progress_notes:"", progress_notes_last_synced:"" }));
 };
 
-type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become"|"programs";
+type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become"|"programs"|"vault";
 const TABS: {id:View; label:string; icon:any}[] = [
   {id:"athletes", label:"Profile", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
@@ -294,6 +93,7 @@ const TABS: {id:View; label:string; icon:any}[] = [
   {id:"pillars", label:"Mindset & Impact", icon: Brain},
   {id:"programs", label:"Programs", icon: Trophy},
   {id:"coach", label:"Coaches", icon: ShieldCheck},
+  {id:"vault", label:"Vault", icon: BookOpen},
 ];
 const ORIGIN_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, {id:"programs", label:"Programs", icon:Trophy}, {id:"athletes", label:"Athlete Login", icon:Users}];
 const ATHLETE_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, ...TABS];
@@ -350,6 +150,361 @@ function PhotoBackground(){
 
 declare global { interface Window { SpeechRecognition?: any; webkitSpeechRecognition?: any; } }
 
+
+// ---- GRIT workout pools (Generate) ----
+const GRIT_POOLS: Record<string,string[]> = {
+  "Dynamic Stretch |": ["Leg Swings — Front to Back x12 each","Lateral Leg Swings x12 each","Walking Lunges with Twist x10","Inchworms x8","High Knees x20 yards","Butt Kicks x20 yards","Open the Gate x10 each","Close the Gate x10 each","A-Skips x20 yards","Carioca x20 yards each way","Spiderman Lunges x8 each","Hip Circles x10 each"],
+  "Core |": ["Plank Hold 3x30s","Dead Bugs x12 each","Bird Dogs x12 each","Hollow Hold 3x20s","Side Plank 3x20s each","Med Ball Slams x12","Russian Twists x20","Leg Raises x12","Mountain Climbers x30","Bear Crawl Hold 3x20s","Pallof Press Hold 3x15s each","Bicycle Crunch x20"],
+  "Main Lift |": ["Goblet Squats 3x8","Trap Bar Deadlift 3x6","Dumbbell Bench 3x8","Single-Leg RDL 3x8 each","Split Squats 3x8 each","Push-Ups 3x12","Bent-Over Rows 3x10","Hip Thrusts 3x10","Overhead Press 3x8","Kettlebell Swings 3x12","Box Squats 3x8","Farmer Carries 3x20 yards"],
+  "Speed and Agility |": ["10-Yard Sprints x5","20-Yard Sprints x4","5-10-5 Pro Agility x4 each","Lateral Shuffle + Sprint x4 each","T-Drill x3","Box Drill x4","First-Step Quickness Starts x6","Resisted Band Sprints x4","Deceleration Stops x6","Zig-Zag Cuts x4 each","Mirror Drill x4","Hill Sprints x4"],
+};
+const CHALLENGE_POOL = [
+  { title: "10 GRIT Cards This Week", desc: "Send 10 GRIT Cards to teammates before Sunday. Mean it every time.", points: 20 },
+  { title: "Early Riser Week", desc: "Up before 6:30 AM, 5 days this week. Screenshot your alarm as proof to your coach.", points: 25 },
+  { title: "100 Extra Reps", desc: "100 extra reps of anything, on your own, outside practice. Log them.", points: 20 },
+  { title: "Gratitude Every Day", desc: "Write one thing you are grateful for every day this week. Show your coach on Sunday.", points: 15 },
+  { title: "Teach One Thing", desc: "Teach a younger athlete one drill you know cold. Patience counts.", points: 20 },
+  { title: "No Excuses Week", desc: "Every homework item done, every day, no zeros. The standard is the standard.", points: 30 },
+  { title: "Film Study", desc: "Watch 15 minutes of your own game film and write down 3 things to fix.", points: 20 },
+  { title: "Hydration + Sleep", desc: "Half your body weight in ounces of water daily, and in bed by 9:30 PM, all week.", points: 15 },
+];
+const COACH_TRIVIA = [
+  "Trivia: How many stitches are on a softball? (Answer: 88)",
+  "Trivia: How far is it from home plate to second base in softball? (Answer: 84 ft 10 in)",
+  "Trivia: What year was the first Women's College World Series? (Answer: 1969)",
+];
+const COACH_FUNNY = [
+  "Funny fact: A group of flamingos is called a flamboyance. Bring that energy.",
+  "Funny fact: Honey never goes bad. Neither does GRIT.",
+  "Funny fact: Your brain runs on about 20 watts — a dim light bulb. Use it bright.",
+];
+
+// ---- Camera Measure Tool: vertical jump, broad jump, swing speed, sprint ----
+type MeasureTest = "vertical" | "broad" | "swing" | "sprint";
+type Pt = { x: number; y: number; t: number };
+function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; onSave: (text: string) => void; onClose: () => void }) {
+  const [test, setTest] = useState<MeasureTest>("vertical");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [fps, setFps] = useState(240);
+  const [curTime, setCurTime] = useState(0);
+  const [tapFor, setTapFor] = useState<string | null>(null);
+  const [calA, setCalA] = useState<Pt | null>(null);
+  const [calB, setCalB] = useState<Pt | null>(null);
+  const [ptA, setPtA] = useState<Pt | null>(null);
+  const [ptB, setPtB] = useState<Pt | null>(null);
+  const [takeoffT, setTakeoffT] = useState<number | null>(null);
+  const [landingT, setLandingT] = useState<number | null>(null);
+  const [startT, setStartT] = useState<number | null>(null);
+  const [finishT, setFinishT] = useState<number | null>(null);
+  const [knownLen, setKnownLen] = useState(33);
+  const [sprintYards, setSprintYards] = useState(20);
+  const [camActive, setCamActive] = useState(false);
+  const [camRecording, setCamRecording] = useState(false);
+  const [camError, setCamError] = useState("");
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const fileRef2 = useRef<HTMLInputElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const camPreviewRef = useRef<HTMLVideoElement | null>(null);
+  function setClip(url: string) {
+    if (videoUrl) URL.revokeObjectURL(videoUrl);
+    setVideoUrl(url);
+    setCalA(null); setCalB(null); setPtA(null); setPtB(null);
+    setTakeoffT(null); setLandingT(null); setStartT(null); setFinishT(null);
+    setTapFor(null); setCurTime(0);
+  }
+  function loadFile(f: File | undefined) { if (!f) return; setClip(URL.createObjectURL(f)); }
+  async function startCamera() {
+    setCamError("");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      streamRef.current = stream;
+      setCamActive(true);
+      setTimeout(() => { if (camPreviewRef.current) camPreviewRef.current.srcObject = stream; }, 0);
+    } catch (e: any) {
+      setCamError("Camera blocked — allow camera access for this site in your browser (look for the camera icon in the address bar), then try again.");
+    }
+  }
+  function stopCamera() {
+    try { recorderRef.current?.stop(); } catch (e) {}
+    recorderRef.current = null;
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    setCamActive(false); setCamRecording(false);
+  }
+  function startRec() {
+    const stream = streamRef.current; if (!stream) return;
+    chunksRef.current = [];
+    let rec: MediaRecorder;
+    try { rec = new MediaRecorder(stream); } catch (e: any) { setCamError("This browser can't record video in-page — record the clip in QuickTime / Photo Booth and use Choose a clip instead."); return; }
+    recorderRef.current = rec;
+    rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunksRef.current.push(ev.data); };
+    rec.onstop = () => {
+      const blob = new Blob(chunksRef.current, { type: rec.mimeType || "video/mp4" });
+      if (blob.size) setClip(URL.createObjectURL(blob));
+      stopCamera();
+    };
+    rec.start();
+    setCamRecording(true);
+  }
+  function stopRec() {
+    if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
+    else stopCamera();
+  }
+  function step(d: number) {
+    const v = videoRef.current; if (!v) return;
+    v.pause();
+    const nt = Math.max(0, v.currentTime + d * (1 / fps));
+    v.currentTime = nt; setCurTime(nt);
+  }
+  function handleTap(e: any) {
+    if (!tapFor) return;
+    const v = videoRef.current; if (!v) return;
+    v.pause();
+    const r = e.currentTarget.getBoundingClientRect();
+    const pt: Pt = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height, t: v.currentTime };
+    if (tapFor === "calA") setCalA(pt);
+    else if (tapFor === "calB") setCalB(pt);
+    else if (tapFor === "ptA") setPtA(pt);
+    else if (tapFor === "ptB") setPtB(pt);
+    setTapFor(null); setCurTime(v.currentTime);
+  }
+  function dist(a: Pt | null, b: Pt | null) { if (!a || !b) return null; return Math.hypot(a.x - b.x, a.y - b.y); }
+  function result(): { line: string; save: string } | null {
+    if (test === "vertical") {
+      if (takeoffT === null || landingT === null) return null;
+      const t = landingT - takeoffT;
+      if (t <= 0) return null;
+      const inches = 48.27 * t * t;
+      const ft = Math.floor(inches / 12);
+      const rem = inches - ft * 12;
+      return { line: `${inches.toFixed(1)} in  (${ft} ft ${rem.toFixed(1)} in)  •  flight time ${t.toFixed(3)}s`, save: `Vertical Jump: ${inches.toFixed(1)} in` };
+    }
+    if (test === "broad") {
+      const d = dist(ptA, ptB); const c = dist(calA, calB);
+      if (d === null || c === null || c === 0 || !knownLen) return null;
+      const inches = (d / c) * knownLen;
+      return { line: `${inches.toFixed(1)} in  (${(inches / 12).toFixed(2)} ft)`, save: `Broad Jump: ${inches.toFixed(1)} in` };
+    }
+    if (test === "swing") {
+      const d = dist(ptA, ptB); const c = dist(calA, calB);
+      if (d === null || c === null || c === 0 || !knownLen || !ptA || !ptB) return null;
+      const t = Math.abs(ptB.t - ptA.t);
+      if (t <= 0) return null;
+      const inches = (d / c) * knownLen;
+      const mph = (inches / 12 / t) * 0.6818;
+      return { line: `${mph.toFixed(1)} mph  •  barrel moved ${inches.toFixed(1)} in over ${t.toFixed(3)}s`, save: `Swing Speed: ${mph.toFixed(1)} mph` };
+    }
+    if (test === "sprint") {
+      if (startT === null || finishT === null) return null;
+      const t = finishT - startT;
+      if (t <= 0) return null;
+      const feet = sprintYards * 3;
+      const mph = (feet / t) * 0.6818;
+      return { line: `${t.toFixed(2)}s for ${sprintYards} yards  •  ${mph.toFixed(1)} mph`, save: `Sprint (${sprintYards} yd): ${t.toFixed(2)}s — ${mph.toFixed(1)} mph` };
+    }
+    return null;
+  }
+  const res = result();
+  const dateStr = new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
+  const marks: { pt: Pt; label: string; color: string }[] = [];
+  if (calA) marks.push({ pt: calA, label: "1", color: "#C9A86A" });
+  if (calB) marks.push({ pt: calB, label: "2", color: "#C9A86A" });
+  if (ptA) marks.push({ pt: ptA, label: "A", color: "#7BC47F" });
+  if (ptB) marks.push({ pt: ptB, label: "B", color: "#7BC47F" });
+  const instructions: Record<MeasureTest, string> = {
+    vertical: "Film from the SIDE. Athlete jumps once. Pause, step frames, and mark the exact frame the toes leave the ground (Takeoff) and the first frame the toes touch again (Landing).",
+    broad: "Film from the SIDE with a tape measure on the ground in frame. Tap the two ends of a known stretch of tape, enter that length, then tap the takeoff heel and the landing heel.",
+    swing: "Record in SLOW-MO (240fps) from the SIDE. Tap the bat knob, then the barrel tip, and enter the bat length. Then tap the barrel in one frame, step a few frames, and tap the barrel again.",
+    sprint: "Film from the SIDE. Enter the cone-to-cone distance. Mark the frame the athlete crosses the first cone and the frame they cross the second.",
+  };
+  const tapBtn = (key: string, label: string, done: boolean) => (
+    <button key={key} onClick={() => setTapFor(key)} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${tapFor === key ? "bg-[#C9A86A] text-black border-[#C9A86A]" : done ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25 text-white/85"}`}>{done ? "✓ " : ""}{label}</button>
+  );
+  return (
+    <div className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/55 px-4 py-5">
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h3 className="font-display text-2xl font-bold leading-tight">📏 Measure — {athleteName}</h3>
+          <p className="mt-1 text-xs text-white/65">Record in slow-mo for swings. Everything is measured on this device — nothing uploads.</p>
+        </div>
+        <button onClick={onClose} className="shrink-0 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold">Close</button>
+      </div>
+      <div className="mt-4 flex gap-2">
+        {(["vertical", "broad", "swing", "sprint"] as MeasureTest[]).map((t) => (
+          <button key={t} onClick={() => { setTest(t); setTapFor(null); }} className={`min-h-[44px] flex-1 rounded-full px-2 py-2 text-[12px] font-bold ${test === t ? "bg-[#C9A86A] text-black" : "border border-white/25 text-white/85"}`}>{t === "vertical" ? "Vertical" : t === "broad" ? "Broad Jump" : t === "swing" ? "Swing Speed" : "Sprint"}</button>
+        ))}
+      </div>
+      <p className="mt-3 text-[13px] leading-relaxed text-white/80">{instructions[test]}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button onClick={() => fileRef.current?.click()} className="min-h-[48px] flex-1 rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">🎥 Record a clip</button>
+        <button onClick={() => fileRef2.current?.click()} className="min-h-[48px] flex-1 rounded-full border border-white/30 px-4 py-2 text-[14px] font-bold">📁 Choose a clip</button>
+      </div>
+      <div className="mt-2">
+        {!camActive && <button onClick={startCamera} className="min-h-[48px] w-full rounded-full border border-[#C9A86A]/70 px-4 py-2 text-[14px] font-bold text-[#C9A86A]">📷 Use this device's camera (MacBook webcam)</button>}
+        {camError && <p className="mt-2 rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-center text-sm text-white/80">{camError}</p>}
+        {camActive && (
+          <div className="mt-2">
+            <video ref={camPreviewRef} autoPlay muted playsInline className="block w-full rounded-xl border border-[#C9A86A]/50 bg-black" />
+            <div className="mt-2 flex gap-2">
+              {!camRecording
+                ? <button onClick={startRec} className="min-h-[48px] flex-1 rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">● Start recording</button>
+                : <button onClick={stopRec} className="min-h-[48px] flex-1 rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">■ Stop — use this clip</button>}
+              <button onClick={stopCamera} className="min-h-[48px] rounded-full border border-white/30 px-4 py-2 text-[14px] font-bold">Cancel camera</button>
+            </div>
+            <p className="mt-2 text-center text-xs text-white/60">Prop the MacBook up with a side view of the athlete. Webcam clips are 30fps — great for jumps and sprints. For swing speed, still use an iPhone slow-mo clip.</p>
+          </div>
+        )}
+      </div>
+      <input ref={fileRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ""; }} />
+      <input ref={fileRef2} type="file" accept="video/*" className="hidden" onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ""; }} />
+      {videoUrl ? (
+        <>
+          <div className="relative mt-4 overflow-hidden rounded-xl border border-white/20 bg-black" onClick={handleTap}>
+            <video ref={videoRef} src={videoUrl} controls playsInline preload="metadata" className="block w-full" onTimeUpdate={(e) => setCurTime((e.target as HTMLVideoElement).currentTime)} onSeeked={(e) => setCurTime((e.target as HTMLVideoElement).currentTime)} />
+            {marks.map((m, i) => (
+              <span key={i} className="pointer-events-none absolute z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[11px] font-bold text-black" style={{ left: `${m.pt.x * 100}%`, top: `${m.pt.y * 100}%`, background: m.color }}>{m.label}</span>
+            ))}
+            {tapFor && <p className="pointer-events-none absolute bottom-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/80 px-3 py-1 text-[12px] font-bold text-[#C9A86A]">Tap the video to place this mark</p>}
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <button onClick={() => step(-1)} className="min-h-[44px] flex-1 rounded-full border border-white/25 px-3 py-2 text-[13px] font-bold">◀ 1 frame</button>
+            <p className="min-w-[92px] text-center text-sm font-bold">{curTime.toFixed(3)}s</p>
+            <button onClick={() => step(1)} className="min-h-[44px] flex-1 rounded-full border border-white/25 px-3 py-2 text-[13px] font-bold">1 frame ▶</button>
+            <label className="flex items-center gap-1 text-xs font-bold text-white/70">fps
+              <select value={fps} onChange={(e) => setFps(Number(e.target.value))} className="min-h-[44px] rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[14px] text-white">
+                <option value={30}>30</option><option value={60}>60</option><option value={120}>120</option><option value={240}>240</option>
+              </select>
+            </label>
+          </div>
+          {test === "vertical" && (
+            <div className="mt-3 flex gap-2">
+              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setTakeoffT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${takeoffT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Takeoff {takeoffT !== null ? `(${takeoffT.toFixed(3)}s)` : ""}</button>
+              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setLandingT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${landingT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Landing {landingT !== null ? `(${landingT.toFixed(3)}s)` : ""}</button>
+            </div>
+          )}
+          {test === "sprint" && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-bold">Distance (yards)
+                <input type="number" value={sprintYards} onChange={(e) => setSprintYards(Number(e.target.value))} className="min-h-[44px] w-20 rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[15px]" />
+              </label>
+              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setStartT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${startT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Start {startT !== null ? `(${startT.toFixed(3)}s)` : ""}</button>
+              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setFinishT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${finishT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Finish {finishT !== null ? `(${finishT.toFixed(3)}s)` : ""}</button>
+            </div>
+          )}
+          {(test === "broad" || test === "swing") && (
+            <div className="mt-3 space-y-2">
+              <label className="flex items-center gap-2 text-sm font-bold">{test === "broad" ? "Known distance between gold marks (inches)" : "Bat length (inches)"}
+                <input type="number" value={knownLen} onChange={(e) => setKnownLen(Number(e.target.value))} className="min-h-[44px] w-20 rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[15px]" />
+              </label>
+              <div className="flex gap-2">
+                {tapBtn("calA", test === "broad" ? "Tap: Tape Start ①" : "Tap: Bat Knob ①", !!calA)}
+                {tapBtn("calB", test === "broad" ? "Tap: Tape End ②" : "Tap: Barrel Tip ②", !!calB)}
+              </div>
+              <div className="flex gap-2">
+                {tapBtn("ptA", test === "broad" ? "Tap: Takeoff Heel A" : "Tap: Barrel — Frame A", !!ptA)}
+                {tapBtn("ptB", test === "broad" ? "Tap: Landing Heel B" : "Tap: Barrel — Frame B", !!ptB)}
+              </div>
+              <p className="text-xs text-white/60">For swings: tap Barrel A, step 2–4 frames, then tap Barrel B. The app uses the time between those two taps.</p>
+            </div>
+          )}
+          <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/70 px-4 py-4 text-center">
+            {res ? (
+              <>
+                <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">RESULT</p>
+                <p className="mt-1 font-display text-2xl font-bold leading-tight">{res.line}</p>
+                <button onClick={() => onSave(`📏 ${res.save} (${dateStr})`)} className="mt-3 min-h-[48px] w-full rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">Save to {athleteName}'s profile</button>
+                <p className="mt-2 text-[11px] text-white/55">Vertical is the most accurate. Swing speed is an estimate — within a few mph of a bat sensor.</p>
+              </>
+            ) : (
+              <p className="text-sm text-white/70">Mark the frames / points above and the number shows up here.</p>
+            )}
+          </div>
+        </>
+      ) : (
+        <p className="mt-4 rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-center text-sm text-white/70">Record a clip or pick one from your library to start measuring.</p>
+      )}
+    </div>
+  );
+}
+
+// ---- Training Vault: every exercise, searchable ----
+const VAULT: { pillar: string; items: { name: string; detail: string }[] }[] = [
+  { pillar: "Dynamic Stretch", items: [
+    { name: "Leg Swings — Front to Back", detail: "x12 each" }, { name: "Lateral Leg Swings", detail: "x12 each" },
+    { name: "Walking Lunges with Twist", detail: "x10" }, { name: "Inchworms", detail: "x8" },
+    { name: "High Knees", detail: "x20 yards" }, { name: "Butt Kicks", detail: "x20 yards" },
+    { name: "Open the Gate", detail: "x10 each" }, { name: "Close the Gate", detail: "x10 each" },
+    { name: "A-Skips", detail: "x20 yards" }, { name: "Carioca", detail: "x20 yards each way" },
+    { name: "Spiderman Lunges", detail: "x8 each" }, { name: "Hip Circles", detail: "x10 each" },
+    { name: "World's Greatest Stretch", detail: "x6 each" }, { name: "Ankle Rocks", detail: "x12" },
+  ]},
+  { pillar: "Core", items: [
+    { name: "Plank Hold", detail: "3x30s" }, { name: "Dead Bugs", detail: "x12 each" },
+    { name: "Bird Dogs", detail: "x12 each" }, { name: "Hollow Hold", detail: "3x20s" },
+    { name: "Side Plank", detail: "3x20s each" }, { name: "Med Ball Slams", detail: "x12" },
+    { name: "Russian Twists", detail: "x20" }, { name: "Leg Raises", detail: "x12" },
+    { name: "Mountain Climbers", detail: "x30" }, { name: "Bear Crawl Hold", detail: "3x20s" },
+    { name: "Pallof Press Hold", detail: "3x15s each" }, { name: "Bicycle Crunch", detail: "x20" },
+    { name: "Plank Reach", detail: "x10 each" }, { name: "V-Ups", detail: "x12" },
+  ]},
+  { pillar: "Main Lift", items: [
+    { name: "Goblet Squats", detail: "3x8" }, { name: "Trap Bar Deadlift", detail: "3x6" },
+    { name: "Dumbbell Bench", detail: "3x8" }, { name: "Single-Leg RDL", detail: "3x8 each" },
+    { name: "Split Squats", detail: "3x8 each" }, { name: "Push-Ups", detail: "3x12" },
+    { name: "Bent-Over Rows", detail: "3x10" }, { name: "Hip Thrusts", detail: "3x10" },
+    { name: "Overhead Press", detail: "3x8" }, { name: "Kettlebell Swings", detail: "3x12" },
+    { name: "Box Squats", detail: "3x8" }, { name: "Farmer Carries", detail: "3x20 yards" },
+    { name: "Front Squat", detail: "3x6" }, { name: "Pull-Ups", detail: "3x6" },
+    { name: "Lunge Jumps", detail: "3x6 each" },
+  ]},
+  { pillar: "Speed and Agility", items: [
+    { name: "10-Yard Sprints", detail: "x5" }, { name: "20-Yard Sprints", detail: "x4" },
+    { name: "5-10-5 Pro Agility", detail: "x4 each" }, { name: "Lateral Shuffle + Sprint", detail: "x4 each" },
+    { name: "T-Drill", detail: "x3" }, { name: "Box Drill", detail: "x4" },
+    { name: "First-Step Quickness Starts", detail: "x6" }, { name: "Resisted Band Sprints", detail: "x4" },
+    { name: "Deceleration Stops", detail: "x6" }, { name: "Zig-Zag Cuts", detail: "x4 each" },
+    { name: "Mirror Drill", detail: "x4" }, { name: "Hill Sprints", detail: "x4" },
+    { name: "Flying 10s", detail: "x4" }, { name: "Reaction Ball Drops", detail: "x6" },
+    { name: "Cone Weave", detail: "x4" },
+  ]},
+  { pillar: "Extras", items: [
+    { name: "Jump Rope", detail: "3x60s" }, { name: "Sled Push", detail: "3x20 yards" },
+    { name: "Med Ball Rotational Throws", detail: "3x8 each" },
+  ]},
+];
+function VaultPage() {
+  const [q, setQ] = useState("");
+  const total = VAULT.reduce((n, p) => n + p.items.length, 0);
+  const ql = q.trim().toLowerCase();
+  return (
+    <section className="pt-5">
+      <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">TRAINING VAULT</p>
+      <h2 className="font-display text-[36px] leading-none mt-2">Every Exercise</h2>
+      <p className="text-white/85 mt-3 text-[15px] leading-relaxed">{total} exercises across the 4 pillars, plus extras. Search it, then copy any exercise into a workout.</p>
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the vault…" className="mt-4 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-xl px-4 py-3 text-[16px] outline-none focus:border-[#C9A86A]" />
+      <div className="space-y-4 mt-4">
+        {VAULT.map((p) => {
+          const items = p.items.filter((it) => !ql || it.name.toLowerCase().includes(ql));
+          if (!items.length) return null;
+          return (
+            <div key={p.pillar} className="rounded-2xl border border-white/15 bg-black/35 p-4">
+              <h3 className="font-display font-semibold text-[#D4B483] text-lg leading-tight">{p.pillar} • {items.length}</h3>
+              <ul className="mt-3 space-y-2">
+                {items.map((it) => (
+                  <li key={it.name} className="flex items-center justify-between gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5"><span className="text-[15px] font-semibold">{it.name}</span><span className="text-xs text-white/60 shrink-0">{it.detail}</span></li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function App(){
   const [view,setView]=useState<View>("wall");
   const [workouts,setWorkouts]=useState<Workout[]>([]);
@@ -361,6 +516,17 @@ export default function App(){
   const [apiNote,setApiNote]=useState("");
   const [dictOpen,setDictOpen]=useState(false);
   const [measureOpen,setMeasureOpen]=useState(false);
+  const [checkGrateful,setCheckGrateful]=useState("");
+  const [checkProud,setCheckProud]=useState("");
+  const [gritness,setGritness]=useState<number|null>(null);
+  const [goodReason,setGoodReason]=useState("");
+  const [genVariant,setGenVariant]=useState(0);
+  const [coachOpen,setCoachOpen]=useState(false);
+  const [coachPinInput,setCoachPinInput]=useState("");
+  const [coachUnlocked,setCoachUnlocked]=useState(false);
+  const [coachChecks,setCoachChecks]=useState<Record<string,boolean>>({});
+  const [grittyScore,setGrittyScore]=useState("");
+  const siriDoneRef=useRef(false);
   const [busy,setBusy]=useState(false);
   const [result,setResult]=useState("");
   const [savedFlash,setSavedFlash]=useState(false);
@@ -530,7 +696,6 @@ export default function App(){
   const [dictSupported,setDictSupported]=useState(false);
   const recogRef = useRef<any>(null);
   const dictatingRef = useRef(false);
-  const siriLinkHandledRef = useRef(false);
   const handsFreeRef = useRef(false);
   const listeningRef = useRef(false);
   const transcriptRef = useRef("");
@@ -682,34 +847,20 @@ export default function App(){
     setLoading(false);
   }
   useEffect(()=>{ reloadRecords(); },[]);
+  useEffect(()=>{
+    if(siriDoneRef.current) return;
+    const p = new URLSearchParams(window.location.search);
+    const name = p.get("athlete");
+    if(p.get("action")!=="workout" || !name || !athletes.length) return;
+    const a = athletes.find(x=>x.name.toLowerCase().includes(name.toLowerCase()));
+    if(!a) return;
+    siriDoneRef.current = true;
+    setTrainingAthleteId(a.id);
+    setAthleteAppMode(true);
+    goTab("training");
+  },[athletes]);
   useEffect(()=>{ if(calendarFeedUrl.trim() && calendarSyncOn) fetchCalendarFeed(); },[]);
   useEffect(()=>{ setDictSupported(typeof window!=="undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition)); },[]);
-
-  // Siri / iOS Shortcut deep link: ?athlete=Hailey%20Ruple&action=workout
-  // A Shortcut named e.g. "Open The GRIT and create a workout for Hailey Ruple" just opens
-  // this URL. The app then picks the athlete, opens Training, and starts hands-free dictation.
-  useEffect(()=>{
-    if(siriLinkHandledRef.current) return;
-    try{
-      const params = new URLSearchParams(window.location.search);
-      const name = (params.get("athlete")||"").trim();
-      const action = (params.get("action")||"").toLowerCase();
-      if(!name || action!=="workout") return;
-      const lower = name.toLowerCase();
-      const match = athletes.find(a=>a.name.toLowerCase()===lower) || athletes.find(a=>a.name.toLowerCase().includes(lower));
-      if(!match) return;
-      siriLinkHandledRef.current = true;
-      setTrainingAthleteId(match.id);
-      setDictAthleteId(match.id);
-      setDictDestination(SECTIONS[0]);
-      goTab("training");
-      setDictOpen(true);
-      setDictHandsFree(true);
-      setResult(`Siri link opened — dictating a workout for ${match.name}. Say the workout, then say "save".`);
-    }catch{}
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[athletes]);
-
 
   const queued = useMemo(()=>workouts.filter(w=>w.calendar==="queued").length,[workouts]);
   const athleteLabel = athleteMode==="Custom" ? (customAthlete.trim()||"One Athlete") : athleteMode;
@@ -1032,7 +1183,6 @@ export default function App(){
     setBusy(false);
   }
 
-
   async function saveMeasurement(text: string){
     if(!trainingAthlete) return;
     const join = (prev: string) => prev && prev.trim() ? `${prev.trim()} ${text}` : text;
@@ -1043,44 +1193,42 @@ export default function App(){
       if(newId!==updated.id){ setAthletes(prev=>prev.map(a=>a.id===updated.id?{...a, id:newId}:a)); }
       updateAthlete(trainingAthlete.id, updated as Partial<AthleteProfile>);
       await reloadRecords();
-      setResult(`Saved measurement for ${trainingAthlete.name}: ${text}`);
+      setResult(`Saved for ${trainingAthlete.name}: ${text}`);
       flashSaved();
-    }catch(e:any){ setResult(e.message||"Could not save measurement."); }
+    }catch(e:any){ setResult(e.message||"Could not save."); }
     setBusy(false);
   }
 
-  // Random workout-challenge pool. "Surprise Me" rolls one and fills the coach challenge form.
-  const RANDOM_CHALLENGES = [
-    {title:"100-Ball Wall", description:"100 extra ground balls or fly balls on your own this week. Film your last 10.", points:15},
-    {title:"First-Step Frenzy", description:"3 x 10 first-step sprints. Beat your own time on the last set.", points:10},
-    {title:"Core Crusher", description:"5-minute plank ladder: 30s plank, 30s side plank each side, repeat twice. No breaks.", points:10},
-    {title:"Ladder Lightning", description:"10 minutes of ladder footwork. Learn one new pattern and teach it to a teammate.", points:10},
-    {title:"GRIT Card Blitz", description:"Send 3 GRIT Cards this week to athletes who are grinding.", points:15},
-    {title:"Early Bird Lifts", description:"One full Main Lift session before school. Log it before 8am.", points:15},
-    {title:"Sprint to the Fence", description:"10 fence-to-fence sprints. Last one has to be your fastest.", points:10},
-    {title:"Perfect Form 50", description:"50 perfect-form push-ups across the week. Quality over speed.", points:10},
-    {title:"Agility Gauntlet", description:"Cone drill: 5-10-5 shuttle x 6. Shave 0.2s off your best by Friday.", points:15},
-    {title:"Mobility Morning", description:"10 minutes of Dynamic Stretch every morning before school, all week.", points:10},
-    {title:"Teach-Back Tuesday", description:"Teach one drill you learned to a younger athlete and film 30 seconds of it.", points:15},
-    {title:"Hill Repeats", description:"8 hill sprints. Walk down, sprint up. Finish every single one.", points:15},
-    {title:"Bat Speed Builder", description:"100 dry swings with a purpose: 25 inside, 25 outside, 25 high, 25 low.", points:10},
-    {title:"Glove Work Grind", description:"200 throws against the wall, glove side only. Count every clean catch.", points:10},
-    {title:"Balance Boss", description:"Single-leg balance: 60 seconds each leg, eyes closed for the last 20.", points:5},
-    {title:"Explode Off the Line", description:"12 box jumps or broad jumps. Stick every landing for 2 full seconds.", points:10},
-    {title:"Gratitude Streak", description:"Write one thing you are grateful for every day this week in Check-In.", points:10},
-    {title:"No-Excuses Day", description:"Pick your hardest day this week and get the full workout done anyway.", points:15},
-    {title:"Speed Ladder + Sprint", description:"Ladder pattern x 4, then a 20-yard sprint. Repeat 5 rounds.", points:10},
-    {title:"Medicine Ball Mayhem", description:"3 x 12 med-ball slams + 3 x 12 rotational throws each side.", points:10},
-    {title:"Recovery Pro", description:"Two full recovery sessions this week: stretch, hydrate, sleep 8+ hours.", points:10},
-    {title:"Lead the Warm-Up", description:"Lead the Dynamic Stretch for your whole group at your next session.", points:15},
-    {title:"5AM Club", description:"One workout before 6am. Send your coach a photo as proof.", points:15},
-    {title:"Finish Strong Friday", description:"End Friday's session with 10 extra sprints. No walking the last one.", points:10},
-  ];
-  function rollRandomChallenge(){
-    const pick = RANDOM_CHALLENGES[Math.floor(Math.random()*RANDOM_CHALLENGES.length)];
-    setChTitle(pick.title); setChDesc(pick.description); setChPoints(pick.points);
-    setResult(`Rolled: ${pick.title} — hit Save Challenge to set it for ${week}.`);
+  function surpriseChallenge(){
+    const c = CHALLENGE_POOL[Math.floor(Math.random()*CHALLENGE_POOL.length)];
+    setChTitle(c.title); setChDesc(c.desc); setChPoints(c.points);
+    setResult(`Surprise pick: ${c.title} — ${c.points} pts. Hit Save Challenge to set it.`);
   }
+
+  function generateWorkout(){
+    if(!trainingAthlete){ setResult("Pick an athlete first."); return; }
+    const lvl = gritness ?? 3;
+    const noExcuses = (lvl===1 || lvl===2) && goodReason==="no";
+    const variant = (genVariant + 1) % 3;
+    setGenVariant(variant);
+    const nextSections: Record<string,string> = {};
+    const nextMinutes: Record<string,string> = {};
+    const mins: Record<string,string> = { "Dynamic Stretch |":"5 min", "Core |":"5 min", "Main Lift |":"10 min", "Speed and Agility |":"10 min" };
+    SECTIONS.forEach((s,i)=>{
+      const pool = GRIT_POOLS[s] || [];
+      const ex = pool[(variant*3 + i) % pool.length] || "";
+      nextSections[s] = noExcuses && s==="Main Lift |" ? `NO EXCUSES — ${ex} + extra set. No quitting.` : ex;
+      nextMinutes[s] = mins[s] || "";
+    });
+    if(noExcuses){ nextSections["Core |"] = `${nextSections["Core |"]} + NO EXCUSES finisher: Plank Hold 60s.`; }
+    setSections(nextSections);
+    setMinutes(nextMinutes);
+    const sport = (trainingAthlete.sport||"").toLowerCase();
+    const focus = sport.includes("soft") || sport.includes("base") ? "Bat speed + first-step quickness focus." : sport.includes("foot") ? "Explosive first step + change of direction focus." : "Speed + power focus.";
+    setBlockNotes(prev=>({...prev, [SECTIONS[0]]: `GRIT Check-In — Grateful: ${checkGrateful||"—"} | Proud: ${checkProud||"—"} | GRITNESS: ${lvl}${noExcuses?" — NO EXCUSES":""} | ${focus}`}));
+    setResult(noExcuses ? `NO EXCUSES circuit generated for ${trainingAthlete.name} — 30 minutes, no quitting.` : `Workout generated for ${trainingAthlete.name} (Variant ${variant+1} of 3) — 30 minutes. Review it, then Publish.`);
+  }
+
   async function saveChallenge(){
     if(!chTitle.trim()){ setResult("Add a challenge title first."); return; }
     setBusy(true);
@@ -1394,12 +1542,9 @@ export default function App(){
       <main className="relative z-10 mx-auto max-w-[430px] px-4 pb-8 lg:px-8">
         {view==="wall" ? (
           <div className="md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
-            <div className="mt-4 px-2 text-center md:col-span-2 lg:col-span-3">
-              <p className="font-display font-semibold italic tracking-wide text-[clamp(27px,7.8vw,30px)] leading-[1.25] text-[#F2EFE9]"><span className="text-[#C9A86A]">“</span>TO GIVE ANYTHING LESS THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.<span className="text-[#C9A86A]">”</span></p>
-            </div>
             <section className="pt-5 md:col-span-1 lg:col-span-2">
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
-                
+                <p className="text-center font-display font-semibold text-[clamp(40px,11vw,54px)] italic leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
                 <div className="mt-2" />
                 <div className="mt-5 flex flex-wrap justify-center gap-2">
                   <button onClick={()=>goTab("programs")} className="min-h-[40px] rounded-full bg-[#C9A86A] px-5 py-2 text-[13px] font-bold text-black active:scale-[0.98]">Explore Programs →</button>
@@ -1472,13 +1617,7 @@ export default function App(){
                 <p className="mt-4 text-[15px] font-bold text-[#C9A86A]">Tap to find out →</p>
               </button>
             </section>
-            <section className="mt-6 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
-              <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">THE MONTHLY CHALLENGE • {week.toUpperCase()}</p>
-              {currentChallenge ? <><h3 className="font-display text-[26px] leading-tight mt-2">{currentChallenge.title}</h3><p className="text-[15px] text-white/85 mt-2 leading-relaxed">{currentChallenge.description}</p>
-              <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width:`${challengeProgress}%`}} /></div>
-              <p className="mt-1.5 text-xs text-white/75">{challengeProgress}% of the team in — {challengeDoneCount} of {athletes.length} • {currentChallenge.points} pts</p>
-              <button onClick={()=>goTab("pillars")} className="mt-4 w-full min-h-[48px] rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Mark It Complete →</button></> : <p className="text-[15px] text-white/85 mt-2">No challenge set yet — your coach sets one on Mindset &amp; Impact.</p>}
-            </section>
+
             </>)}
           </div>
         ) : view==="training" ? (
@@ -1518,6 +1657,34 @@ export default function App(){
               <>
               <p className="text-center font-display text-[clamp(30px,8vw,40px)] font-bold leading-none mt-5">{unlockedAthlete?.name}</p>
               <p className="text-center text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-3">TRAINING PROGRAM • 4 BLOCKS</p>
+              <div className="rounded-[26px] border-2 border-[#C9A86A] bg-black/55 px-4 py-5 mt-4">
+                <h3 className="font-display text-2xl font-bold leading-tight">GRIT Check-In</h3>
+                <p className="mt-1 text-xs text-white/65">Check in first. Then Generate builds today's 30-minute workout.</p>
+                <label className="block text-sm mt-4">What are you grateful for?<textarea value={checkGrateful} onChange={e=>setCheckGrateful(e.target.value)} rows={2} className="mt-1 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/></label>
+                <label className="block text-sm mt-3">What are you proud of?<textarea value={checkProud} onChange={e=>setCheckProud(e.target.value)} rows={2} className="mt-1 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/></label>
+                <p className="mt-4 text-sm font-bold">GRITNESS — How GRITTY are you today?</p>
+                <div className="mt-2 grid grid-cols-5 gap-1.5">
+                  {[{n:1,l:"GOT NOTHING"},{n:2,l:"FINDING IT"},{n:3,l:"I'M MOTIVATED"},{n:4,l:"I'M DISCIPLINED"},{n:5,l:"ALL IN"}].map(o=>(
+                    <button key={o.n} onClick={()=>setGritness(o.n)} className={`min-h-[52px] rounded-xl border px-1 py-2 text-[11px] font-bold leading-tight ${gritness===o.n ? "bg-[#C9A86A] text-black border-[#C9A86A]" : "border-white/25 text-white/85"}`}>{o.n}<br/>{o.l}</button>
+                  ))}
+                </div>
+                {gritness===1 && <p className="mt-2 text-xs text-white/70">1 — I got nothing, unfocused and checked out.</p>}
+                {gritness===5 && <p className="mt-2 text-xs text-white/70">5 — Completely on point and determined to make progress today. Whatever it is, we're doing it!</p>}
+                {(gritness===1 || gritness===2) && (
+                  <div className="mt-3 rounded-xl border border-white/15 bg-black/35 px-3 py-3">
+                    <p className="text-sm font-bold">Is there a good reason for that low number?</p>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={()=>setGoodReason("yes")} className={`min-h-[44px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${goodReason==="yes" ? "bg-[#C9A86A] text-black border-[#C9A86A]" : "border-white/25"}`}>Yes — good reason</button>
+                      <button onClick={()=>setGoodReason("no")} className={`min-h-[44px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${goodReason==="no" ? "bg-[#C9A86A] text-black border-[#C9A86A]" : "border-white/25"}`}>No — no excuse</button>
+                    </div>
+                    {goodReason==="yes" && <p className="mt-2 text-xs text-white/70">Got it. We'll adjust today, and you still show up and do the work.</p>}
+                    {goodReason==="no" && <p className="mt-2 text-xs font-bold text-[#C9A86A]">NO EXCUSES — today's circuit gets harder. That's the deal.</p>}
+                  </div>
+                )}
+                <button onClick={generateWorkout} className="mt-4 w-full min-h-[52px] rounded-full bg-[#C9A86A] px-5 py-3 text-[15px] font-bold text-black active:scale-[0.98]">⚡ Generate Today's Workout (30 min)</button>
+                <button onClick={()=>{ if(!trainingAthlete){ setResult("Pick an athlete first."); return; } saveMeasurement(`GRIT Check-In — Grateful: ${checkGrateful||"—"} | Proud: ${checkProud||"—"} | GRITNESS: ${gritness ?? "—"}`); }} className="mt-2 w-full min-h-[48px] rounded-full border border-white/25 px-5 py-3 text-[14px] font-bold">Save Check-In to Profile</button>
+                <p className="mt-2 text-center text-[11px] text-white/55">Generate fills the 4 blocks below. Review them, then Publish. Variants rotate so circuits don't repeat.</p>
+              </div>
               <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
                 <label className="text-sm block">Week<br/><input value={week} onChange={e=>setWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
                 <label className="text-sm block mt-3">Motto<br/><input value={trainingMotto} onChange={e=>setTrainingMotto(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
@@ -1550,7 +1717,31 @@ export default function App(){
                 <button disabled={busy} onClick={saveTrainingFocus} className="mt-3 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black px-4 py-2.5 rounded-full text-sm font-bold disabled:opacity-50"><Save size={15}/> Save</button>
               </div>
               <div className="flex gap-2 mt-4">
-                <button disabled={busy} onClick={saveTrainingFocus} className="flex-1 min-h-[52px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black font-bold px-4 py-3 rounded-full text-[15px] disabled:opacity-50"><Save size={16}/> Save Training</button>
+                              <div className="rounded-2xl border border-[#C9A86A]/60 bg-black/45 p-4 mt-3">
+                <button onClick={()=>setCoachOpen(v=>!v)} className="w-full min-h-[52px] rounded-full border border-[#C9A86A] px-5 py-3 text-[15px] font-bold text-[#C9A86A]">🧑‍🏫 COACH CHECKLIST {coachUnlocked ? "✓" : "🔒"}</button>
+                {coachOpen && !coachUnlocked && (
+                  <div className="mt-3">
+                    <label className="block text-sm">Coach PIN<input value={coachPinInput} onChange={e=>setCoachPinInput(e.target.value)} inputMode="numeric" type="password" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
+                    <button onClick={()=>{ if(coachPinInput==="1234" || (trainingAthlete && coachPinInput===trainingAthlete.pin)){ setCoachUnlocked(true); setResult("Coach checklist unlocked."); } else { setResult("Wrong coach PIN."); } }} className="mt-2 w-full min-h-[48px] rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">Unlock Checklist</button>
+                  </div>
+                )}
+                {coachOpen && coachUnlocked && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-bold tracking-widest text-[#C9A86A]">COACH ONLY — ATHLETES DON'T SEE THIS UNLESS COACH OPENS IT</p>
+                    {["Dynamic Stretch done","Core done","Main Lift done","Speed and Agility done"].map(item=>(
+                      <button key={item} onClick={()=>setCoachChecks(p=>({...p,[item]:!p[item]}))} className="w-full flex items-center gap-2 rounded-xl border border-white/15 bg-black/35 px-3 py-2.5 text-left text-[14px] font-semibold"><span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border ${coachChecks[item] ? "bg-[#C9A86A] text-black border-[#C9A86A]" : "border-white/30"}`}>{coachChecks[item] ? "✓" : ""}</span>{item}</button>
+                    ))}
+                    <div className="rounded-xl border border-white/15 bg-black/35 px-3 py-3">
+                      <p className="text-sm font-bold">Who are you and why are you GRITTY?</p>
+                      <p className="mt-1 text-xs text-white/65">Say it out loud. Coach scores it 1–10.</p>
+                      <label className="mt-2 flex items-center gap-2 text-sm font-bold">Score (1–10)<input type="number" min={1} max={10} value={grittyScore} onChange={e=>setGrittyScore(e.target.value)} className="min-h-[44px] w-20 rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[15px]"/></label>
+                    </div>
+                    <p className="rounded-xl border border-white/15 bg-black/35 px-3 py-3 text-sm">{COACH_TRIVIA[new Date().getDate() % COACH_TRIVIA.length]}</p>
+                    <p className="rounded-xl border border-white/15 bg-black/35 px-3 py-3 text-sm">{COACH_FUNNY[new Date().getDate() % COACH_FUNNY.length]}</p>
+                  </div>
+                )}
+              </div>
+<button disabled={busy} onClick={saveTrainingFocus} className="flex-1 min-h-[52px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black font-bold px-4 py-3 rounded-full text-[15px] disabled:opacity-50"><Save size={16}/> Save Training</button>
                 <button onClick={handleShare} className="flex min-h-[52px] flex-1 items-center justify-center gap-2 border border-white/30 px-4 py-3 rounded-full text-[15px] font-semibold active:bg-white/10"><Share2 size={16}/> Share</button>
               </div>
               {shareStatus && <p className="mt-2 text-sm font-bold text-[#D4B483] text-center" role="status">{shareStatus}</p>}
@@ -1565,7 +1756,7 @@ export default function App(){
               </>
             )}
           </section>
-        ) : view==="homework" ? (
+        ) : view==="vault" ? ( <VaultPage/> ) : view==="homework" ? (
           <section className="pt-5">
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">HOMEWORK</p>
             <h2 className="font-display text-[36px] leading-none mt-2">Homework</h2>
@@ -1717,17 +1908,17 @@ export default function App(){
             </div>
           </section>
 <div className="mt-8 border-t-2 border-[#C9A86A]/40 pt-6">
-              <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">IMPACT • THE MONTHLY CHALLENGE • LEADERBOARD • GRIT CARDS</p>
+              <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">IMPACT • THE WEEKLY CHALLENGE • LEADERBOARD • GRIT CARDS</p>
               <h2 className="font-display text-[36px] leading-none mt-2">Impact</h2>
 
           <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">THE MONTHLY CHALLENGE • LEADERBOARD • GRIT CARDS</p>
+            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">THE WEEKLY CHALLENGE • LEADERBOARD • GRIT CARDS</p>
             <h2 className="font-display text-[36px] leading-none mt-2">Impact</h2>
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed">One challenge a week. Points for challenges, workouts, and GRIT Cards received. One GRIT Card per athlete per week — to show how one other athlete made them better.</p>
             <section className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
               <div className="flex items-end justify-between gap-2"><h2 className="font-display text-[28px] leading-none">This Month on <span className="text-[#C9A86A]">Impact</span></h2><span className="text-xs text-white/70 shrink-0">{week}</span></div>
               <div className="mt-4 rounded-2xl border border-white/10 bg-[#2E4038]/90 p-4">
-                <p className="text-[11px] tracking-widest text-[#C9A86A] font-bold">THE MONTHLY CHALLENGE • {week.toUpperCase()}</p>
+                <p className="text-[11px] tracking-widest text-[#C9A86A] font-bold">THE WEEKLY CHALLENGE • {week.toUpperCase()}</p>
                 {currentChallenge ? <><h3 className="font-display text-xl mt-1 leading-tight">{currentChallenge.title}</h3><p className="text-[15px] text-white/85 mt-1 leading-relaxed">{currentChallenge.description}</p>
                 <div className="mt-3 flex items-center gap-2 text-xs"><Timer size={14} className="text-[#C9A86A]"/><span className="font-bold">{daysLeft===null ? "This week" : daysLeft>=0 ? `${daysLeft} day${daysLeft===1?"":"s"} left` : "Due — still counts"}</span><span className="text-white/70">• {currentChallenge.points} pts • {challengeDoneCount} complete</span></div>
                 <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width:`${challengeProgress}%`}} /></div><p className="mt-1 text-xs text-white/70">{challengeProgress}% of the team in</p></> : <p className="text-[15px] text-white/80 mt-1">No challenge set for this week yet. Coach sets ONE challenge per week on Impact.</p>}
@@ -1740,7 +1931,7 @@ export default function App(){
               <span className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-black/40 border border-white/15 px-3 text-xs font-bold">{cards.length} GRIT Cards sent</span>
             </div>
             <div className="rounded-[22px] border border-[#C9A86A]/40 bg-black/35 p-4 mt-4">
-              <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold">THE MONTHLY CHALLENGE • {week.toUpperCase()}</p>
+              <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold">THE WEEKLY CHALLENGE • {week.toUpperCase()}</p>
               {currentChallenge ? <><h3 className="font-display text-[28px] mt-2 leading-tight">{currentChallenge.title}</h3><p className="text-white/85 mt-2 leading-relaxed text-[15px]">{currentChallenge.description}</p>
               <div className="mt-3 flex flex-wrap items-center gap-2"><span className="inline-flex min-h-[36px] items-center gap-1 rounded-full bg-[#C9A86A] text-black px-3 text-xs font-bold"><Timer size={14}/> {daysLeft===null ? "This week" : daysLeft>=0 ? `${daysLeft} day${daysLeft===1?"":"s"} left` : "Due — still counts"}</span><span className="text-sm text-[#D4B483] font-bold">{currentChallenge.points} pts • {challengeDoneCount} athletes complete</span></div>
               <div className="mt-3 h-3 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width:`${challengeProgress}%`}} /></div><p className="mt-1.5 text-xs text-white/75">{challengeProgress}% of the team in — {challengeDoneCount} of {athletes.length}</p></> : <p className="mt-2 text-white/85 text-[15px]">No challenge for this week yet — coach sets ONE below.</p>}
@@ -1752,8 +1943,8 @@ export default function App(){
                 <label className="text-sm block mt-3">Title<br/><input value={chTitle} onChange={e=>setChTitle(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
                 <div className="grid grid-cols-2 gap-2 mt-3"><label className="text-sm">Points<br/><input type="number" value={chPoints} onChange={e=>setChPoints(Number(e.target.value))} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label><label className="text-sm">Due Date<br/><input type="date" value={chDue} onChange={e=>setChDue(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label></div>
                 <label className="block text-sm mt-3">Description<br/><textarea value={chDesc} onChange={e=>setChDesc(e.target.value)} rows={2} className="mt-1 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/></label>
-                <button disabled={busy} onClick={rollRandomChallenge} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">🎲 Surprise Me — Roll a Random Challenge</button>
                 <button disabled={busy} onClick={saveChallenge} className="mt-3 w-full min-h-[48px] bg-white/10 border border-white/20 px-4 py-2.5 rounded-full text-sm font-bold disabled:opacity-50">Save Challenge</button>
+                <button onClick={surpriseChallenge} className="mt-2 w-full min-h-[48px] rounded-full border border-[#C9A86A] px-4 py-2.5 text-sm font-bold text-[#C9A86A]">🎲 Surprise Me — Pick a Challenge</button>
               </div>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
