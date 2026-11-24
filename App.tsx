@@ -1,6 +1,6 @@
 import "./index.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, Users, ShieldCheck, Zap, Brain, Home, Bookmark, ArrowLeft, Save, Target, Medal, CreditCard, Sparkles, Trophy, Search, Copy, Eraser, Flame, Dumbbell, BookOpen, Timer, Star, Mic, MicOff, Share2, Library } from "lucide-react";
+import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, Users, ShieldCheck, Zap, Brain, Home, Bookmark, ArrowLeft, Save, Target, Medal, CreditCard, Sparkles, Trophy, Search, Copy, Flame, Dumbbell, BookOpen, Timer, Star, Mic, MicOff, Share2, Library } from "lucide-react";
 import fieldNightUrl from "./field-night.webp";
 import gritIconUrl from "./grit-icon.webp";
 
@@ -192,7 +192,6 @@ export default function App(){
   const [pinInput,setPinInput]=useState("");
   const [loginError,setLoginError]=useState("");
   const [profilePinEdit,setProfilePinEdit]=useState("");
-  const [trainingMotto,setTrainingMotto]=useState("");
   const [pillarMindset,setPillarMindset]=useState("");
   const [pillarDiscipline,setPillarDiscipline]=useState("");
   const [pillarRecordId,setPillarRecordId]=useState<string|null>(null);
@@ -487,8 +486,7 @@ export default function App(){
   const unlockedAthlete = athletes.find(a=>a.id===loggedInAthleteId) || null;
   const isProfileUnlocked = !!selectedAthlete && loggedInAthleteId===selectedAthlete.id;
   const filteredProfileAthletes = useMemo(()=> athletes.filter(a=>a.name.toLowerCase().includes(profileSearch.toLowerCase())).sort((a,b)=>a.name.localeCompare(b.name)),[athletes,profileSearch]);
-  const currentWorkout = useMemo(()=> workouts.find(w=>w.week===week && (w.athleteId===trainingAthlete?.id || w.athlete===trainingAthlete?.name)),[workouts,week,trainingAthlete]);
-  const currentChallenge = useMemo(()=> challenges.find(c=>c.week===week) || challenges[0] || null,[challenges,week]);
+const currentChallenge = useMemo(()=> challenges.find(c=>c.week===week) || challenges[0] || null,[challenges,week]);
   const cardWeeks = useMemo(()=> Array.from(new Set(cards.map(c=>c.week))),[cards]);
   const existingCardForSender = useMemo(()=> cards.find(c=>c.fromId===cardFrom && c.week===week),[cards,cardFrom,week]);
   const homeworkForTraining = useMemo(()=> homeworkRecords.find(h=>h.athleteId===trainingAthlete?.id && h.week===week)?.text || trainingAthlete?.homework || "",[homeworkRecords,trainingAthlete,week]);
@@ -778,15 +776,6 @@ export default function App(){
     }catch(e:any){ setResult(e.message||"Could not save Pillars."); }
     setBusy(false);
   }
-  function duplicateLastWeek(){
-    if(!trainingAthlete){ setResult("Select an athlete first."); return; }
-    const prior = workouts.filter(w=>(w.athleteId===trainingAthlete?.id || w.athlete===trainingAthlete?.name) && w.week!==week).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)))[0];
-    if(!prior){ setResult("No earlier workout for this athlete to duplicate."); return; }
-    setSections({...emptySections(), ...(prior.sections||{})}); setMinutes({...DEFAULT_MINUTES, ...(prior.minutes||{})}); setHomeworkText(prior.homework||""); setResult(`Duplicated last workout (${prior.week}) — edit it, then publish for ${week}.`);
-  }
-  function clearTraining(){ setSections(emptySections()); setMinutes({...DEFAULT_MINUTES}); setBlockNotes({}); setHomeworkText(""); setResult(""); }
-  function loadCurrentWorkout(){ if(!trainingAthlete){ setResult("Select an athlete first."); return; } if(!currentWorkout){ setResult("No published workout for this athlete + week yet."); return; } setSections({...emptySections(), ...(currentWorkout.sections||{})}); setMinutes({...DEFAULT_MINUTES, ...(currentWorkout.minutes||{})}); setHomeworkText(currentWorkout.homework||""); setResult(`Loaded ${currentWorkout.week} for ${currentWorkout.athlete}.`); }
-
   async function saveHomework(){
     if(!trainingAthlete) return;
     setBusy(true);
@@ -900,7 +889,7 @@ export default function App(){
       if(dailyRecordId) await callApi("records.replace",{collection:"grit_daily", id:dailyRecordId, value:{ content, updatedAt:new Date().toISOString() }});
       else { const created = await callApi("records.create",{collection:"grit_daily", value:{ content, updatedAt:new Date().toISOString() }}); if(created?.id) setDailyRecordId(created.id); }
       setDailyContent(content);
-      setResult("“Motivation vs. Discipline | You vs. You” daily list saved — it now shows on the Training page.");
+      setResult("“Motivation vs. Discipline | You vs. You” daily list saved — it now shows on the How Do I Become page.");
       flashSaved();
     }catch(e:any){ setResult(e.message||"Could not save that page."); }
   }
@@ -1113,10 +1102,6 @@ export default function App(){
           </div>
         </div>
         {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
-        <div className="pt-2 text-center">
-          <p className="text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND, MI • TRAIN WITH PURPOSE</p>
-          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9] mt-2">WE ARE.<br/><span className="text-[#C9A86A]">BUILT.</span></p>
-        </div>
       </div>
 
       <main className="relative z-10 mx-auto max-w-[430px] md:max-w-[820px] lg:max-w-[1100px] px-4 pb-[128px] lg:px-8">
@@ -1152,13 +1137,6 @@ export default function App(){
                   <button onClick={()=>goTab("formats")} className="w-full min-h-[44px] rounded-full border border-[#C9A86A]/60 text-[14px] font-bold text-[#C9A86A]">See all programs →</button>
                 </div>}
               </div>
-            </section>
-            <section className="mt-6">
-              <button onClick={()=>goTab("become")} className="block w-full rounded-[26px] border-2 border-[#C9A86A] bg-black/35 px-5 py-6 text-left active:bg-white/10">
-                <p className="font-display font-bold leading-[1.05] text-[clamp(30px,8.5vw,40px)] text-[#F2EFE9]">HOW DO I<br/>BECOME<span className="text-[#C9A86A]">…</span></p>
-                <p className="mt-3 text-[16px] leading-relaxed text-white/90">Faster? Swing harder? Quicker off the bases? Block the D-line better? Change speed &amp; direction quicker?</p>
-                <p className="mt-4 text-[15px] font-bold text-[#C9A86A]">Tap to find out →</p>
-              </button>
             </section>
             <section className="mt-6 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
               <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">THE MONTHLY CHALLENGE • {week.toUpperCase()}</p>
@@ -1224,14 +1202,7 @@ export default function App(){
               </div>
             )}
             {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return null; if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-black/45 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
-            <section className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
-              <h3 className="font-display font-bold leading-[1.1] text-[clamp(24px,7vw,32px)]">Motivation vs. Discipline <span className="text-[#C9A86A]">|</span> You vs. You</h3>
-              <p className="mt-1 text-[12px] font-bold tracking-widest text-white/60">EVERY SINGLE DAY</p>
-              <div className="mt-3 rounded-2xl border border-white/15 bg-black/45 px-4 py-4">
-                {dailyContent ? renderBecomeText(dailyContent) : <p className="text-[15px] leading-relaxed text-white/85">Your coach is laying out what you should be doing every single day — check back soon.</p>}
-              </div>
-              {quoteText && <p className="mt-3 text-center text-[15px] italic leading-relaxed text-white/85">“{quoteText}”</p>}
-            </section>
+            
             {!loggedInAthleteId ? (
               <div>
                 <button onClick={()=>goTab("athletes")} className="mt-5 w-full min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px]">Unlock Your Profile</button>
@@ -1255,18 +1226,6 @@ export default function App(){
               <>
               <p className="text-center font-display text-[clamp(30px,8vw,40px)] font-bold leading-none mt-5">{unlockedAthlete?.name}</p>
               <p className="text-center text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-3">TRAINING PROGRAM</p>
-              <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
-                <label className="text-sm block">Week<br/><input value={week} onChange={e=>setWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
-                <label className="text-sm block mt-3">Motto<br/><input value={trainingMotto} onChange={e=>setTrainingMotto(e.target.value)} className="mt-1 w-full min-h-[48px] bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
-                {trainingAthlete && (trainingAthlete.remember || trainingAthlete.sport || trainingAthlete.ageGroup) ? <div className="mt-3 rounded-xl bg-black/45 border border-white/10 px-3 py-2.5 text-[15px] leading-relaxed">{trainingAthlete.remember ? <span><span className="text-[#D4B483] font-bold">Remember, you are:</span> {trainingAthlete.remember} </span> : null}<span className="text-white/60">{trainingAthlete.sport}{trainingAthlete.ageGroup ? ` • ${trainingAthlete.ageGroup}` : ""}</span></div> : null}
-                <div className="mt-4 flex items-center gap-2 rounded-2xl bg-black/45 border border-white/10 p-3"><CalendarDays size={16} className="text-[#C9A86A] shrink-0"/><p className="text-[13px] text-white/80">{calendarConnected ? "Google Calendar: Connected" : "Google Calendar: Not connected — queued"}{queued>0 && !calendarConnected ? ` • ${queued} queued.` : ""}</p></div>
-                <div className="flex flex-col gap-2 mt-3">
-                  <button onClick={loadCurrentWorkout} className="min-h-[48px] border border-white/25 px-3 py-2 rounded-full text-sm font-semibold">Load This Week’s Workout</button>
-                  <button onClick={duplicateLastWeek} className="min-h-[48px] inline-flex items-center justify-center gap-1 border border-white/25 px-3 py-2 rounded-full text-sm font-semibold"><Copy size={14}/> Duplicate Last Week</button>
-                  <button onClick={clearTraining} className="min-h-[48px] inline-flex items-center justify-center gap-1 border border-white/25 px-3 py-2 rounded-full text-sm font-semibold"><Eraser size={14}/> Clear for New Week</button>
-                  {currentWorkout && <span className="text-xs text-[#D4B483] text-center">Published for {currentWorkout.athlete} • {currentWorkout.week}</span>}
-                </div>
-              </div>
               <div className="grid gap-3 mt-3 md:grid-cols-2">
                 {SECTIONS.map(s=>(
                   <div key={s} className="rounded-2xl border border-white/15 bg-black/35 p-4">
@@ -1516,6 +1475,19 @@ export default function App(){
               </div>
             </div>
           </section>
+            <section className="mt-6 md:col-span-2 lg:col-span-3">
+              <button onClick={()=>goTab("become")} className="block w-full rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-6 text-left active:bg-white/10">
+                <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">HOW DO I BECOME…</p>
+                <p className="font-display font-bold leading-[0.95] mt-3 text-[clamp(46px,13vw,78px)] text-[#F2EFE9]">
+                  <span className="block">HARDER.</span>
+                  <span className="block text-[#C9A86A]">FASTER.</span>
+                  <span className="block">STRONGER.</span>
+                  <span className="block text-[#C9A86A]">QUICKER.</span>
+                  <span className="block">BETTER.</span>
+                </p>
+                <p className="mt-4 text-[15px] font-bold text-[#C9A86A]">Tap to find out →</p>
+              </button>
+            </section>
             </div>
           </>
         ) : view==="become" ? (
@@ -1542,6 +1514,14 @@ export default function App(){
                 )}
                 {renderBecomeVideos(becomeVideos)}
               </div>
+<section className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
+              <h3 className="font-display font-bold leading-[1.1] text-[clamp(24px,7vw,32px)]">Motivation vs. Discipline <span className="text-[#C9A86A]">|</span> You vs. You</h3>
+              <p className="mt-1 text-[12px] font-bold tracking-widest text-white/60">EVERY SINGLE DAY</p>
+              <div className="mt-3 rounded-2xl border border-white/15 bg-black/45 px-4 py-4">
+                {dailyContent ? renderBecomeText(dailyContent) : <p className="text-[15px] leading-relaxed text-white/85">Your coach is laying out what you should be doing every single day — check back soon.</p>}
+              </div>
+              {quoteText && <p className="mt-3 text-center text-[15px] italic leading-relaxed text-white/85">“{quoteText}”</p>}
+            </section>
               <button onClick={()=>goTab("formats")} className="mt-4 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Programs →</button>
             </section>
           </div>
@@ -1706,7 +1686,7 @@ export default function App(){
               </div>
               <textarea value={dailyDraft} onChange={e=>setDailyDraft(e.target.value)} rows={14} placeholder={"## Every single day\n- 10 minutes of footwork\n- 20 swings off the tee\n- …\n\n**No days off from the standard.**"} className="mt-3 w-full bg-black/35 border border-white/15 rounded-lg px-3 py-2.5 text-[14px] leading-relaxed font-mono" />
               <button onClick={saveDaily} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Daily List</button>
-              <p className="text-xs text-white/60 mt-2">Saved to Supabase (grit_daily) — every phone sees it on the Training page.</p>
+              <p className="text-xs text-white/60 mt-2">Saved to Supabase (grit_daily) — every phone sees it on the How Do I Become page.</p>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">Edit “How do I become…” Page</h3>
@@ -1812,7 +1792,7 @@ export default function App(){
       )}
       <footer className="relative z-10 mx-auto max-w-[430px] md:max-w-[820px] lg:max-w-[1100px] px-4 pb-[92px] pt-2 text-center text-xs text-white/65 lg:px-8">
         <button onClick={()=>goTab("formats")} className="min-h-[44px] px-3 font-bold text-[#C9A86A]">Programs</button>
-        <p className="mt-1">The GRIT — We are Built. We are Family. We are Rising. • Ink / Champagne / Bone / Moss</p>
+        <p className="mt-1">The GRIT — We are Family. • Ink / Champagne / Bone / Moss</p>
         <p className="mt-2">Use the Share button in the header to share the GRIT icon.</p>
         {(view==="wall" || view==="coach") && <TinyAddToHomeLink />}
       </footer>
