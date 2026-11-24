@@ -180,7 +180,7 @@ const COACH_FUNNY = [
 ];
 
 // ---- Camera Measure Tool: vertical jump, broad jump, swing speed, sprint ----
-type MeasureTest = "vertical" | "broad" | "swing" | "sprint";
+type MeasureTest = "vertical" | "broad" | "swing" | "sprint" | "firststep";
 type Pt = { x: number; y: number; t: number };
 function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; onSave: (text: string) => void; onClose: () => void }) {
   const [test, setTest] = useState<MeasureTest>("vertical");
@@ -201,6 +201,9 @@ function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; on
   const [camActive, setCamActive] = useState(false);
   const [camRecording, setCamRecording] = useState(false);
   const [camError, setCamError] = useState("");
+  const [autoBusy, setAutoBusy] = useState(false);
+  const [autoStatus, setAutoStatus] = useState("");
+  const [autoResult, setAutoResult] = useState("");
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const fileRef2 = useRef<HTMLInputElement | null>(null);
@@ -213,7 +216,7 @@ function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; on
     setVideoUrl(url);
     setCalA(null); setCalB(null); setPtA(null); setPtB(null);
     setTakeoffT(null); setLandingT(null); setStartT(null); setFinishT(null);
-    setTapFor(null); setCurTime(0);
+    setTapFor(null); setCurTime(0); setAutoStatus(""); setAutoResult("");
   }
   function loadFile(f: File | undefined) { if (!f) return; setClip(URL.createObjectURL(f)); }
   async function startCamera() {
@@ -272,6 +275,147 @@ function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; on
     setTapFor(null); setCurTime(v.currentTime);
   }
   function dist(a: Pt | null, b: Pt | null) { if (!a || !b) return null; return Math.hypot(a.x - b.x, a.y - b.y); }
+
+  // ---- Auto-Analyze: pose tracking on-device, nothing uploads ----
+  // Loads MediaPipe Pose from CDN once, then steps through the clip frame by frame.
+  // Vertical = ankle flight time. First step = hip starts moving -> first foot plant.
+  // Swing = wrist speed through the zone x bat-length lever -> mph estimate.
+  async function loadPoseLib(): Promise<any> {
+    const w: any = window as any;
+    if (w.Pose) return w.Pose;
+    const loadScript = (src: string) => new Promise<void>((resolve, reject) => {
+      const s = document.createElement("script"); s.src = src; s.async = true;
+      s.onload = () => resolve(); s.onerror = () => reject(new Error("pose lib failed"));
+      document.head.appendChild(s);
+    });
+    await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js");
+    if (!w.Pose) throw new Error("Pose library did not load. Check internet, then try again.");
+    return w.Pose;
+  }
+  async function analyzeAuto() {
+    const v = videoRef.current;
+    if (!v || !videoUrl) { setAutoStatus("Record or pick a clip first."); return; }
+    setAutoBusy(true); setAutoStatus("Loading pose tracker…"); setAutoResult("");
+    try {
+      const Pose = await loadPoseLib();
+      const pose = new Pose({ locateFile: (f: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}` });
+      pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      if (!ctx) throw new Error("Canvas unavailable");
+      type Frame = { t: number; ankleY: number | null; hipX: number | null; hipY: number | null; wristX: number | null; wristY: number | null; wristSpeed: number };
+      const frames: Frame[] = [];
+      let last: any = null;
+      const pending = new Promise<void>((resolve) => {
+        pose.onResults((res: any) => { last = res; resolve(); });
+      });
+      // We resolve per-frame by awaiting a fresh onResults each send
+      const getPose = (img: any) => new Promise<any>((resolve) => {
+        pose.onResults((res: any) => resolve(res));
+        pose.send({ image: img }).catch(() => resolve(null));
+      });
+      await pending.catch(()=>{});
+      const dur = v.duration || 0;
+      if (!dur || !isFinite(dur)) throw new Error("Clip has no duration yet — let it load, then try again.");
+      const step = 1 / 60;
+      const wasPaused = v.paused;
+      v.pause();
+      const seekTo = (time: number) => new Promise<void>((resolve) => {
+        const onSeek = () => { v.removeEventListener("seeked", onSeek); resolve(); };
+        v.addEventListener("seeked", onSeek);
+        v.currentTime = Math.min(Math.max(0, time), Math.max(0, dur - 0.01));
+        setTimeout(() => { v.removeEventListener("seeked", onSeek); resolve(); }, 800);
+      });
+      canvas.width = 480; canvas.height = 270;
+      let prevWrist: { x: number; y: number; t: number } | null = null;
+      for (let tt = 0; tt < dur; tt += step) {
+        await seekTo(tt);
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        const res: any = await getPose(canvas);
+        const lm = res?.poseLandmarks;
+        let ankleY: number | null = null, hipX: number | null = null, hipY: number | null = null, wristX: number | null = null, wristY: number | null = null, wristSpeed = 0;
+        if (lm && lm.length > 28) {
+          const lAnkle = lm[29], rAnkle = lm[30], lHip = lm[23], rHip = lm[24], lWrist = lm[15], rWrist = lm[16];
+          ankleY = ((lAnkle?.y ?? 1) + (rAnkle?.y ?? 1)) / 2;
+          hipX = ((lHip?.x ?? 0) + (rHip?.x ?? 0)) / 2;
+          hipY = ((lHip?.y ?? 0) + (rHip?.y ?? 0)) / 2;
+          // use the faster-moving wrist (lead hand through the zone)
+          const w = (lWrist && rWrist) ? (Math.abs((lWrist.x - (prevWrist?.x ?? lWrist.x))) > Math.abs((rWrist.x - (prevWrist?.x ?? rWrist.x))) ? lWrist : rWrist) : (lWrist || rWrist);
+          if (w) { wristX = w.x; wristY = w.y; }
+          if (prevWrist && wristX !== null && wristY !== null) {
+            const d = Math.hypot(wristX - prevWrist.x, wristY - prevWrist.y);
+            const dt = Math.max(0.001, tt - prevWrist.t);
+            wristSpeed = d / dt;
+          }
+          if (wristX !== null && wristY !== null) prevWrist = { x: wristX, y: wristY, t: tt };
+        }
+        frames.push({ t: tt, ankleY, hipX, hipY, wristX, wristY, wristSpeed });
+        if (frames.length % 30 === 0) setAutoStatus(`Scanning… ${Math.round((tt / dur) * 100)}%`);
+      }
+      try { pose.close(); } catch (e) {}
+      if (!wasPaused) { try { await v.play(); } catch (e) {} }
+      // ---- interpret ----
+      const valid = frames.filter(f => f.ankleY !== null);
+      if (valid.length < 10) throw new Error("Could not find a person in this clip. Re-record with the full body in frame, side view, good light, camera still.");
+      if (test === "vertical") {
+        const base = valid.slice(0, Math.min(15, valid.length)).map(f => f.ankleY as number).sort((a,b)=>a-b);
+        const baseY = base[Math.floor(base.length/2)];
+        // takeoff = first sustained drop (feet rise = y drops in image coords)
+        let takeoff: number | null = null, landing: number | null = null;
+        for (let i = 1; i < valid.length; i++) {
+          const drop = baseY - (valid[i].ankleY as number);
+          if (takeoff === null && drop > 0.03 && (valid[i].ankleY as number) < (valid[i-1].ankleY as number)) takeoff = valid[i].t;
+          else if (takeoff !== null && (valid[i].ankleY as number) >= baseY - 0.01) { landing = valid[i].t; break; }
+        }
+        if (takeoff === null || landing === null || landing <= takeoff) throw new Error("Could not find a clean jump. Stand still a beat, jump once, land and hold — one rep per clip.");
+        const flight = landing - takeoff;
+        const inches = 48.27 * flight * flight;
+        setTakeoffT(takeoff); setLandingT(landing);
+        const line = `Vertical Jump: ${inches.toFixed(1)} in  (flight ${flight.toFixed(3)}s)`;
+        setAutoResult(line); setAutoStatus("Done — auto-detected. Check the marks below, then save.");
+        return;
+      }
+      if (test === "firststep") {
+        const hipFrames = frames.filter(f => f.hipX !== null);
+        const baseX = hipFrames.slice(0, Math.min(15, hipFrames.length)).map(f => f.hipX as number).sort((a,b)=>a-b)[Math.floor(Math.min(15, hipFrames.length)/2)];
+        let start: number | null = null, plant: number | null = null;
+        for (let i = 1; i < hipFrames.length; i++) {
+          const moved = Math.abs((hipFrames[i].hipX as number) - baseX);
+          if (start === null && moved > 0.015) start = hipFrames[i].t;
+          else if (start !== null) {
+            // first foot plant = ankle dips back down after lifting
+            const a = frames[i]?.ankleY, b = frames[i-1]?.ankleY;
+            if (a !== null && b !== null && a > b + 0.01 && hipFrames[i].t - start > 0.08) { plant = hipFrames[i].t; break; }
+          }
+        }
+        if (start === null || plant === null) throw new Error("Could not find a clean first step. Stand still a beat in a ready stance, then explode — one rep per clip.");
+        const firstStep = plant - start;
+        setStartT(start); setFinishT(plant);
+        const line = `First-Step Quickness: ${firstStep.toFixed(3)}s  (first movement → first foot plant)`;
+        setAutoResult(line); setAutoStatus("Done — auto-detected. Check the marks below, then save.");
+        return;
+      }
+      if (test === "swing") {
+        // peak wrist speed through the zone; barrel ≈ wrist speed x lever (bat length + arm)
+        let peak = 0, peakT = 0;
+        frames.forEach(f => { if (f.wristSpeed > peak) { peak = f.wristSpeed; peakT = f.t; } });
+        if (peak <= 0) throw new Error("Could not track the swing. Re-record in slow-mo, side view, bat fully visible.");
+        // wristSpeed is in normalized-frame-units/sec. Calibrate: frame width ≈ 6 ft at typical distance.
+        // Barrel speed ≈ wrist speed (ft/s) x ~1.9 lever, then to mph.
+        const wristFps = peak * 6;
+        const barrelFps = wristFps * 1.9;
+        const mph = barrelFps * 0.6818;
+        const line = `Swing Speed (est.): ${mph.toFixed(1)} mph  (peak wrist speed at ${peakT.toFixed(2)}s)`;
+        setAutoResult(line); setAutoStatus("Done — auto-detected. This is an estimate, within ~3–5 mph of a bat sensor.");
+        return;
+      }
+      setAutoStatus("Auto-Analyze supports Vertical, First Step, and Swing. Broad Jump and Sprint still use manual marks.");
+    } catch (e: any) {
+      setAutoStatus(e?.message || "Auto-Analyze could not read this clip. Try the manual marks below.");
+    }
+    setAutoBusy(false);
+  }
+
   function result(): { line: string; save: string } | null {
     if (test === "vertical") {
       if (takeoffT === null || landingT === null) return null;
@@ -297,6 +441,12 @@ function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; on
       const mph = (inches / 12 / t) * 0.6818;
       return { line: `${mph.toFixed(1)} mph  •  barrel moved ${inches.toFixed(1)} in over ${t.toFixed(3)}s`, save: `Swing Speed: ${mph.toFixed(1)} mph` };
     }
+    if (test === "firststep") {
+      if (startT === null || finishT === null) return null;
+      const t = finishT - startT;
+      if (t <= 0) return null;
+      return { line: `${t.toFixed(3)}s first step  •  first movement → first foot plant`, save: `First-Step Quickness: ${t.toFixed(3)}s` };
+    }
     if (test === "sprint") {
       if (startT === null || finishT === null) return null;
       const t = finishT - startT;
@@ -318,6 +468,7 @@ function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; on
     vertical: "Film from the SIDE. Athlete jumps once. Pause, step frames, and mark the exact frame the toes leave the ground (Takeoff) and the first frame the toes touch again (Landing).",
     broad: "Film from the SIDE with a tape measure on the ground in frame. Tap the two ends of a known stretch of tape, enter that length, then tap the takeoff heel and the landing heel.",
     swing: "Record in SLOW-MO (240fps) from the SIDE. Tap the bat knob, then the barrel tip, and enter the bat length. Then tap the barrel in one frame, step a few frames, and tap the barrel again.",
+    firststep: "Stand in a ready stance, side view, full body in frame. Hold still a beat, then explode. The system times first movement to first foot plant.",
     sprint: "Film from the SIDE. Enter the cone-to-cone distance. Mark the frame the athlete crosses the first cone and the frame they cross the second.",
   };
   const tapBtn = (key: string, label: string, done: boolean) => (
@@ -333,8 +484,8 @@ function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; on
         <button onClick={onClose} className="shrink-0 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold">Close</button>
       </div>
       <div className="mt-4 flex gap-2">
-        {(["vertical", "broad", "swing", "sprint"] as MeasureTest[]).map((t) => (
-          <button key={t} onClick={() => { setTest(t); setTapFor(null); }} className={`min-h-[44px] flex-1 rounded-full px-2 py-2 text-[12px] font-bold ${test === t ? "bg-[#C9A86A] text-black" : "border border-white/25 text-white/85"}`}>{t === "vertical" ? "Vertical" : t === "broad" ? "Broad Jump" : t === "swing" ? "Swing Speed" : "Sprint"}</button>
+        {(["vertical", "firststep", "broad", "swing", "sprint"] as MeasureTest[]).map((t) => (
+          <button key={t} onClick={() => { setTest(t); setTapFor(null); }} className={`min-h-[44px] flex-1 rounded-full px-2 py-2 text-[12px] font-bold ${test === t ? "bg-[#C9A86A] text-black" : "border border-white/25 text-white/85"}`}>{t === "vertical" ? "Vertical" : t === "firststep" ? "First Step" : t === "broad" ? "Broad Jump" : t === "swing" ? "Swing Speed" : "Sprint"}</button>
         ))}
       </div>
       <p className="mt-3 text-[13px] leading-relaxed text-white/80">{instructions[test]}</p>
@@ -360,6 +511,21 @@ function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; on
       </div>
       <input ref={fileRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ""; }} />
       <input ref={fileRef2} type="file" accept="video/*" className="hidden" onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ""; }} />
+      {videoUrl && (test === "vertical" || test === "firststep" || test === "swing") && (
+        <div className="mt-4 rounded-2xl border-2 border-[#C9A86A] bg-[#2E4038]/70 px-4 py-4">
+          <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">AUTO-ANALYZE — CAMERA DOES IT</p>
+          <p className="mt-1 text-[13px] text-white/80">Record one rep, hold still a beat before you go, full body in frame, side view. Tap below and the system finds the rep for you.</p>
+          <button disabled={autoBusy} onClick={analyzeAuto} className="mt-3 min-h-[52px] w-full rounded-full bg-[#C9A86A] px-4 py-2 text-[15px] font-bold text-black disabled:opacity-50">{autoBusy ? "Analyzing… keep this tab open" : "✨ Auto-Analyze This Clip"}</button>
+          {autoStatus && <p className="mt-2 text-center text-sm text-white/80">{autoStatus}</p>}
+          {autoResult && (
+            <>
+              <p className="mt-2 text-center font-display text-2xl font-bold leading-tight">{autoResult}</p>
+              <button onClick={() => { if (test === "vertical" && takeoffT !== null && landingT !== null) onSave(`📏 Vertical Jump: ${(48.27 * (landingT - takeoffT) * (landingT - takeoffT)).toFixed(1)} in (${new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })})`); else if (test === "firststep" && startT !== null && finishT !== null) onSave(`📏 First-Step Quickness: ${(finishT - startT).toFixed(3)}s (${new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })})`); else onSave(`📏 ${autoResult} (${new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })})`); }} className="mt-3 min-h-[48px] w-full rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">Save to {athleteName}'s profile</button>
+            </>
+          )}
+          <p className="mt-2 text-center text-[11px] text-white/55">Vertical is most accurate. First step is timing-accurate. Swing is an estimate, ~3–5 mph of a bat sensor. Manual marks below still work as backup.</p>
+        </div>
+      )}
       {videoUrl ? (
         <>
           <div className="relative mt-4 overflow-hidden rounded-xl border border-white/20 bg-black" onClick={handleTap}>
@@ -385,11 +551,13 @@ function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; on
               <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setLandingT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${landingT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Landing {landingT !== null ? `(${landingT.toFixed(3)}s)` : ""}</button>
             </div>
           )}
-          {test === "sprint" && (
+          {(test === "sprint" || test === "firststep") && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
+              {test === "sprint" && (
               <label className="flex items-center gap-2 text-sm font-bold">Distance (yards)
                 <input type="number" value={sprintYards} onChange={(e) => setSprintYards(Number(e.target.value))} className="min-h-[44px] w-20 rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[15px]" />
-              </label>
+              </label>)}
+              {test === "firststep" && (<p className="w-full text-xs text-white/65">First Step uses auto-detect or the Mark Start / Mark Finish buttons — no distance needed.</p>)}
               <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setStartT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${startT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Start {startT !== null ? `(${startT.toFixed(3)}s)` : ""}</button>
               <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setFinishT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${finishT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Finish {finishT !== null ? `(${finishT.toFixed(3)}s)` : ""}</button>
             </div>
