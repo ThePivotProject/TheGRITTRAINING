@@ -1,9 +1,17 @@
 import "./index.css";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquareText, X, ChevronRight, CalendarDays, Check, Plus, Trash2, Users, ShieldCheck, Zap, Brain, Home, Bookmark, ArrowLeft, Save, Target, Medal, CreditCard, Sparkles, Trophy, Search, Copy, Eraser, Flame, Dumbbell, BookOpen, Timer, Star, Mic, MicOff, Share2 } from "lucide-react";
+import bgUrl from "./sprinter.webp";
 import fieldNightUrl from "./field-night.webp";
 import gritIconUrl from "./grit-icon.webp";
 
+function GritIcon({ size = 44, rounded = 10 }: { size?: number; rounded?: number }) {
+  return (
+    <span className="relative block shrink-0 overflow-hidden bg-[#111111]" style={{ width: size, height: size, borderRadius: rounded, boxShadow: "none", filter: "none", outline: "none" }} aria-hidden="true">
+      <img src={gritIconUrl} alt="" className="absolute max-w-none" style={{ width: "127.6%", height: "128.2%", left: "-13.8%", top: "-14.1%", boxShadow: "none", filter: "none" }} />
+    </span>
+  );
+}
 async function croppedGritPng(size = 1024): Promise<Blob> {
   const img = new Image();
   img.src = gritIconUrl;
@@ -70,12 +78,6 @@ async function callApi(action: string, args: any): Promise<any> {
   throw new Error(`Unknown action: ${action}`);
 }
 const SECTIONS = ["Dynamic Stretch |","Core |","Main Lift |","Speed and Agility |"];
-const WAYS_TO_TRAIN = [
-  {t:"GRIT Athlete — 1-on-1", d:"Individual training built around one athlete: acceleration, first-step quickness, changing direction, velocity, and explosive movement."},
-  {t:"GRIT Team", d:"Whole teams. 6–8 weeks of physical and mental strength and resilience, built together."},
-  {t:"GRIT on Turf", d:"One hour on the turf: acceleration, first-step quickness, changing direction, velocity, explosive movement."},
-  {t:"GRIT Accountability", d:"For adults and parents. Real movement on limited time, with someone holding you to it."},
-];
 const DEFAULT_MINUTES: Record<string,string> = {"Dynamic Stretch |":"","Core |":"","Main Lift |":"","Speed and Agility |":""};
 const emptySections = () => Object.fromEntries(SECTIONS.map(s=>[s,""]));
 function safeId(){ return typeof crypto!=="undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`; }
@@ -84,12 +86,13 @@ const placeholderAthletes = (): AthleteProfile[] => {
   return [...ROSTER_NAMES].sort((a,b)=>a.localeCompare(b)).map((name,i)=>({ id:`local-${i+1}`, name, sport:"", position:"", lookUp:"", ageGroup:"", motto:"", remember:"", homework:"", mindset:"", gratitude:"", nonNegotiables:"", disciplineDone:[], pin:"", focus:"", createdAt:new Date().toISOString(), startDate:"", program:"", trainingSections:emptySections(), trainingMinutes:{...DEFAULT_MINUTES}, trainingNotes:{}, progress_doc_url:"", progress_notes:"", progress_notes_last_synced:"" }));
 };
 
-type View = "origin"|"wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"coachLock"|"homework"|"impact"|"become";
+type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become";
 const TABS: {id:View; label:string; icon:any}[] = [
   {id:"athletes", label:"Your GRIT Profile", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
   {id:"homework", label:"Homework", icon: BookOpen},
   {id:"pillars", label:"Mindset & Impact", icon: Brain},
+  {id:"coach", label:"Coaches", icon: ShieldCheck},
 ];
 const SUPABASE_SQL = `-- GRIT Supabase setup — run the WHOLE file at once in Supabase > SQL Editor.
 -- Idempotent: safe to re-run. Athletes is created FIRST, before anything that references it.
@@ -134,19 +137,20 @@ create policy "grit_read" on public.grit_cards for select using (true);
 create policy "grit_write" on public.grit_cards for all using (true) with check (true);`;
 
 function PhotoBackground({ view }: { view?: string }){
-  // SKIN: field-night photo on EVERY page, under the squared-off glass boxes.
-  // Light scrim so the photo shows — the frosted glass cards carry the readability.
+  const bg = view === "wall" ? fieldNightUrl : bgUrl;
   return (
     <div className="fixed inset-0 z-0 overflow-hidden bg-[#0F1113]" aria-hidden="true">
-      <img src={fieldNightUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
-      <div className="absolute inset-0 bg-black/35" />
-      <div className="absolute inset-0" style={{background:"linear-gradient(180deg, rgba(15,17,19,.45) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.15) 82%, rgba(15,17,19,.50) 100%)"}} />
+      <img src={bg} alt="" className="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl" />
+      <img src={bg} alt="" className="absolute inset-0 h-full w-full object-contain bg-[#0F1113] lg:object-cover lg:object-center" />
+      <div className="absolute inset-0" style={{background:"linear-gradient(90deg, rgba(15,17,19,.72) 0%, rgba(15,17,19,.08) 18%, rgba(15,17,19,0) 50%, rgba(15,17,19,.08) 82%, rgba(15,17,19,.72) 100%), linear-gradient(180deg, rgba(15,17,19,.55) 0%, rgba(15,17,19,.05) 22%, rgba(15,17,19,0) 48%, rgba(15,17,19,.18) 82%, rgba(15,17,19,.58) 100%)"}} />
     </div>
   );
-}declare global { interface Window { SpeechRecognition?: any; webkitSpeechRecognition?: any; } }
+}
+
+declare global { interface Window { SpeechRecognition?: any; webkitSpeechRecognition?: any; } }
 
 export default function App(){
-  const [view,setView]=useState<View>("origin");
+  const [view,setView]=useState<View>("wall");
   const [workouts,setWorkouts]=useState<Workout[]>([]);
   const [athletes,setAthletes]=useState<AthleteProfile[]>(placeholderAthletes());
   const [selectedAthleteId,setSelectedAthleteId]=useState<string|null>(null);
@@ -164,256 +168,6 @@ export default function App(){
   const [sections,setSections]=useState<Record<string,string>>(emptySections());
   const [minutes,setMinutes]=useState<Record<string,string>>({...DEFAULT_MINUTES});
   const [blockNotes,setBlockNotes]=useState<Record<string,string>>({});
-  // --- Training check-in (MacBook / TV) ---
-  const [checkinGrateful,setCheckinGrateful]=useState(()=>{ try{ return localStorage.getItem("grit:checkinGrateful")||""; }catch{ return ""; } });
-  const [checkinProud,setCheckinProud]=useState(()=>{ try{ return localStorage.getItem("grit:checkinProud")||""; }catch{ return ""; } });
-  const [checkinGritness,setCheckinGritness]=useState<number|null>(()=>{ try{ const v=localStorage.getItem("grit:checkinGritness"); return v?Number(v):null; }catch{ return null; } });
-  const [checkinChecks,setCheckinChecks]=useState<Record<string,boolean>>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:checkinChecks")||"{}"); }catch{ return {}; } });
-  const [checkinSavedMsg,setCheckinSavedMsg]=useState("");
-  useEffect(()=>{ try{ localStorage.setItem("grit:checkinGrateful", checkinGrateful); }catch{} },[checkinGrateful]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:checkinProud", checkinProud); }catch{} },[checkinProud]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:checkinGritness", checkinGritness==null?"":String(checkinGritness)); }catch{} },[checkinGritness]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:checkinChecks", JSON.stringify(checkinChecks)); }catch{} },[checkinChecks]);
-  // --- Generated circuits: sport-specific (softball / baseball / football / general), ages 11-17 elite.
-  // Coach-written plan for a pillar always wins — the bank only fills pillars Coach left blank.
-  // Variants rotate: you never get the same variant twice in a row, and the set cycles before anything repeats.
-  const PILLARS4 = ["Dynamic Stretch","Core","Main Lift","Speed and Agility"];
-  type SportKey = "softball"|"baseball"|"football"|"general";
-  const SPORT_LABELS: Record<SportKey,string> = { softball:"Softball", baseball:"Baseball", football:"Football", general:"General" };
-  const normalizeSport = (s:string): SportKey => { const v=(s||"").toLowerCase(); if(v.includes("softball")) return "softball"; if(v.includes("baseball")) return "baseball"; if(v.includes("football")) return "football"; return "general"; };
-  // A FEW EXTRAS — mixed in at the end of each pool so the generator stays mostly Coach's list, with some variety.
-  const EXTRA_STRETCH: string[] = ["World's greatest stretch — 4 per side, hold 3 sec","Inchworms — 6, slow + controlled"];
-  const EXTRA_CORE: string[] = ["Dead bug — 10 per side, low back stays down","Bird dog — 8 per side, hold 3 sec"];
-  const EXTRA_MAIN: string[] = ["Glute bridge with pause — 3 × 8, squeeze at top","Single-arm dumbbell row — 3 × 8 per side"];
-  const EXTRA_AGILITY: string[] = ["A-skips — 2 × 15 yards","Lateral shuffles — 2 × 10 yards each way, stay low"];
-  // COACH'S EXERCISE LISTS — the generated circuits draw from these. Names are Coach's own.
-  // Each tier reuses the same exercises with tier-appropriate volume: reset = slow/light, build = controlled, attack = hard/fast.
-  const COACH_STRETCH: Record<string,string[]> = {
-    reset: ["Pigeon Pose — hold 20 sec per side, easy","Flexor Slow Lunge forward — 6 per side, slow","Elevated 4 point golden ticket stretch — 20 sec per side","Speed stretch (Calf and Achilles) — 20 sec each, easy","Shoulders on smith — 20 sec, easy"],
-    build: ["Pigeon Pose — hold 30 sec per side","Flexor Slow Lunge forward — 8 per side","Elevated 4 point golden ticket stretch — 30 sec per side","Speed stretch (Calf and Achilles) — 30 sec each","Shoulders on smith — 30 sec"],
-    attack: ["Pigeon Pose — hold 30 sec per side, drive into it","Flexor Slow Lunge forward — 8 per side, full range","Elevated 4 point golden ticket stretch — 30 sec per side","Speed stretch (Calf and Achilles) — 30 sec each, deep","Shoulders on smith — 30 sec, open up"],
-  };
-  const COACH_CORE: Record<string,string[]> = {
-    reset: ["Planks — 3 × 20 sec","Heel Taps — 2 × 10 per side, slow","Hollow Body Hold — 3 × 10 sec","Flutter Kicks — 15 seconds","Staggered Sit Ups — 2 × 8, slow","All the way up and side to side! — 2 × 6, controlled"],
-    build: ["Planks — 3 × 30 sec","Plank Leg Drops — 3 × 8 per side","Hollow Body Raise — 3 × 8","Flutter Kicks — 20 seconds","Russian Twists — 3 × 12 per side","Staggered Sit Ups — 3 × 10"],
-    attack: ["Flutter Kicks — 30 seconds","Candlesticks! — 3 × 6","The Ferris Wheel Ball Transfer — 3 × 8","Windshield Wipers — 3 × 8 per side","Kneeling Landmine Core Half Rotations — 3 × 8 per side","Hollow Body Hold — 3 × 20 sec, brace hard"],
-  };
-  const COACH_MAIN: Record<string,string[]> = {
-    reset: ["Goblet Squat Elevators — 2 × 6, slow down, perfect form","Dumbbell RDL Single Leg — 2 × 6 per side, light","Face Pulls — 2 × 12","Resistance Band Back Flys — 2 × 12","Calf Raises 3 Ways! — 10 each way, controlled","Low KB Hip Flex — 2 × 8 per side","Curtsey Squats — 2 × 6 per side, bodyweight","Standing Hip Squats — 2 × 8"],
-    build: ["Goblet Squat Elevators — 3 × 6","Trap Bar B Stance Deadlift — 3 × 6 per side","Dumbbell RDL Single Leg — 3 × 6 per side","Lat Pulldowns — 3 × 10","Close Grip Lat Pulldowns — 3 × 10","Stomp Squats — 3 × 8","Reverse Lunge to Knee Up — 3 × 6 per side","Chest Flys — 3 × 10"],
-    attack: ["Trap Bar Squats — 4 × 5, drive every rep","Trap Bar Gauntlet! — all out, finish it","Front Squats — 4 × 5","Battle Rope! — 3 × 20 sec, all out","Jumping Lunges — 3 × 6 per side","Stomp Shoulder Press — 3 × 8","The Pitchers Press 3 Ways — 3 × 8 each way","Farmers Carries — 3 × 30 yards, heavy","Grip and Hit Curls 3 ways! — 3 × 8 each way","Shoulders 3 Ways — 3 × 8 each way","Single Arm Lat Pulldowns — 3 × 8 per side","Iso Trap Bar Holds — 3 × 15 sec, brace hard"],
-  };
-  const COACH_AGILITY: Record<string,string[]> = {
-    reset: ["Hamstring back Walks — 2 × 20 yards, slow","Heel Walks — 2 × 20 yards","Calf Raise in Lunge — 2 × 8 per side","Line Hops — 2 × 15 sec, easy","Pogo Hops — 2 × 15 sec, soft landings","Lateral Bounds — 2 × 6 per side, stick the landing"],
-    build: ["U-Drill — 3 reps, 90%","5-10-5 Drill — 3 reps","First Step Drill — 6 reps","Line Hops — 3 × 20 sec","Single Leg Line Hops — 2 × 10 sec per leg","Box Jumps — 3 × 5, stick the landing"],
-    attack: ["U-Drill — 4 reps, all out","5-10-5 Drill — 4 reps, all out","Over the shoulder runs — 4 reps","Seated Box Caroms — 3 × 5","Hurdle Lateral drive hops — 3 × 6 per side","Studder Steps to CID — 4 reps","Single Leg Hop Ups — 3 × 5 per leg","Pogo Jumps — 3 × 10 sec, quick feet"],
-  };
-  // Agility keeps one sport-specific finisher per sport on top of Coach's list.
-  const SPEED_BANK: Record<SportKey, Record<string,string[]>> = {
-    softball: { reset: [...COACH_AGILITY.reset, ...EXTRA_AGILITY, "Base-running footwork walk-through — 60 ft, easy"], build: [...COACH_AGILITY.build, ...EXTRA_AGILITY, "Home-to-first sprints — 4 × 60 ft, 90%"], attack: [...COACH_AGILITY.attack, ...EXTRA_AGILITY, "Home-to-first — 5 × 60 ft, all out"] },
-    baseball: { reset: [...COACH_AGILITY.reset, ...EXTRA_AGILITY, "Lead-off footwork walk-through — easy, clean jumps"], build: [...COACH_AGILITY.build, ...EXTRA_AGILITY, "Home-to-first sprints — 4 × 90 ft, 90%"], attack: [...COACH_AGILITY.attack, ...EXTRA_AGILITY, "Home-to-first — 5 × 90 ft, all out"] },
-    football: { reset: [...COACH_AGILITY.reset, ...EXTRA_AGILITY, "Stance + first-step walk-through — easy, no contact"], build: [...COACH_AGILITY.build, ...EXTRA_AGILITY, "Route footwork: slant + out — 4 reps each, 90%"], attack: [...COACH_AGILITY.attack, ...EXTRA_AGILITY, "Change-of-direction: 5-yard burst + cut — 6 reps, no contact"] },
-    general: { reset: [...COACH_AGILITY.reset, ...EXTRA_AGILITY, "Easy footwork ladder — 2 passes, smooth"], build: [...COACH_AGILITY.build, ...EXTRA_AGILITY, "Short sprints — 4 × 15 yards, 90%"], attack: [...COACH_AGILITY.attack, ...EXTRA_AGILITY, "Sprints — 5 × 15 yards, all out"] },
-  };
-  const stretchFor = (sport:SportKey, tier:string): string[] => {
-    const base = [...(COACH_STRETCH[tier] || COACH_STRETCH.build), ...EXTRA_STRETCH];
-    if(tier==="attack") return base;
-    const last = sport==="softball" ? "Pitching arm circles + wrist snaps — 10 each" : sport==="baseball" ? "Throwing arm circles + wrist snaps — 10 each" : "Arm circles + band pull-aparts — 10 each";
-    return [...base, last];
-  };
-  const BANK: Record<SportKey, Record<"reset"|"build"|"attack", Record<string,string[]>>> = (["softball","baseball","football","general"] as SportKey[]).reduce((acc,sport)=>{
-    (["reset","build","attack"] as const).forEach(tier=>{
-      acc[sport] = acc[sport] || {} as any;
-      acc[sport][tier] = { "Dynamic Stretch": stretchFor(sport,tier), "Core": [...COACH_CORE[tier], ...EXTRA_CORE], "Main Lift": [...COACH_MAIN[tier], ...EXTRA_MAIN], "Speed and Agility": SPEED_BANK[sport][tier] };
-    });
-    return acc;
-  }, {} as Record<SportKey, Record<"reset"|"build"|"attack", Record<string,string[]>>>);
-  const CIRCUIT_FOCUS: Record<string, Record<string,string>> = {
-    reset: {"Dynamic Stretch":"Injury prevention • slow + controlled","Core":"Brace + breathe — no rushing","Main Lift":"Technique only — light or bodyweight","Speed and Agility":"Footwork, not speed — stay smooth"},
-    build: {"Dynamic Stretch":"Prep to move — full range","Core":"Strong middle, every rep","Main Lift":"Coach's lift, done right","Speed and Agility":"Quick feet, clean stops"},
-    attack: {"Dynamic Stretch":"Explode-ready — fast + full","Core":"Brace hard, move fast","Main Lift":"Power + strength","Speed and Agility":"Game speed — compete every rep"},
-    noexcuses: {"Dynamic Stretch":"No excuses — still warm up right","Core":"Brace hard — no coasting","Main Lift":"Harder than Attack. Every rep.","Speed and Agility":"All out — no coasting"},
-  };
-  const NOEXCUSES_EXTRA: Record<string,string> = {"Dynamic Stretch":"Burpees — 5, then right back in","Core":"Plank hold — 30 sec, no dropping","Main Lift":"One more set than Attack — 5 × 5","Speed and Agility":"One extra sprint — all out"};
-  const CIRCUIT_META: Record<string,{name:string;tag:string;color:string;desc:string}> = {
-    reset: {name:"RESET CIRCUIT",tag:"1–2 • RESET",color:"text-[#D4B483]",desc:"Low battery, not low standards. Slow it down, breathe, move clean, rebuild. Injury prevention first, then dynamic stretch + core. Leave feeling better than you walked in."},
-    build: {name:"BUILD CIRCUIT",tag:"3 • BUILD",color:"text-[#C9A86A]",desc:"Steady and locked in. Technique first, then strength. Controlled tempo, full range, finish every rep."},
-    attack: {name:"ATTACK CIRCUIT",tag:"4–5 • ATTACK",color:"text-[#C9A86A]",desc:"You came to work. High intent, explosive, push the pace. Whatever it is, we're doing it — all out, no coasting."},
-    noexcuses: {name:"NO EXCUSES CIRCUIT",tag:"1–2 • NO GOOD REASON",color:"text-[#FF6B5E]",desc:"No good reason? Then we don't get an easy day — we get the hardest one. Harder than Attack. More reps, more sprints, no coasting. This is the GRIT part."},
-  };
-  function buildCircuitVariant(sport:SportKey, tier:"reset"|"build"|"attack"|"noexcuses", variant:number){
-    const base = tier==="noexcuses" ? "attack" as const : tier;
-    const meta = CIRCUIT_META[tier];
-    return { ...meta, variant, sport, tier,
-      steps: PILLARS4.map(pillar=>{
-        const bank = BANK[sport][base][pillar] || BANK.general[base][pillar];
-        const rot = bank.map((_,i)=>bank[(i+variant)%bank.length]);
-        const items = rot.slice(0,3);
-        if(tier==="noexcuses") items.push(NOEXCUSES_EXTRA[pillar]);
-        return { pillar, focus: CIRCUIT_FOCUS[tier][pillar], items };
-      }),
-    };
-  }
-  // --- Circuit state: sport, 1-2 follow-up, rotation (no repeats) ---
-  const [circuitSport,setCircuitSport]=useState<SportKey>(() => { try{ return (localStorage.getItem("grit:circuitSport") as SportKey) || "softball"; }catch{ return "softball"; } });
-  const [lowReason,setLowReason]=useState<"yes"|"no"|null>(() => { try{ return (localStorage.getItem("grit:lowReason") as any) || null; }catch{ return null; } });
-  const [circuitVariant,setCircuitVariant]=useState<number>(0);
-  const [circuitHistory,setCircuitHistory]=useState<string[]>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:circuitHistory")||"[]"); }catch{ return []; } });
-  useEffect(()=>{ try{ localStorage.setItem("grit:circuitSport", circuitSport); }catch{} },[circuitSport]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:lowReason", lowReason||""); }catch{} },[lowReason]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:circuitHistory", JSON.stringify(circuitHistory.slice(-30))); }catch{} },[circuitHistory]);
-  // Sport comes from the picker above the GRITNESS scale (defaults to Softball). Coach-written plans still win per pillar.
-  function selectGritness(n:number){ setCheckinGritness(n); setLowReason(null); setCircuitChecks({}); }
-  const tierKey: "reset"|"build"|"attack"|"noexcuses"|"ask"|null = checkinGritness==null ? null : checkinGritness<=2 ? (lowReason==null ? "ask" : lowReason==="yes" ? "reset" : "noexcuses") : checkinGritness===3 ? "build" : "attack";
-  const tierSportKey = tierKey && tierKey!=="ask" ? `${circuitSport}-${tierKey}` : "";
-  useEffect(()=>{
-    if(!tierKey || tierKey==="ask") return;
-    const recent = circuitHistory.filter(h=>h.startsWith(tierSportKey)).slice(-2);
-    let next = [0,1,2].find(v=>!recent.includes(`${tierSportKey}-v${v}`));
-    if(next==null) next = (circuitVariant+1)%3;
-    setCircuitVariant(next);
-    setCircuitHistory(prev=>[...prev, `${tierSportKey}-v${next}`].slice(-30));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[tierSportKey]);
-  const checkinCircuit = tierKey && tierKey!=="ask" ? buildCircuitVariant(circuitSport, tierKey, circuitVariant) : null;
-  const [circuitChecks,setCircuitChecks]=useState<Record<string,boolean>>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:circuitChecks")||"{}"); }catch{ return {}; } });
-  // Training page: Coach Checklist is hidden from athletes — tiny button at the top + Coach PIN opens it.
-  const [coachChecklistOpen,setCoachChecklistOpen]=useState(false);
-  const [coachChecklistAskPin,setCoachChecklistAskPin]=useState(false);
-  const [coachChecklistPin,setCoachChecklistPin]=useState("");
-  const [coachChecklistError,setCoachChecklistError]=useState("");
-  // CHECKLIST Q1 — "Who are you and why are you GRITTY?" — voice answer, scored 1–10 on loudness + steadiness + how long they keep talking.
-  // Scoring is a mic proxy, not a mind-reader: volume + peak + speaking time + steadiness. Coach can nudge the score up or down.
-  const [grittyScore,setGrittyScore]=useState<number|null>(()=>{ try{ const v=localStorage.getItem("grit:grittyScore"); return v?parseInt(v,10):null; }catch{ return null; } });
-  const [grittyHeard,setGrittyHeard]=useState<string>(()=>{ try{ return localStorage.getItem("grit:grittyHeard")||""; }catch{ return ""; } });
-  const [grittyListening,setGrittyListening]=useState(false);
-  const [grittyLevel,setGrittyLevel]=useState(0);
-  const [grittyStatus,setGrittyStatus]=useState("");
-  const [grittyBreakdown,setGrittyBreakdown]=useState<{volume:number;peak:number;time:number;steady:number}|null>(null);
-  const grittyRefs=useRef<{stream:any;ctx:any;analyser:any;raf:number;timer:any;samples:number[];rec:any}|null>(null);
-  useEffect(()=>{ try{ if(grittyScore==null) localStorage.removeItem("grit:grittyScore"); else localStorage.setItem("grit:grittyScore", String(grittyScore)); }catch{} },[grittyScore]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:grittyHeard", grittyHeard); }catch{} },[grittyHeard]);
-  function scoreGritty(samples:number[]){
-    const speaking=samples.filter(v=>v>0.02);
-    const speakTime=speaking.length*0.1;
-    const avg=speaking.length?speaking.reduce((a,b)=>a+b,0)/speaking.length:0;
-    const peak=samples.length?Math.max(...samples):0;
-    const sd=speaking.length?Math.sqrt(speaking.reduce((a,b)=>a+(b-avg)*(b-avg),0)/speaking.length):0;
-    const steadiness=speaking.length?Math.max(0,1-Math.min(1,sd/Math.max(avg,0.001))):0;
-    const volumePts=Math.min(4,(avg/0.12)*4);
-    const peakPts=Math.min(2,(peak/0.30)*2);
-    const timePts=Math.min(2,(speakTime/6)*2);
-    const steadyPts=steadiness*2;
-    const total=Math.max(1,Math.min(10,Math.round(volumePts+peakPts+timePts+steadyPts)));
-    return {total, breakdown:{volume:volumePts,peak:peakPts,time:timePts,steady:steadyPts}};
-  }
-  async function startGrittyListen(){
-    if(grittyListening) return;
-    setGrittyStatus(""); setGrittyBreakdown(null); setGrittyHeard("");
-    try{
-      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      const AC=(window as any).AudioContext||(window as any).webkitAudioContext;
-      const ctx=new AC();
-      const src=ctx.createMediaStreamSource(stream);
-      const analyser=ctx.createAnalyser(); analyser.fftSize=2048; src.connect(analyser);
-      const data=new Uint8Array(analyser.fftSize);
-      const samples:number[]=[];
-      let rec:any=null;
-      try{
-        const SR=(window as any).SpeechRecognition||(window as any).webkitSpeechRecognition;
-        if(SR){ rec=new SR(); rec.continuous=true; rec.interimResults=true; rec.lang="en-US";
-          let heard="";
-          rec.onresult=(ev:any)=>{ for(let i=ev.resultIndex;i<ev.results.length;i++){ if(ev.results[i].isFinal) heard+=ev.results[i][0].transcript+" "; } setGrittyHeard(heard.trim()); };
-          rec.onerror=()=>{};
-          rec.start();
-        }
-      }catch{}
-      const refs={stream,ctx,analyser,raf:0,timer:null as any,samples,rec};
-      grittyRefs.current=refs;
-      const tick=()=>{
-        analyser.getByteTimeDomainData(data);
-        let sum=0; for(let i=0;i<data.length;i++){ const v=(data[i]-128)/128; sum+=v*v; }
-        const rms=Math.sqrt(sum/data.length);
-        samples.push(rms);
-        setGrittyLevel(Math.min(100,Math.round(rms*400)));
-        refs.raf=requestAnimationFrame(tick);
-      };
-      refs.raf=requestAnimationFrame(tick);
-      refs.timer=setTimeout(()=>{ stopGrittyListen(); }, 12000);
-      setGrittyListening(true);
-      setGrittyStatus("Listening — say it like you mean it. Tap STOP when you're done (auto-stops at 12 sec).");
-    }catch{
-      setGrittyStatus("Mic blocked — allow microphone access in the browser, then try again.");
-    }
-  }
-  // CHECKLIST SECOND-TO-LAST — random easy sport question (athlete picks the sport) + random funny-fact question.
-  const SPORT_TRIVIA: Record<string,{q:string;options:string[];answer:number;fact:string}[]> = {
-    softball: [
-      {q:"How many outs does each team get in one half-inning?",options:["1","2","3","4"],answer:2,fact:"3 outs, then the other team bats."},
-      {q:"How many strikes is a strikeout?",options:["1","2","3","4"],answer:2,fact:"3 strikes and you're out!"},
-      {q:"What is it called when the batter hits the ball over the fence?",options:["A double","A bunt","A home run","A foul ball"],answer:2,fact:"Touch 'em all — home run!"},
-      {q:"How many players from one team are on the field at a time?",options:["7","8","9","10"],answer:2,fact:"9 on the field in softball."},
-      {q:"How many balls is a walk?",options:["2","3","4","5"],answer:2,fact:"4 balls — take your base."},
-      {q:"What does the pitcher throw from?",options:["Home plate","The pitching circle","Second base","The dugout"],answer:1,fact:"From the pitching circle."},
-    ],
-    baseball: [
-      {q:"How many strikes is a strikeout?",options:["1","2","3","4"],answer:2,fact:"3 strikes and you're out!"},
-      {q:"How many innings are in a pro baseball game?",options:["5","7","9","12"],answer:2,fact:"9 innings — unless it goes extras."},
-      {q:"What do you call the player who crouches behind home plate?",options:["The pitcher","The catcher","The umpire","The shortstop"],answer:1,fact:"The catcher — the toughest job on the field."},
-      {q:"How many players from one team are on the field at a time?",options:["7","8","9","10"],answer:2,fact:"9 on the field in baseball."},
-      {q:"How many balls is a walk?",options:["2","3","4","5"],answer:2,fact:"4 balls — take your base."},
-      {q:"What is it called when the pitcher throws 3 strikes past a batter?",options:["A walk","A strikeout","A home run","A foul"],answer:1,fact:"Strike three — sit down!"},
-    ],
-    football: [
-      {q:"How many points is a touchdown?",options:["3","6","7","10"],answer:1,fact:"6 points — then kick the extra point."},
-      {q:"How many points is a field goal?",options:["1","2","3","6"],answer:2,fact:"3 points through the uprights."},
-      {q:"How many players from one team are on the field at a time?",options:["9","10","11","12"],answer:2,fact:"11 on the field per team."},
-      {q:"How many downs does the offense get to gain 10 yards?",options:["2","3","4","5"],answer:2,fact:"4 downs to move the chains."},
-      {q:"How many quarters are in a football game?",options:["2","3","4","6"],answer:2,fact:"4 quarters — finish the game."},
-      {q:"What is it called when the defense tackles the quarterback behind the line?",options:["A fumble","An interception","A sack","A blitz"],answer:2,fact:"Sack! Big play by the defense."},
-    ],
-  };
-  const FUNNY_FACTS: {q:string;options:string[];answer:number;fact:string}[] = [
-    {q:"True or false: a group of flamingos is called a flamboyance.",options:["True — it really is!","False — no way","Only in Florida"],answer:0,fact:"True! A flamboyance of flamingos. Best group name ever."},
-    {q:"What do you call a group of owls?",options:["A parliament","A school","A pack"],answer:0,fact:"A parliament of owls. Very serious birds."},
-    {q:"Which animal's fingerprints look almost exactly like a human's?",options:["A koala","A raccoon","A penguin"],answer:0,fact:"Koala fingerprints are so human-like they've confused crime scenes!"},
-    {q:"True or false: honey never goes bad.",options:["True — it lasts forever","False — it expires","Only if it's in a bear-shaped bottle"],answer:0,fact:"True! Archaeologists found 3,000-year-old honey that was still good."},
-    {q:"What color is a polar bear's skin under all that white fur?",options:["Pink","Black","White"],answer:1,fact:"Black skin — it soaks up the sun to keep them warm."},
-    {q:"How many hearts does an octopus have?",options:["1","2","3"],answer:2,fact:"3 hearts! Two for the gills, one for the body."},
-    {q:"True or false: bananas are berries, but strawberries are NOT berries.",options:["True — wild, right?","False — that's backwards","Only in Australia"],answer:0,fact:"True! Botanically, bananas are berries and strawberries aren't."},
-    {q:"True or false: cows can walk UP stairs, but not DOWN them.",options:["True — knees don't work that way","False — they do both","Only the sporty ones"],answer:0,fact:"True! Their knees don't bend right for going down stairs."},
-  ];
-  const [triviaSport,setTriviaSport]=useState<string>("softball");
-  const [triviaIdx,setTriviaIdx]=useState<number>(()=>Math.floor(Math.random()*6));
-  const [triviaPick,setTriviaPick]=useState<number|null>(null);
-  const [funnyIdx,setFunnyIdx]=useState<number>(()=>Math.floor(Math.random()*8));
-  const [funnyPick,setFunnyPick]=useState<number|null>(null);
-  const triviaQ=SPORT_TRIVIA[triviaSport]?.[triviaIdx] || SPORT_TRIVIA.softball[0];
-  const funnyQ=FUNNY_FACTS[funnyIdx] || FUNNY_FACTS[0];
-  function newTrivia(sport:string){ setTriviaSport(sport); setTriviaPick(null); setTriviaIdx(prev=>{ let n=prev; while(n===prev) n=Math.floor(Math.random()*6); return n; }); }
-  function newFunny(){ setFunnyPick(null); setFunnyIdx(prev=>{ let n=prev; while(n===prev) n=Math.floor(Math.random()*FUNNY_FACTS.length); return n; }); }
-  function stopGrittyListen(){
-    const refs=grittyRefs.current; if(!refs) return;
-    cancelAnimationFrame(refs.raf); clearTimeout(refs.timer);
-    try{ refs.rec&&refs.rec.stop(); }catch{}
-    try{ refs.stream.getTracks().forEach((t:any)=>t.stop()); }catch{}
-    try{ refs.ctx.close(); }catch{}
-    grittyRefs.current=null;
-    setGrittyListening(false); setGrittyLevel(0);
-    const {total,breakdown}=scoreGritty(refs.samples);
-    setGrittyBreakdown(breakdown); setGrittyScore(total);
-    setGrittyStatus(refs.samples.filter((v:number)=>v>0.02).length<5 ? "Barely heard anything — try again, louder." : "Scored. Coach can nudge it up or down below.");
-  }
-  // GRIT Progress & Development Notes dropdown on the Training page.
-  const [progressNotesOpen,setProgressNotesOpen]=useState(false);
-  useEffect(()=>{ try{ localStorage.setItem("grit:circuitChecks", JSON.stringify(circuitChecks)); }catch{} },[circuitChecks]);
-  const circuitKey = (stepIdx:number,itemIdx:number)=>`${circuitSport}-${tierKey||"none"}-v${circuitVariant}-${stepIdx}-${itemIdx}`;
-  const circuitTotal = checkinCircuit ? checkinCircuit.steps.reduce((n,s)=>n+s.items.length,0) : 0;
-  const circuitDone = checkinCircuit ? checkinCircuit.steps.reduce((n,s,si)=>n+s.items.filter((_,ii)=>circuitChecks[circuitKey(si,ii)]).length,0) : 0;
-  const checkinTotal = 3 + SECTIONS.length + 1;
-  const checkinDoneCount = (checkinGrateful.trim()?1:0) + (checkinProud.trim()?1:0) + (checkinGritness!=null?1:0) + SECTIONS.filter(s=>checkinChecks[s]).length + (checkinChecks["focus"]?1:0);
-  function resetCheckin(){ setCheckinGrateful(""); setCheckinProud(""); setCheckinGritness(null); setLowReason(null); setGrittyScore(null); setGrittyHeard(""); setGrittyBreakdown(null); setTriviaPick(null); setFunnyPick(null); setCheckinChecks({}); setCircuitChecks({}); setCheckinSavedMsg("Check-in cleared — fresh start for the next athlete."); }
-  async function saveCheckin(){ try{ await callApi("records.create",{collection:"grit_checkins", value:{athleteId:loggedInAthleteId||trainingAthleteId||"", athleteName:unlockedAthlete?.name||trainingAthlete?.name||"", grateful:checkinGrateful, proud:checkinProud, gritness:checkinGritness, grittyScore:grittyScore, grittyHeard:grittyHeard, grittyBreakdown:grittyBreakdown, triviaSport:triviaSport, triviaQuestion:triviaQ.q, triviaCorrect:triviaPick!=null&&triviaPick===triviaQ.answer, funnyQuestion:funnyQ.q, funnyCorrect:funnyPick!=null&&funnyPick===funnyQ.answer, circuit:checkinCircuit?.name||"", circuitSport, lowReason:lowReason||"", circuitVariant, circuitSteps:checkinCircuit?.steps||[], circuitChecks, checks:checkinChecks, createdAt:new Date().toISOString()}, idempotency_key:safeId()}); setCheckinSavedMsg("Check-in saved."); }catch{ setCheckinSavedMsg("Check-in saved on this device."); } }
   const [loggedInAthleteId,setLoggedInAthleteId]=useState<string|null>(null);
   const [pinInput,setPinInput]=useState("");
   const [loginError,setLoginError]=useState("");
@@ -440,9 +194,6 @@ export default function App(){
   const [editingCardId,setEditingCardId]=useState<string|null>(null);
   const [expandedCardId,setExpandedCardId]=useState<string|null>(null);
   const [spotlightId,setSpotlightId]=useState("");
-  const [originWhatOpen,setOriginWhatOpen]=useState(false);
-  const [originWaysOpen,setOriginWaysOpen]=useState(false);
-  const [wallWaysOpen,setWallWaysOpen]=useState(false);
   const [reactions,setReactions]=useState<Record<string,"fire">>({});
   const [celebrated,setCelebrated]=useState("");
   const [homeworkDone,setHomeworkDone]=useState<Record<string,boolean>>({});
@@ -451,10 +202,6 @@ export default function App(){
   const [leaderAthleteId,setLeaderAthleteId]=useState("");
   const [coachDocAthleteId,setCoachDocAthleteId]=useState("");
   // --- Coaches dashboard ---
-  const [coachUnlocked,setCoachUnlocked]=useState(false);
-  const [coachPinInput,setCoachPinInput]=useState("");
-  const [coachPinError,setCoachPinError]=useState("");
-  const [coachPinStored,setCoachPinStored]=useState(()=>{ try{ return localStorage.getItem("grit:coachPin")||""; }catch{ return ""; } });
   const [supabaseUrl,setSupabaseUrl]=useState("");
   const [supabaseKey,setSupabaseKey]=useState("");
   const [supabaseStatus,setSupabaseStatus]=useState<"Not Connected"|"Connected">("Not Connected");
@@ -478,43 +225,14 @@ export default function App(){
   const [calendarSyncOn,setCalendarSyncOn]=useState(true);
   const [calendarSyncMsg,setCalendarSyncMsg]=useState("");
   const [calendarEvents,setCalendarEvents]=useState<any[]>(()=>{ try{ return JSON.parse(localStorage.getItem("grit:calendarEvents")||"[]"); }catch{ return []; } });
-  const [calendarFeedUrl,setCalendarFeedUrl]=useState(()=>{ try{ return localStorage.getItem("grit:calendarFeedUrl")||""; }catch{ return ""; } });
-  const [calendarId,setCalendarId]=useState(()=>{ try{ return localStorage.getItem("grit:calendarId")||"thepiviotproject@kbuiltsoftball.com"; }catch{ return "thepiviotproject@kbuiltsoftball.com"; } });
-  const [calendarIcsText,setCalendarIcsText]=useState("");
+  
+  
   const [nextSessionAthleteId,setNextSessionAthleteId]=useState("");
   const [nextSessionDate,setNextSessionDate]=useState("");
   const [nextSessionTime,setNextSessionTime]=useState("");
   const [nextSessionTitle,setNextSessionTitle]=useState("");
   useEffect(()=>{ try{ localStorage.setItem("grit:calendarEvents", JSON.stringify(calendarEvents)); }catch{} },[calendarEvents]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:calendarFeedUrl", calendarFeedUrl); }catch{} },[calendarFeedUrl]);
-  useEffect(()=>{ try{ localStorage.setItem("grit:calendarId", calendarId); }catch{} },[calendarId]);
-  function parseIcs(text:string){
-    const events:any[]=[]; const blocks=String(text||"").split("BEGIN:VEVENT").slice(1);
-    for(const b of blocks){
-      const get=(k:string)=>{ const m=b.match(new RegExp(k+":([^\r\n]+)")); return m?m[1].trim():""; };
-      const dt=get("DTSTART;TZID=[^:]+")||get("DTSTART");
-      const summary=get("SUMMARY")||"GRIT Session"; const desc=get("DESCRIPTION")||"";
-      let iso=""; const dm=dt.match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/);
-      if(dm) iso=`${dm[1]}-${dm[2]}-${dm[3]}T${dm[4]}:${dm[5]}:00`;
-      else if(/^\d{8}$/.test(dt)) iso=`${dt.slice(0,4)}-${dt.slice(4,6)}-${dt.slice(6,8)}T00:00:00`;
-      if(iso) events.push({ id:`ics-${iso}-${summary}`.replace(/[^a-zA-Z0-9-]/g,""), title:summary, desc, start:iso, source:"iCal" });
-    }
-    return events;
-  }
-  function importIcsText(text:string){
-    const evs=parseIcs(text);
-    if(!evs.length){ setCalendarSyncMsg("No events found in that .ics — check you pasted the whole file."); return; }
-    setCalendarEvents((prev:any[])=>{ const seen=new Set(prev.map((e:any)=>e.id)); const add=evs.filter((e:any)=>!seen.has(e.id)); return [...add, ...prev].sort((a:any,b:any)=>String(a.start).localeCompare(String(b.start))); });
-    setCalendarSyncMsg(`${evs.length} calendar event(s) imported on this device. For all phones, use the backend sync (Edge Function) — see CALENDAR-SYNC-README.md.`);
-    flashSaved();
-  }
-  async function fetchCalendarFeed(){
-    if(!calendarFeedUrl.trim()){ setCalendarSyncMsg("Paste your public iCal link first (Google Calendar > Settings > Integrate calendar > Public address in iCal format)."); return; }
-    setBusy(true);
-    try{ const res=await fetch(calendarFeedUrl.trim()); if(!res.ok) throw new Error(`Calendar returned ${res.status}`); const text=await res.text(); importIcsText(text); }
-    catch(e:any){ setCalendarSyncMsg(`Could not fetch that link from this browser (Google often blocks it). Workaround: open the link, copy all the text, paste it into “Paste .ics text” below and tap Import. ${e.message||""}`); }
-    setBusy(false);
-  }
+  
   async function addManualNextSession(){
     const a=athletes.find(x=>x.id===nextSessionAthleteId); if(!a){ setCalendarSyncMsg("Pick an athlete for the next session first."); return; }
     if(!nextSessionDate){ setCalendarSyncMsg("Pick a date for the next session first."); return; }
@@ -525,6 +243,63 @@ export default function App(){
     setCalendarSyncMsg(`Next session saved for ${a.name} — ${new Date(start).toLocaleString()} — and synced to Supabase so all phones see it.`);
     setNextSessionTitle(""); flashSaved();
   }
+  // --- Google Calendar -> Supabase -> every phone ---
+  // Apps Script reads thepiviotproject@kbuiltsoftball.com, keeps events with GRIT in the
+  // description, and writes them to Supabase (grit_calendar_events, falling back to
+  // grit_sessions). This reads that table directly with the saved Supabase URL + Anon
+  // Key, so a calendar edit reaches every logged-in phone. No iCal, no pasting.
+  function extractGritNotes(desc:string){
+    const t=String(desc||"");
+    const m=t.match(/(?:GRIT\s*NOTES|GRIT\s*NOTE|PROGRESS\s*NOTES|NOTES)\s*[:\-\n]\s*([\s\S]+)/i);
+    if(m) return m[1].trim();
+    return "";
+  }
+  function mapSupabaseCalendarRow(r:any){
+    const start=r.start||r.start_time||r.event_start||r.start_at||r.date||"";
+    const title=r.title||r.summary||r.event_title||"GRIT Session";
+    const desc=r.description||r.desc||r.event_description||"";
+    const athleteName=r.athlete_name||r.athleteName||r.athlete||r.athlete_name_text||"";
+    const match=athletes.find((x:any)=>x.name && athleteName && x.name.toLowerCase()===String(athleteName).toLowerCase());
+    return { id:`gcal-${r.id||r.event_id||`${title}|${start}|${athleteName}`}`, title, desc, start, source:"Google Calendar", athleteId:match?.id||"", athleteName: athleteName||"", gritNotes: r.grit_notes||r.gritNotes||r.notes||extractGritNotes(desc) };
+  }
+  async function fetchSupabaseCalendar(){
+    const base=String(supabaseUrl||"").trim().replace(/\/$/,"");
+    const key=String(supabaseKey||"").trim();
+    if(!base || !key){ setCalendarSyncMsg("Add your Supabase Project URL + Anon Key in Coaches → Supabase first, then tap Sync Google Calendar Now."); return; }
+    setBusy(true);
+    try{
+      let rows:any[]=[]; let usedTable="";
+      for(const table of ["grit_calendar_events","grit_sessions"]){
+        try{
+          const res=await fetch(`${base}/rest/v1/${table}?select=*&order=start.asc`, { headers:{ apikey:key, Authorization:`Bearer ${key}` } });
+          if(!res.ok) continue;
+          const data=await res.json();
+          if(Array.isArray(data) && data.length){ rows=data; usedTable=table; break; }
+          if(Array.isArray(data) && !rows.length){ rows=data; usedTable=table; }
+        }catch{}
+      }
+      const mapped=rows.filter((r:any)=>(r.start||r.start_time||r.event_start||r.start_at||r.date)).map(mapSupabaseCalendarRow);
+      setCalendarEvents((prev:any[])=>{
+        const manual=prev.filter((e:any)=>e.source==="Manual");
+        const seen=new Set<string>(); const merged:any[]=[];
+        for(const e of [...mapped, ...manual]){ const k=`${e.title||""}|${e.start||""}|${e.athleteName||""}`; if(seen.has(k)) continue; seen.add(k); merged.push(e); }
+        return merged.sort((a:any,b:any)=>String(a.start).localeCompare(String(b.start)));
+      });
+      const now=new Date().toLocaleString();
+      setCalendarLastChecked(now);
+      await persistSettings({ calendarLastChecked: now });
+      setCalendarSyncMsg(mapped.length ? `${mapped.length} GRIT session${mapped.length===1?"":"s"} pulled from Google Calendar via Supabase (${usedTable}) — every phone sees them.` : "Connected to Supabase, but no GRIT sessions found in the calendar table yet. Check the Apps Script ran and the table has rows.");
+    }catch(e:any){ setCalendarSyncMsg(`Could not pull the calendar from Supabase — ${e.message||"check the Supabase URL + Anon Key and that the table allows anon reads."}`); }
+    setBusy(false);
+  }
+  // Pull the calendar when the Supabase settings load, and keep polling while the app stays open.
+  useEffect(()=>{ if(!String(supabaseUrl||"").trim() || !String(supabaseKey||"").trim()) return; fetchSupabaseCalendar(); const t=setInterval(()=>{ fetchSupabaseCalendar(); }, 5*60*1000); return ()=>clearInterval(t); },[supabaseUrl, supabaseKey]);
+  const calendarNotesForAthlete = (athleteId?:string)=>{
+    if(!athleteId) return null;
+    const a=athletes.find(x=>x.id===athleteId); if(!a) return null;
+    const withNotes=calendarEvents.map((e:any)=>({ ...e, notes: e.gritNotes||extractGritNotes(e.desc||"") })).filter((e:any)=>e.notes && (!e.athleteId || e.athleteId===athleteId || `${e.title||""} ${e.desc||""} ${e.athleteName||""}`.toLowerCase().includes(a.name.toLowerCase()))).sort((x:any,y:any)=>String(y.start).localeCompare(String(x.start)));
+    return withNotes[0] || null;
+  };
   const nextSessionForAthlete = (athleteId?:string)=>{
     if(!athleteId) return null;
     const a=athletes.find(x=>x.id===athleteId); if(!a) return null;
@@ -533,47 +308,6 @@ export default function App(){
     if(fromCal) return { ...fromCal, sourceLabel: fromCal.source==="Manual" ? "Calendar • Added in app" : "Calendar • Synced" };
     return null;
   };
-  // Training header: the session happening RIGHT NOW (sessions are 30 min), or the next one after it.
-  const sessionForAthlete = (athleteId?:string)=>{
-    if(!athleteId) return null;
-    const a=athletes.find(x=>x.id===athleteId); if(!a) return null;
-    const now=new Date();
-    const mine=calendarEvents.filter((e:any)=>{ const d=new Date(e.start); if(isNaN(d.getTime())) return false; const hay=`${e.title||""} ${e.desc||""} ${e.athleteName||""}`.toLowerCase(); return !e.athleteId || e.athleteId===athleteId || hay.includes(a.name.toLowerCase()) || hay.includes("grit"); });
-    const current=mine.find((e:any)=>{ const s=new Date(e.start); return now>=s && now < new Date(s.getTime()+30*60000); });
-    if(current) return { ...current, isCurrent:true, sourceLabel: current.source==="Manual" ? "Calendar • Added in app" : "Calendar • Synced" };
-    const next=mine.filter((e:any)=>new Date(e.start)>=now).sort((x:any,y:any)=>String(x.start).localeCompare(String(y.start)))[0];
-    if(next) return { ...next, isCurrent:false, sourceLabel: next.source==="Manual" ? "Calendar • Added in app" : "Calendar • Synced" };
-    return null;
-  };
-  // GRIT Notes live in the calendar event description. If the description has a "GRIT Notes:" section, use that; otherwise the whole description is the notes.
-  const calendarNotesOf=(ev:any)=>{ const d=String(ev?.desc||"").trim(); if(!d) return ""; const m=d.match(/GRIT Notes?:?\s*([\s\S]*)/i); return m ? m[1].trim() : d; };
-  function unlockChecklist(){
-    const pin=coachChecklistPin.trim();
-    if(!coachPinStored){
-      if(!/^\d{4}$/.test(pin)){ setCoachChecklistError("Pick a 4-digit Coach PIN."); return; }
-      try{ localStorage.setItem("grit:coachPin", pin); }catch{}
-      setCoachPinStored(pin); setCoachUnlocked(true);
-    } else if(pin!==coachPinStored){ setCoachChecklistError("Wrong Coach PIN."); return; }
-    else setCoachUnlocked(true);
-    setCoachChecklistPin(""); setCoachChecklistError(""); setCoachChecklistOpen(true); setCoachChecklistAskPin(false);
-  }
-  async function saveProgressNotes(){
-    const t=trainingAthlete; if(!t) return;
-    setBusy(true);
-    try{ await persistAthleteToStore(t); setResult("Progress Notes saved."); flashSaved(); }catch(e:any){ setResult(e.message||"Could not save Progress Notes."); }
-    setBusy(false);
-  }
-  async function pullCalendarNotes(){
-    const t=trainingAthlete; if(!t) return;
-    const sess=sessionForAthlete(loggedInAthleteId);
-    const notes=calendarNotesOf(sess);
-    if(!notes.trim()){ setResult("No GRIT Notes in this session's calendar event yet — add them to the event description in Google Calendar."); return; }
-    const merged=(t.progress_notes||"").trim() ? `${(t.progress_notes||"").trim()}\n\n${notes}` : notes;
-    updateAthlete(t.id,{progress_notes:merged});
-    setBusy(true);
-    try{ await persistAthleteToStore({...t, progress_notes:merged}); setResult("Calendar notes added to Progress Notes."); flashSaved(); }catch(e:any){ setResult(e.message||"Could not save Progress Notes."); }
-    setBusy(false);
-  }
   const [quoteText,setQuoteText]=useState("");
   const [quoteRecordId,setQuoteRecordId]=useState<string|null>(null);
   const [quoteDraft,setQuoteDraft]=useState("");
@@ -866,19 +600,6 @@ export default function App(){
     if(!text){ setResult("Speak or type dictation first."); return; }
     const athlete = athletes.find(a=>a.id===athleteId);
     if(!athlete){ setResult("Pick an athlete for dictation first."); return; }
-    // Check-in destinations fill the Training check-in directly — nothing is overwritten, text appends.
-    if(dest.startsWith("checkin-")){
-      const join = (prev: string) => prev && prev.trim() ? `${prev.trim()} ${text}` : text;
-      if(dest==="checkin-grateful"){ setCheckinGrateful(prev=>join(prev)); setDictStatus("Saved"); setResult("Dictated into Grateful. Say it, it lands in the check-in."); flashSaved(); return; }
-      if(dest==="checkin-proud"){ setCheckinProud(prev=>join(prev)); setDictStatus("Saved"); setResult("Dictated into Proud. Say it, it lands in the check-in."); flashSaved(); return; }
-      if(dest==="checkin-gritness"){
-        const words: Record<string,number> = {one:1, two:2, three:3, four:4, five:5};
-        const m = text.toLowerCase().match(/\b([1-5])\b|\b(one|two|three|four|five)\b/);
-        const n = m ? (m[1] ? Number(m[1]) : words[m[2]]) : null;
-        if(n==null){ setResult("Didn't catch a number — say a GRITNESS from 1 to 5."); return; }
-        setCheckinGritness(n); setDictStatus("Saved"); setLowReason(null); setResult(n<=2 ? `GRITNESS set to ${n} — now answer this: do you have a good reason?` : `GRITNESS set to ${n} — your ${n===3?"BUILD":"ATTACK"} CIRCUIT is up.`); flashSaved(); return;
-      }
-    }
     const join = (prev: string) => prev && prev.trim() ? `${prev.trim()} ${text}` : text;
     let updated: AthleteProfile = { ...athlete };
     if(SECTIONS.includes(dest)){
@@ -1189,7 +910,7 @@ export default function App(){
       if(dailyRecordId) await callApi("records.replace",{collection:"grit_daily", id:dailyRecordId, value:{ content, updatedAt:new Date().toISOString() }});
       else { const created = await callApi("records.create",{collection:"grit_daily", value:{ content, updatedAt:new Date().toISOString() }}); if(created?.id) setDailyRecordId(created.id); }
       setDailyContent(content);
-      setResult("“Motivation vs. Discipline | You vs. You” daily list saved — it now shows on the Homework page.");
+      setResult("“Motivation vs. Discipline | You vs. You” daily list saved — it now shows on the Training page.");
       flashSaved();
     }catch(e:any){ setResult(e.message||"Could not save that page."); }
   }
@@ -1206,27 +927,14 @@ export default function App(){
     setBecomeVideoUrl(""); setBecomeVideoCaption("");
   }
 
-  const goTab = (v:View)=>{ if(v==="coach" && !coachUnlocked){ setView("coachLock"); } else { setView(v); } window.scrollTo({top:0, behavior:"smooth"}); };
-  function unlockCoaches(){
-    if(!coachPinStored){
-      const pin=coachPinInput.trim();
-      if(!/^\d{4}$/.test(pin)){ setCoachPinError("Pick a 4-digit Coach PIN."); return; }
-      try{ localStorage.setItem("grit:coachPin", pin); }catch{}
-      setCoachPinStored(pin); setCoachUnlocked(true); setCoachPinInput(""); setCoachPinError(""); setView("coach"); setResult("Coach PIN set. Coaches is unlocked on this device until you lock it.");
-    } else {
-      if(coachPinInput.trim()===coachPinStored){ setCoachUnlocked(true); setCoachPinInput(""); setCoachPinError(""); setView("coach"); }
-      else setCoachPinError("Wrong Coach PIN.");
-    }
-  }
-  function lockCoaches(){ setCoachUnlocked(false); setCoachPinInput(""); setView("wall"); setResult("Coaches locked."); }
-  function resetCoachPin(){ try{ localStorage.removeItem("grit:coachPin"); }catch{} setCoachPinStored(""); setCoachUnlocked(false); setCoachPinInput(""); setCoachPinError(""); setResult("Coach PIN cleared — set a new one next time you open Coaches."); }
+  const goTab = (v:View)=>{ setView(v); window.scrollTo({top:0, behavior:"smooth"}); };
   function handleUnlock(){
     const athlete = selectedAthlete;
     if(!athlete) return;
     const pin = String(pinInput).trim();
     if(pin.length===4 && (!athlete.pin || pin===athlete.pin)){
       if(!athlete.pin) updateAthlete(athlete.id,{pin});
-      setLoggedInAthleteId(athlete.id); setTrainingAthleteId(athlete.id); setLoginError(""); setPinInput(""); setResult(""); setView("wall");
+      setLoggedInAthleteId(athlete.id); setTrainingAthleteId(athlete.id); setLoginError(""); setPinInput(""); setResult("");
     }
     else { setLoginError("Incorrect PIN"); }
   }
@@ -1340,7 +1048,7 @@ export default function App(){
       { label:"Supabase", ok: supabaseStatus==="Connected", detail: supabaseStatus==="Connected" ? "Connected" : "Not Connected", synced: supabaseLastChecked || "Not checked yet" },
       { label:"Google Calendar", ok: calendarConnected, detail: calendarConnected ? "Connected" : "Not connected", synced: calendarLastChecked || "Not checked yet" },
       { label:"Progress Docs Sync", ok: docsOk, detail: docsOk ? "At least one Doc synced" : "No Doc synced yet", synced: lastDoc ? new Date(lastDoc).toLocaleString() : "Not synced yet" },
-      { label:"Roster", ok: athletes.length>0, detail: "Roster loaded", synced: stamp },
+      { label:"Roster (28)", ok: athletes.length===28, detail: `${athletes.length} athletes`, synced: stamp },
       { label:"Training Blocks (4)", ok: SECTIONS.length===4, detail: "4 blocks", synced: stamp },
       { label:"PINs Set", ok: pinsOk, detail: pinsOk ? "Every athlete has a 4-digit PIN" : "One or more PINs are missing", synced: stamp },
     ];
@@ -1372,7 +1080,6 @@ export default function App(){
   }
   const toggleReaction = (id:string, kind:"fire")=> setReactions(prev=> prev[id]===kind ? {...prev, [id]: undefined as any} : {...prev, [id]:kind});
   const spotlightAthlete = athletes.find(a=>a.id===spotlightId) || null;
-  const aotwAthlete = spotlightAthlete || athletes.find(a=>a.name==="Mackenzie Mercer") || null;
   const coachDocAthlete = athletes.find(a=>a.id===coachDocAthleteId) || null;
   const leaderAthlete = athletes.find(a=>a.id===leaderAthleteId) || null;
 
@@ -1384,7 +1091,8 @@ export default function App(){
       {/* Top: GRIT icon + THE GRIT + Share + Coaches stay. No long rectangular header box — no background bar, no border. */}
       <div className="relative z-10 mx-auto max-w-[430px] px-3 pt-2">
         <div className="flex items-center justify-between gap-2">
-          <button onClick={()=>goTab(loggedInAthleteId ? "wall" : "origin")} className="flex min-h-[44px] min-w-0 items-center gap-2" aria-label="The GRIT home">
+          <button onClick={()=>goTab("wall")} className="flex min-h-[44px] min-w-0 items-center gap-2" aria-label="The GRIT home">
+            <GritIcon size={36} rounded={9} />
             <span className="font-display font-bold text-[17px] leading-none tracking-[0.12em] whitespace-nowrap">THE GRIT<span className="text-[#C9A86A]">.</span></span>
           </button>
           {savedFlash && <span className="inline-flex min-h-[28px] shrink-0 items-center gap-1 rounded-full bg-[#C9A86A] px-2.5 text-[11px] font-bold text-black" role="status">Saved</span>}
@@ -1396,103 +1104,27 @@ export default function App(){
           </div>
         </div>
         {shareStatus && <p className="pb-1 text-center text-xs font-bold text-[#C9A86A]" role="status">{shareStatus}</p>}
-        {view==="origin" && (<div className="pt-2 text-center">
-          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9]">We. Are. <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
+        <div className="pt-2 text-center">
+          <p className="font-display font-bold leading-[0.95] text-[clamp(48px,14vw,76px)] text-[#F2EFE9]">We Are <span className="text-[#C9A86A]">Built</span><span className="text-[#C9A86A]">.</span></p>
           <p className="mt-1 text-[12px] tracking-[0.3em] font-semibold text-white/60">MIDLAND MI</p>
-        </div>)}
+        </div>
       </div>
 
-      <main className={view==="training" ? "relative z-10 mx-auto w-full max-w-[1200px] px-4 pb-[128px] lg:px-8" : "relative z-10 mx-auto max-w-[430px] px-4 pb-[128px] lg:px-8"}>
-        {view==="origin" ? (
-          <div>
-            <section className="pt-5">
-              <div className="rounded-[22px] border border-white/15 bg-black/35 px-5 py-6 text-center">
-                <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
-              </div>
-            </section>
-            <section className="mt-4 rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
-              <button onClick={()=>setOriginWhatOpen(v=>!v)} aria-expanded={originWhatOpen} className="flex w-full items-center justify-between gap-3 text-left">
-                <span className="font-display text-[26px] font-bold leading-tight">WHAT IS THE GRIT?</span>
-                <span className="shrink-0 text-[22px] font-bold text-[#C9A86A]">{originWhatOpen?"−":"+"}</span>
-              </button>
-              {originWhatOpen ? (
-                <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-white/85">
-                  <p>The GRIT is mindset and movement training for athletes who want to become the best player — and the best person — they can be.</p>
-                  <p>Every session is built on four pillars: Dynamic Stretch, Core, Main Lift, Speed and Agility. Every week adds homework, mindset, and a challenge that pushes you to lift someone else up.</p>
-                  <p>GRIT stands for the work nobody sees: show up, do it right, finish it, then go again.</p>
-                </div>
-              ) : (
-                <p className="mt-2 text-[15px] leading-relaxed text-white/85">The GRIT is mindset and movement training for athletes who want to become the best player — and the best person — they can be…</p>
-              )}
-            </section>
-            <section className="mt-4 space-y-3">
-              <button onClick={()=>goTab("athletes")} className="block w-full min-h-[56px] rounded-full bg-[#C9A86A] px-5 py-3 text-[16px] font-bold text-black active:scale-[0.98]">Athlete Login →</button>
-              <button onClick={()=>goTab("formats")} className="block w-full min-h-[56px] rounded-full border-2 border-[#C9A86A] px-5 py-3 text-[16px] font-bold text-[#C9A86A] active:bg-white/10">Explore Programs →</button>
-            </section>
-            {aotwAthlete && (
-              <section className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5 text-center">
-                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">ATHLETE OF THE WEEK</p>
-                <p className="font-display text-[30px] font-bold leading-tight mt-2">{aotwAthlete.name}</p>
-                <p className="mt-2 text-[15px] leading-relaxed text-white/85">Showing up. Doing it right. Lifting others up. That&apos;s GRIT.</p>
-              </section>
-            )}
-            <section className="mt-4">
-              <div className="rounded-2xl border border-white/15 bg-black/35 px-5 py-5">
-                <button onClick={()=>setOriginWaysOpen(v=>!v)} aria-expanded={originWaysOpen} className="flex w-full items-center justify-between gap-3 text-left">
-                  <span className="font-display text-[26px] font-bold leading-tight">GRIT WAYS TO TRAIN</span>
-                  <span className="shrink-0 text-[22px] font-bold text-[#C9A86A]">{originWaysOpen?"−":"+"}</span>
-                </button>
-                {originWaysOpen ? (
-                <div className="mt-3 space-y-3">
-                  {WAYS_TO_TRAIN.map(x=>(
-                    <div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-4"><h3 className="font-display text-xl">{x.t}</h3><p className="mt-1 text-[15px] leading-relaxed text-white/80">{x.d}</p></div>
-                  ))}
-                </div>
-                ) : null}
-              </div>
-              <a href="mailto:thepiviotproject@kbuiltsoftball.com?subject=Get%20Started%20with%20The%20GRIT" className="mt-4 block w-full min-h-[52px] rounded-full bg-[#C9A86A] px-5 py-3 text-center text-[15px] font-bold text-black active:scale-[0.98]">Get Started →</a>
-            </section>
-            {quoteText ? (
-              <section className="mt-6 px-2 text-center">
-                <p className="text-[17px] italic leading-relaxed text-white/90">“{quoteText}”</p>
-              </section>
-            ) : null}
-          </div>
-        ) : view==="wall" ? (
+      <main className="relative z-10 mx-auto max-w-[430px] px-4 pb-[128px] lg:px-8">
+        {view==="wall" ? (
           <div className="md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
             <section className="pt-5 md:col-span-1 lg:col-span-2">
               <div className="rounded-[22px] border border-white/15 bg-black/35 px-4 py-6 text-center">
                 <p className="text-center font-display font-semibold text-[clamp(26px,7vw,34px)] leading-[1.3] text-[#F2EFE9]">TO GIVE ANYTHING LESS<br/>THAN YOUR <span className="text-[#C9A86A]">BEST</span>, IS TO<br/>SACRIFICE THE <span className="text-[#C9A86A]">GIFT</span>.</p>
+                <div className="grit-logo-big mt-4 flex justify-center"><GritIcon size={230} rounded={34} /></div>
                 <p className="grit-distressed mt-2 text-center font-display font-bold leading-none text-[clamp(30px,8.5vw,42px)]">THE GRIT<span className="text-[#C9A86A]">.</span></p>
                 <div className="mt-5 flex justify-center">
-                  <button onClick={()=>goTab("athletes")} className="min-h-[48px] rounded-full bg-[#C9A86A] px-6 py-2 text-[15px] font-bold text-black active:scale-[0.98]">Athlete Login →</button>
+                  <button onClick={()=>goTab("athletes")} className="min-h-[40px] rounded-full border border-[#C9A86A]/60 px-5 py-2 text-[13px] font-bold text-[#C9A86A] active:bg-white/10">Athlete Login →</button>
                 </div>
               </div>
             </section>
 
-            {aotwAthlete && (
-              <section className="mt-6 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5 text-center">
-                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">ATHLETE OF THE WEEK</p>
-                <p className="font-display text-[30px] font-bold leading-tight mt-2">{aotwAthlete.name}</p>
-                <p className="mt-2 text-[15px] leading-relaxed text-white/85">Showing up. Doing it right. Lifting others up. That&apos;s GRIT.</p>
-              </section>
-            )}
-            <section className="mt-6">
-                <div className="rounded-2xl border border-white/15 bg-black/35 px-5 py-5">
-                  <button onClick={()=>setWallWaysOpen(v=>!v)} aria-expanded={wallWaysOpen} className="flex w-full items-center justify-between gap-3 text-left">
-                    <span className="font-display text-[26px] font-bold leading-tight">GRIT WAYS TO TRAIN</span>
-                    <span className="shrink-0 text-[22px] font-bold text-[#C9A86A]">{wallWaysOpen?"−":"+"}</span>
-                  </button>
-                  {wallWaysOpen ? (
-                  <div className="mt-3 space-y-3">
-                    {WAYS_TO_TRAIN.map(x=>(
-                      <div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-4"><h3 className="font-display text-xl">{x.t}</h3><p className="mt-1 text-[15px] leading-relaxed text-white/80">{x.d}</p></div>
-                    ))}
-                  </div>
-                  ) : null}
-                </div>
-              </section>
-              {quoteText ? (
+            {quoteText ? (
               <section className="mt-6 px-2 text-center">
                 <p className="text-[17px] italic leading-relaxed text-white/90">“{quoteText}”</p>
               </section>
@@ -1514,166 +1146,39 @@ export default function App(){
           </div>
         ) : view==="training" ? (
           <section className="pt-5">
-            {/* TOP OF TRAINING PAGE — name + current/next session + Progress Notes. Checklist is coach-only, behind the tiny button. */}
-            <div className="flex justify-end">
-              <button onClick={()=>{ if(coachChecklistOpen){ setCoachChecklistOpen(false); setCoachChecklistAskPin(false); } else if(coachUnlocked){ setCoachChecklistOpen(true); } else { setCoachChecklistAskPin(true); } }} className="min-h-[28px] px-2 text-[11px] font-bold tracking-widest text-white/50 active:text-white/80">COACH CHECKLIST {coachChecklistOpen ? "▾" : "▸"}</button>
-            </div>
-            {coachChecklistAskPin && !coachUnlocked ? (
-              <div className="mt-1 rounded-xl border border-[#C9A86A]/40 bg-black/40 p-3">
-                <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">COACH ONLY — ENTER COACH PIN</p>
-                <div className="mt-2 flex gap-2">
-                  <input type="password" inputMode="numeric" value={coachChecklistPin} onChange={e=>setCoachChecklistPin(e.target.value)} placeholder="4-digit Coach PIN" className="min-h-[44px] flex-1 bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2 text-[16px]" />
-                  <button onClick={unlockChecklist} className="min-h-[44px] rounded-full bg-[#C9A86A] px-4 text-sm font-bold text-black">Unlock</button>
-                </div>
-                {coachChecklistError && <p className="mt-1.5 text-xs font-bold text-[#FF6B5E]">{coachChecklistError}</p>}
-                <button onClick={()=>{ setCoachChecklistAskPin(false); setCoachChecklistError(""); }} className="mt-1.5 text-xs text-white/60 underline">Cancel</button>
+            <h2 className="font-display text-center font-bold leading-[1.15] break-words text-[clamp(24px,6.8vw,36px)]">WE COMPETE LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER LOST</span> AND TRAIN LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER WON</span></h2>
+            {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return null; if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
+            {(()=>{ const n=calendarNotesForAthlete(loggedInAthleteId); if(!loggedInAthleteId || !n) return null; return <div className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">GRIT NOTES — FROM CALENDAR</p><p className="text-sm text-white/85 whitespace-pre-wrap mt-1 leading-relaxed">{n.notes}</p><p className="text-xs text-white/60 mt-1">{n.title} • {new Date(n.start).toLocaleDateString()}</p></div>; })()}
+            <section className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
+              <h3 className="font-display font-bold leading-[1.1] text-[clamp(24px,7vw,32px)]">Motivation vs. Discipline <span className="text-[#C9A86A]">|</span> You vs. You</h3>
+              <p className="mt-1 text-[12px] font-bold tracking-widest text-white/60">EVERY SINGLE DAY</p>
+              <div className="mt-3 rounded-2xl border border-white/15 bg-[#2E4038]/90 px-4 py-4">
+                {dailyContent ? renderBecomeText(dailyContent) : <p className="text-[15px] leading-relaxed text-white/85">Your coach is laying out what you should be doing every single day — check back soon.</p>}
               </div>
-            ) : null}
-            <div className="mt-1 text-center">
-              <h2 className="font-display font-bold leading-none text-[clamp(30px,8vw,40px)]">{unlockedAthlete?.name || trainingAthlete?.name || "Training"}</h2>
-              {(()=>{ const sess=sessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return <p className="mt-2 text-sm text-white/70">Unlock your profile to see your next GRIT session.</p>; if(!sess) return <p className="mt-2 text-sm text-white/70">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(sess.start); const end=new Date(d.getTime()+30*60000); const when=isNaN(d.getTime()) ? "" : d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" }); const span=isNaN(d.getTime()) ? "" : ` • ${d.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" })}–${end.toLocaleTimeString([], { hour:"numeric", minute:"2-digit" })}`; return <div className="mt-2"><p className={`text-[11px] font-bold tracking-[0.28em] ${sess.isCurrent ? "text-[#FF6B5E]" : "text-[#C9A86A]"}`}>{sess.isCurrent ? "IN SESSION NOW" : "NEXT GRIT SESSION"}</p><p className="mt-1 text-[15px] font-semibold text-white/90">{sess.title || "GRIT Session"}</p><p className="text-sm text-white/75">{when}{span}</p></div>; })()}
-            </div>
-            {/* GRIT PROGRESS & DEVELOPMENT NOTES — small dropdown. Notes sync from the calendar event's GRIT Notes, and you can dictate straight into them. */}
-            <div className="mt-4 rounded-2xl border border-white/15 bg-black/35">
-              <button onClick={()=>setProgressNotesOpen(v=>!v)} aria-expanded={progressNotesOpen} className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left">
-                <span className="text-[12px] font-bold tracking-[0.2em] text-[#C9A86A]">GRIT PROGRESS & DEVELOPMENT NOTES</span>
-                <span className="text-lg font-bold text-[#C9A86A]">{progressNotesOpen ? "−" : "+"}</span>
-              </button>
-              {progressNotesOpen ? (
-                <div className="px-4 pb-4">
-                  {!loggedInAthleteId ? <p className="text-sm text-white/70">Unlock your profile to see Progress Notes.</p> : (<>
-                    {(()=>{ const sess=sessionForAthlete(loggedInAthleteId); const notes=calendarNotesOf(sess); if(!sess) return <p className="text-sm text-white/70">No session on the calendar — calendar notes will show here once a GRIT session is scheduled.</p>; if(!notes) return <p className="text-sm text-white/70">No GRIT Notes in this session&apos;s calendar event yet — add them to the event description in Google Calendar.</p>; return <div className="rounded-xl border border-[#C9A86A]/40 bg-black/40 p-3"><p className="text-[11px] font-bold tracking-widest text-[#D4B483]">FROM THIS SESSION — GOOGLE CALENDAR</p><p className="mt-1.5 text-[14px] leading-relaxed text-white/85 whitespace-pre-wrap">{notes}</p><button onClick={pullCalendarNotes} className="mt-2 min-h-[40px] rounded-full border border-[#C9A86A] px-3 text-xs font-bold text-[#C9A86A]">Add calendar notes to Progress Notes</button></div>; })()}
-                    <label className="mt-3 block text-[11px] font-bold tracking-widest text-[#C9A86A]">PROGRESS NOTES — {trainingAthlete?.name.toUpperCase() || ""}</label>
-                    <textarea value={trainingAthlete?.progress_notes || ""} onChange={e=>{ if(trainingAthlete) updateAthlete(trainingAthlete.id,{progress_notes:e.target.value}); }} rows={4} placeholder="Progress and development notes…" className="mt-1.5 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[15px] leading-relaxed outline-none focus:border-[#C9A86A]" />
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <button onClick={()=>{ if(trainingAthlete){ setDictAthleteId(trainingAthlete.id); setDictDestination("progress"); setDictOpen(true); } }} className="min-h-[44px] flex-1 rounded-full bg-[#C9A86A] px-4 text-sm font-bold text-black">🎤 Dictate Notes</button>
-                      <button disabled={busy} onClick={saveProgressNotes} className="min-h-[44px] flex-1 rounded-full border border-[#C9A86A] px-4 text-sm font-bold disabled:opacity-50">Save Notes</button>
-                    </div>
-                    <p className="mt-2 text-xs text-white/60">Last synced: {trainingAthlete?.progress_notes_last_synced ? new Date(trainingAthlete.progress_notes_last_synced).toLocaleString() : "Never"}</p>
-                  </>)}
-                </div>
-              ) : null}
-            </div>
-            {/* TRAINING CHECK-IN — MacBook / flat-screen TV. This is the FIRST thing on the page. */}
-            <div className="rounded-[26px] border-2 border-[#C9A86A] bg-black/55 px-5 py-5 lg:px-8 lg:py-6">
-              <div className="flex flex-wrap items-end justify-between gap-3">
-                <div>
-                  <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">TRAINING • CHECK-IN CHECKLIST</p>
-                  <h2 className="font-display text-[clamp(30px,4vw,48px)] leading-none mt-2">{unlockedAthlete?.name || trainingAthlete?.name || "Check In"}</h2>
-                  <p className="text-white/75 mt-1 text-[15px]">Answer the 3 questions. Your GRITNESS sets today&apos;s circuit.</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs font-bold tracking-widest text-white/60">CHECKLIST PROGRESS</p>
-                  <p className="font-display text-3xl font-bold text-[#C9A86A]">{checkinDoneCount} / {checkinTotal}</p>
-                </div>
-              </div>
-              <div className="mt-3 h-3 w-full overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width:`${Math.round(checkinDoneCount/checkinTotal*100)}%`}} /></div>
-              <div className="grid gap-4 mt-5 lg:grid-cols-2">
-                <label className="block rounded-2xl border border-white/15 bg-[#2E4038]/80 p-4 lg:p-5">
-                  <span className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#C9A86A] text-lg font-bold text-black">1</span><span className="font-display text-[22px] lg:text-[26px] font-bold leading-tight">What are you grateful for?</span></span>
-                  <textarea value={checkinGrateful} onChange={e=>setCheckinGrateful(e.target.value)} rows={3} placeholder="Say it out loud, then type it here…" className="mt-3 w-full bg-black/30 border border-white/15 rounded-xl p-3 text-[17px] lg:text-[19px] leading-relaxed outline-none focus:border-[#C9A86A]" />
-                </label>
-                <label className="block rounded-2xl border border-white/15 bg-[#2E4038]/80 p-4 lg:p-5">
-                  <span className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#C9A86A] text-lg font-bold text-black">2</span><span className="font-display text-[22px] lg:text-[26px] font-bold leading-tight">What are you proud of?</span></span>
-                  <textarea value={checkinProud} onChange={e=>setCheckinProud(e.target.value)} rows={3} placeholder="Something real — big or small…" className="mt-3 w-full bg-black/30 border border-white/15 rounded-xl p-3 text-[17px] lg:text-[19px] leading-relaxed outline-none focus:border-[#C9A86A]" />
-                </label>
-              </div>
-              <div className="mt-4 rounded-2xl border border-white/15 bg-[#2E4038]/80 p-4 lg:p-5">
-                                <div className="mt-4 rounded-2xl border border-white/15 bg-black/30 px-4 py-3">
-                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CIRCUIT SPORT — {SPORT_LABELS[circuitSport].toUpperCase()}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {(["softball","baseball","football"] as SportKey[]).map(s=>(
-                      <button key={s} onClick={()=>setCircuitSport(s)} aria-pressed={circuitSport===s} className={`min-h-[44px] rounded-full px-4 py-2 text-[13px] font-bold active:scale-[0.98] ${circuitSport===s?"bg-[#C9A86A] text-black":"border border-white/25 text-white/80"}`}>{SPORT_LABELS[s]}</button>
-                    ))}
-                  </div>
-                  <p className="mt-2 text-xs text-white/60">Draws from your sport&apos;s pool. If Coach wrote a plan for a pillar, that pillar uses Coach&apos;s plan instead.</p>
-                </div>
-<div className="flex items-center gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#C9A86A] text-lg font-bold text-black">3</span><h3 className="font-display text-[22px] lg:text-[26px] font-bold leading-tight">Scale of 1-5 — Whats your level of GRITNESS right now?</h3></div>
-                <div className="grid grid-cols-5 gap-2 mt-4">
-                  {[1,2,3,4,5].map(n=>(
-                    <button key={n} onClick={()=>selectGritness(n)} aria-pressed={checkinGritness===n} className={`min-h-[76px] lg:min-h-[92px] rounded-2xl border-2 px-2 py-3 text-center active:scale-[0.98] ${checkinGritness===n?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/25 bg-black/30 text-white"}`}>
-                      <span className="block font-display text-[34px] lg:text-[44px] font-bold leading-none">{n}</span>
-                      <span className="mt-1 block text-[10px] lg:text-[11px] font-bold tracking-widest">{["","GOT NOTHING","FINDING IT","I'M MOTIVATED","I'M DISCIPLINED","ALL IN"][n]}</span>
-                    </button>
-                  ))}
-                </div>
-                <div className="grid gap-2 mt-3 text-[13px] lg:text-[15px] leading-relaxed text-white/80 lg:grid-cols-2">
-                  <p><strong className="text-[#D4B483]">1 =</strong> I got nothing, unfocused and checked out</p>
-                  <p><strong className="text-[#D4B483]">2 =</strong> Finding it — not there yet, but working toward it</p>
-                  <p><strong className="text-[#D4B483]">3 =</strong> I&apos;m motivated — ready to work, locked in</p>
-                  <p><strong className="text-[#D4B483]">4 =</strong> I&apos;m disciplined — doing it right whether I feel like it or not</p>
-                  <p><strong className="text-[#D4B483]">5 =</strong> Completely on point and determined to make progress today. Whatever it is, we&apos;re doing it!</p>
-                </div>
-                {checkinGritness!=null && checkinGritness<=2 && lowReason==null ? (
-                  <div className="mt-4 rounded-2xl border-2 border-[#FF6B5E] bg-black/45 px-4 py-4 lg:px-5">
-                    <p className="font-display text-[24px] font-bold leading-tight text-[#FF6B5E]">You picked {checkinGritness}. Real talk —</p>
-                    <p className="mt-2 text-[15px] lg:text-[17px] leading-relaxed text-white/85">Do you have a good reason? Injured, sick, sore, no sleep, something real — that counts, and you get the RESET CIRCUIT.</p>
-                    <p className="mt-1 text-[15px] leading-relaxed text-white/85">No good reason, just don&apos;t feel like it? Then you don&apos;t get an easy day. You get the hardest circuit we have.</p>
-                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                      <button onClick={()=>setLowReason("yes")} className="min-h-[56px] rounded-full border-2 border-[#C9A86A] px-4 py-3 text-[15px] font-bold text-[#C9A86A] active:bg-white/10">Yes — real reason → RESET</button>
-                      <button onClick={()=>setLowReason("no")} className="min-h-[56px] rounded-full bg-[#FF6B5E] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">No — just don&apos;t feel like it → NO EXCUSES</button>
-                    </div>
-                    <p className="mt-3 text-xs text-white/60">Be honest. GRIT starts with telling the truth.</p>
-                  </div>
-                ) : null}
-                {checkinCircuit ? (
-                  <div className="mt-4 rounded-2xl border-2 border-[#C9A86A] bg-black/45 px-4 py-4 lg:px-5">
-                    <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">TODAY&apos;S CIRCUIT • {checkinCircuit.tag}</p>
-                    <p className={`font-display text-[28px] lg:text-[36px] font-bold leading-none mt-1 ${checkinCircuit.color}`}>{checkinCircuit.name}</p>
-                    <p className="mt-2 text-[15px] lg:text-[17px] leading-relaxed text-white/85">{checkinCircuit.desc}</p>
-                    <p className="mt-2 text-xs font-bold tracking-widest text-white/60">{SPORT_LABELS[circuitSport].toUpperCase()} POOL • VARIANT {circuitVariant+1} OF 3 • WON&apos;T REPEAT UNTIL YOU&apos;VE DONE ALL 3</p>
-                    <p className="mt-1 text-xs font-bold tracking-widest text-[#C9A86A]">30-MINUTE TRAINING • ABOUT 7 MIN PER BLOCK</p>
-                    {lowReason ? <button onClick={()=>setLowReason(null)} className="mt-1 text-xs font-bold text-[#C9A86A] underline underline-offset-2">Not right? Change your answer</button> : null}
-                    <div className="mt-4 flex flex-wrap items-end justify-between gap-2">
-                      <p className="text-xs font-bold tracking-widest text-white/60">CIRCUIT CHECKLIST</p>
-                      <p className="font-display text-2xl font-bold text-[#C9A86A]">{circuitDone} / {circuitTotal} done</p>
-                    </div>
-                    <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width: circuitTotal?`${Math.round(circuitDone/circuitTotal*100)}%`:"0%"}} /></div>
-                    <div className="grid gap-3 mt-4 lg:grid-cols-2">
-                      {checkinCircuit.steps.map((step,si)=>{
-                        const sectionKey = SECTIONS.find(s=>s.replace(" |","").replace(" |","").trim().toLowerCase()===step.pillar.toLowerCase()) || "";
-                        const coachPlan = sectionKey ? (sections[sectionKey]||"").trim() : "";
-                        return (
-                        <div key={step.pillar} className="rounded-2xl border border-white/15 bg-[#2E4038]/80 p-4">
-                          <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">{step.pillar.toUpperCase()} • ≈7 MIN</p>
-                          <p className="font-display text-[20px] font-bold leading-tight mt-1">{step.focus}</p>
-                          {coachPlan ? <div className="mt-3 rounded-xl border border-[#C9A86A]/50 bg-black/40 p-3"><p className="text-[11px] font-bold tracking-widest text-[#D4B483]">COACH&apos;S PLAN FOR THIS PILLAR — DO THIS FIRST</p><p className="mt-1 text-[14px] leading-relaxed text-white/90 whitespace-pre-wrap">{coachPlan}</p></div> : null}
-                          <ul className="mt-3 space-y-2">
-                            {step.items.map((item,ii)=>{ const done=!!circuitChecks[circuitKey(si,ii)]; return (
-                              <li key={ii}><button onClick={()=>setCircuitChecks(p=>({...p,[circuitKey(si,ii)]:!p[circuitKey(si,ii)]}))} aria-pressed={done} className="flex w-full items-start gap-3 rounded-xl px-2 py-2 text-left active:scale-[0.99]">
-                                <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-sm font-bold ${done?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/40 text-white"}`}>{done?"✓":"○"}</span>
-                                <span className={`text-[15px] lg:text-[16px] leading-relaxed ${done?"line-through opacity-60":"text-white/90"}`}>{item}</span>
-                              </button></li>
-                            ); })}
-                          </ul>
-                        </div> ); })}
-                    </div>
-                    <p className="mt-3 text-xs text-white/60">30 minutes total — about 7 minutes per block. Generated from your 4 pillars — Dynamic Stretch, Core, Main Lift, Speed and Agility. Coach&apos;s written plan for a pillar always shows on top and is never replaced.</p>
-                  </div>
-                ) : (
-                  <p className="mt-4 text-center text-[15px] text-white/60">Pick 1–5 and your circuit locks in below.</p>
-                )}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button onClick={()=>{ if(loggedInAthleteId) setDictAthleteId(loggedInAthleteId); else if(trainingAthleteId) setDictAthleteId(trainingAthleteId); setDictDestination("checkin-grateful"); setDictOpen(true); }} className="min-h-[52px] flex-1 rounded-full bg-[#C9A86A] px-5 py-3 text-[15px] font-bold text-black active:scale-[0.98]">🎤 Dictate Check-In Hands-Free</button>
-                <button onClick={saveCheckin} className="min-h-[52px] flex-1 rounded-full border border-[#C9A86A] px-5 py-3 text-[15px] font-bold active:scale-[0.98]">Save Check-In</button>
-                <button onClick={resetCheckin} className="min-h-[52px] rounded-full border border-white/25 px-5 py-3 text-sm font-semibold">Clear for Next Athlete</button>
-              </div>
-              {checkinSavedMsg && <p className="mt-2 text-sm font-bold text-[#D4B483]" role="status">{checkinSavedMsg}</p>}
-            </div>
-            <h2 className="font-display text-center font-bold leading-[1.15] break-words text-[clamp(24px,6.8vw,36px)] mt-6">WE COMPETE LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER LOST</span> AND TRAIN LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER WON</span></h2>
-            
-            
-            {!loggedInAthleteId && !coachChecklistOpen ? (
+            </section>
+            {!loggedInAthleteId ? (
               <div>
                 <button onClick={()=>goTab("athletes")} className="mt-5 w-full min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px]">Unlock Your Profile</button>
-                <p className="text-center text-sm text-white/70 mt-2">Training details unlock with your profile. The checklist stays hidden until then.</p>
+                <p className="text-center text-sm text-white/70 mt-2">Training details unlock with your profile.</p>
+                <div className="space-y-3 mt-4">
+                  {SECTIONS.map(s=>(
+                    <div key={s} className="rounded-2xl border border-white/15 bg-black/35 p-4">
+                      <h3 className="font-display font-semibold text-[#D4B483] text-lg leading-tight">{s}</h3>
+                      <div className="mt-3 h-11 rounded-lg bg-white/10 border border-white/10 flex items-center px-3"><span className="text-sm text-white/50">Locked — unlock your profile to view details</span></div>
+                      <div className="mt-2 h-20 rounded-xl bg-white/5 border border-white/10" aria-hidden="true" />
+                    </div>
+                  ))}
+                  <div className="rounded-2xl border border-white/15 bg-black/35 p-4">
+                    <h3 className="font-display font-semibold text-[#D4B483] text-lg leading-tight">Your GRIT Focus and Why</h3>
+                    <div className="mt-3 h-20 rounded-xl bg-white/5 border border-white/10" aria-hidden="true" />
+                    <p className="text-sm text-white/50 mt-2">Locked — unlock your profile to view details</p>
+                  </div>
+                </div>
               </div>
             ) : (
               <>
-              {coachChecklistOpen ? (<>
               <p className="text-center font-display text-[clamp(30px,8vw,40px)] font-bold leading-none mt-5">{unlockedAthlete?.name}</p>
-              <p className="text-center text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-3">TRAINING PROGRAM</p>
+              <p className="text-center text-[#C9A86A] text-xs tracking-[0.28em] font-bold mt-3">TRAINING PROGRAM • 4 BLOCKS</p>
               <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
                 <label className="text-sm block">Week<br/><input value={week} onChange={e=>setWeek(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
                 <label className="text-sm block mt-3">Motto<br/><input value={trainingMotto} onChange={e=>setTrainingMotto(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[16px]"/></label>
@@ -1686,55 +1191,10 @@ export default function App(){
                   {currentWorkout && <span className="text-xs text-[#D4B483] text-center">Published for {currentWorkout.athlete} • {currentWorkout.week}</span>}
                 </div>
               </div>
-              {/* CHECKLIST Q1 — "Who are you and why are you GRITTY?" Voice answer, scored 1–10 on loudness + confidence. */}
-              <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-5 lg:p-5">
-                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CHECKLIST — QUESTION 1 • VOICE</p>
-                <h3 className="mt-2 font-display text-[clamp(26px,7vw,36px)] font-bold leading-tight">Who are you and why are you GRITTY?</h3>
-                <p className="mt-1 text-sm text-white/75">Say it out loud. Louder + steadier + keep talking = higher score. The mic never leaves this device.</p>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
-                  {grittyListening ? (
-                    <button onClick={stopGrittyListen} className="min-h-[52px] rounded-full bg-[#FF6B5E] px-6 text-[15px] font-bold text-black">■ STOP — Score It</button>
-                  ) : (
-                    <button onClick={startGrittyListen} className="min-h-[52px] rounded-full bg-[#C9A86A] px-6 text-[15px] font-bold text-black">🎤 {grittyScore!=null ? "Answer Again" : "Answer Out Loud"}</button>
-                  )}
-                  {grittyScore!=null && (
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold tracking-widest text-white/60">SCORE</span>
-                      <span className="font-display text-[44px] leading-none font-bold text-[#C9A86A]">{grittyScore}</span>
-                      <span className="font-display text-[22px] leading-none text-white/50">/ 10</span>
-                      <span className="ml-1 flex gap-1">
-                        <button onClick={()=>setGrittyScore(s=>Math.max(1,(s??1)-1))} className="min-h-[40px] min-w-[40px] rounded-full border border-white/30 text-lg font-bold">−</button>
-                        <button onClick={()=>setGrittyScore(s=>Math.min(10,(s??1)+1))} className="min-h-[40px] min-w-[40px] rounded-full border border-white/30 text-lg font-bold">+</button>
-                      </span>
-                    </div>
-                  )}
-                </div>
-                {grittyListening && (
-                  <div className="mt-4">
-                    <div className="h-3 w-full overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-[#C9A86A] transition-[width] duration-100" style={{width:`${grittyLevel}%`}} /></div>
-                    <p className="mt-1.5 text-xs font-bold tracking-widest text-[#FF6B5E]">● LISTENING — SPEAK UP</p>
-                  </div>
-                )}
-                {grittyStatus && <p className="mt-3 text-sm font-bold text-[#D4B483]">{grittyStatus}</p>}
-                {grittyHeard && <p className="mt-3 rounded-xl border border-white/15 bg-black/40 p-3 text-[15px] leading-relaxed text-white/85"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A]">HEARD — </span>“{grittyHeard}”</p>}
-                {grittyBreakdown && (
-                  <div className="mt-4 grid gap-2 text-[13px] sm:grid-cols-2">
-                    <p>Volume <span className="text-[#D4B483] font-bold">{grittyBreakdown.volume.toFixed(1)} / 4</span> — how loud overall</p>
-                    <p>Peak <span className="text-[#D4B483] font-bold">{grittyBreakdown.peak.toFixed(1)} / 2</span> — loudest moment</p>
-                    <p>Kept talking <span className="text-[#D4B483] font-bold">{grittyBreakdown.time.toFixed(1)} / 2</span> — seconds of real speech</p>
-                    <p>Steady <span className="text-[#D4B483] font-bold">{grittyBreakdown.steady.toFixed(1)} / 2</span> — even voice, no fading out</p>
-                  </div>
-                )}
-                <p className="mt-3 text-xs text-white/50">Coach nudge: tap − / + to adjust the score. It saves with this check-in.</p>
-              </div>
-              <p className="mt-5 text-center font-display text-[22px] lg:text-[28px] font-bold">CHECKLIST — TAP EACH BLOCK DONE AS YOU FINISH IT</p>
-              <div className="grid gap-3 mt-3 md:grid-cols-2 lg:grid-cols-4">
-                {SECTIONS.map(s=>{ const done=!!checkinChecks[s]; return (
-                  <div key={s} className={`rounded-2xl border p-4 lg:p-5 ${done?"border-[#C9A86A] bg-[#2E4038]/90":"border-white/15 bg-black/35"}`}>
-                    <button onClick={()=>setCheckinChecks(p=>({...p,[s]:!p[s]}))} aria-pressed={done} className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left active:scale-[0.99] ${done?"text-black":""}`}>
-                      <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-xl font-bold ${done?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/40 text-white"}`}>{done?"✓":"○"}</span>
-                      <span><span className={`block font-display font-semibold text-[#D4B483] text-lg leading-tight ${done?"line-through opacity-70":""}`}>{s}</span><span className="text-xs font-bold tracking-widest text-white/60">{done?"DONE ✓":"TAP WHEN DONE"}</span></span>
-                    </button>
+              <div className="grid gap-3 mt-3 md:grid-cols-2">
+                {SECTIONS.map(s=>(
+                  <div key={s} className="rounded-2xl border border-white/15 bg-black/35 p-4">
+                    <h3 className="font-display font-semibold text-[#D4B483] text-lg leading-tight">{s}</h3>
                     <label className="block mt-3 text-xs font-bold tracking-widest text-[#C9A86A]"># OF REPS / HOW LONG TO EXECUTE</label>
                     <input type="text" value={minutes[s]||""} onChange={e=>setMinutes({...minutes,[s]:e.target.value})} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-center text-[16px]"/>
                     <label className="block mt-4 text-xs font-bold tracking-widest text-[#C9A86A]">{s} DESCRIPTION</label>
@@ -1743,48 +1203,10 @@ export default function App(){
                     <textarea value={blockNotes[s]||""} onChange={e=>setBlockNotes({...blockNotes,[s]:e.target.value})} rows={2} className="mt-2 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[15px] outline-none focus:border-[#C9A86A]"/>
                     <button disabled={busy} onClick={()=>saveTrainingBlock(s)} className="mt-3 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black px-4 py-2.5 rounded-full text-sm font-bold disabled:opacity-50"><Save size={15}/> Save</button>
                   </div>
-                );})}
+                ))}
               </div>
-              {/* CHECKLIST SECOND-TO-LAST — random sport question + random funny-fact question. GRIT Focus stays last. */}
-              <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-3 lg:p-5">
-                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">CHECKLIST — SECOND TO LAST • KNOW YOUR GAME</p>
-                <h3 className="mt-2 font-display text-[clamp(24px,7vw,32px)] font-bold leading-tight">Quick Question — Pick Your Sport</h3>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(["softball","baseball","football"] as const).map(s=>(
-                    <button key={s} onClick={()=>newTrivia(s)} className={`min-h-[44px] rounded-full px-5 text-sm font-bold capitalize ${triviaSport===s?"bg-[#C9A86A] text-black":"border border-white/30 text-white"}`}>{s}</button>
-                  ))}
-                  <button onClick={()=>newTrivia(triviaSport)} className="min-h-[44px] rounded-full border border-[#C9A86A] px-5 text-sm font-bold text-[#C9A86A]">↻ New Question</button>
-                </div>
-                <p className="mt-4 text-[17px] font-semibold leading-snug">{triviaQ.q}</p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  {triviaQ.options.map((opt,oi)=>{
-                    const picked=triviaPick===oi; const show=triviaPick!=null;
-                    const right=oi===triviaQ.answer;
-                    return <button key={oi} disabled={show} onClick={()=>setTriviaPick(oi)} className={`min-h-[48px] rounded-xl border px-4 py-3 text-left text-[15px] font-semibold ${show&&right?"border-[#C9A86A] bg-[#2E4038] text-white":show&&picked?"border-[#FF6B5E] bg-[#FF6B5E]/20 text-white":"border-white/25 bg-black/30 text-white"}`}>{opt}{show&&right?" ✓":""}</button>;
-                  })}
-                </div>
-                {triviaPick!=null && <p className="mt-3 text-sm font-bold text-[#D4B483]">{triviaPick===triviaQ.answer?"Correct! 💪 ":"Not quite — "}{triviaQ.fact}</p>}
-                <div className="mt-6 border-t border-white/15 pt-5">
-                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">AND ONE MORE — FUNNY FACT</p>
-                  <h3 className="mt-2 font-display text-[clamp(22px,7vw,30px)] font-bold leading-tight">Funny Fact Question</h3>
-                  <p className="mt-3 text-[17px] font-semibold leading-snug">{funnyQ.q}</p>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                    {funnyQ.options.map((opt,oi)=>{
-                      const picked=funnyPick===oi; const show=funnyPick!=null;
-                      const right=oi===funnyQ.answer;
-                      return <button key={oi} disabled={show} onClick={()=>setFunnyPick(oi)} className={`min-h-[48px] rounded-xl border px-4 py-3 text-left text-[15px] font-semibold ${show&&right?"border-[#C9A86A] bg-[#2E4038] text-white":show&&picked?"border-[#FF6B5E] bg-[#FF6B5E]/20 text-white":"border-white/25 bg-black/30 text-white"}`}>{opt}{show&&right?" ✓":""}</button>;
-                    })}
-                  </div>
-                  {funnyPick!=null && <p className="mt-3 text-sm font-bold text-[#D4B483]">{funnyPick===funnyQ.answer?"Got it! 😂 ":"Nope — "}{funnyQ.fact}</p>}
-                  <button onClick={newFunny} className="mt-3 min-h-[44px] rounded-full border border-[#C9A86A] px-5 text-sm font-bold text-[#C9A86A]">↻ New Funny Fact</button>
-                </div>
-              </div>
-              <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3 lg:p-5">
-                <button onClick={()=>setCheckinChecks(p=>({...p,focus:!p.focus}))} className="flex items-center gap-3 text-left active:scale-[0.99]">
-                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-xl font-bold ${checkinChecks["focus"]?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/40 text-white"}`}>{checkinChecks["focus"]?"✓":"○"}</span>
-                  <span className="font-display font-semibold text-lg">YOUR GRIT FOCUS AND WHY <span className="text-xs font-bold tracking-widest text-white/60">{checkinChecks["focus"]?"— DONE ✓":"— TAP WHEN DONE"}</span></span>
-                </button>
-                <label className="block text-xs font-bold tracking-widest text-[#C9A86A] mt-3">YOUR GRIT FOCUS AND WHY</label>
+              <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3">
+                <label className="block text-xs font-bold tracking-widest text-[#C9A86A]">YOUR GRIT FOCUS AND WHY</label>
                 <textarea value={trainingAthlete?.focus || ""} onChange={e=>{ if(trainingAthlete) updateAthlete(trainingAthlete.id,{focus:e.target.value}); }} rows={5} className="mt-2 w-full bg-white/5 border border-white/15 rounded-xl p-3 text-[16px] outline-none focus:border-[#C9A86A]"/>
                 <button disabled={busy} onClick={saveTrainingFocus} className="mt-3 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-[#C9A86A] text-black px-4 py-2.5 rounded-full text-sm font-bold disabled:opacity-50"><Save size={15}/> Save</button>
               </div>
@@ -1801,36 +1223,6 @@ export default function App(){
               </div>
               {savedFlash && <p className="mt-4 text-sm text-[#D4B483] font-bold" role="status">Saved</p>}
               {result && <p className="mt-4 text-sm text-[#D4B483]">{result}</p>}
-              </>) : (
-              loggedInAthleteId ? (
-              <div className="mt-5">
-                <p className="text-center font-display text-[clamp(24px,6vw,32px)] font-bold leading-tight">YOUR WORKOUT — FOUR PILLARS</p>
-                <p className="mt-1 text-center text-sm text-white/70">Your coach&apos;s plan. Tap each block done as you finish it.</p>
-                <div className="grid gap-3 mt-3 md:grid-cols-2">
-                  {SECTIONS.map(s=>{ const a=trainingAthlete; const mins=a?.trainingMinutes?.[s]||""; const desc=a?.trainingSections?.[s]||""; const notes=a?.trainingNotes?.[s]||""; const done=!!checkinChecks[s]; return (
-                    <div key={s} className={`rounded-2xl border p-4 ${done?"border-[#C9A86A] bg-[#2E4038]/60":"border-white/15 bg-black/35"}`}>
-                      <button onClick={()=>setCheckinChecks(prev=>({...prev,[s]:!prev[s]}))} className="flex w-full items-center justify-between gap-3 text-left">
-                        <span className="font-display font-semibold text-lg leading-tight text-[#D4B483]">{s}</span>
-                        <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-xl font-bold ${done?"border-[#C9A86A] bg-[#C9A86A] text-black":"border-white/40 text-white"}`}>{done?"✓":"○"}</span>
-                      </button>
-                      {mins && <p className="mt-3 text-sm"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A]">REPS / HOW LONG</span><br/>{mins}</p>}
-                      {desc && <p className="mt-3 text-[15px] leading-relaxed">{desc}</p>}
-                      {notes && <p className="mt-3 text-sm text-[#D4B483]"><span className="text-[11px] font-bold tracking-widest text-[#C9A86A]">COACH NOTES</span><br/>{notes}</p>}
-                      {!mins && !desc && !notes && <p className="mt-3 text-sm text-white/50">Your coach hasn&apos;t written this block yet.</p>}
-                    </div>
-                  );})}
-                </div>
-                <div className="rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4 mt-3">
-                  <h3 className="font-display font-semibold text-lg leading-tight text-[#D4B483]">Your GRIT Focus and Why</h3>
-                  {trainingAthlete?.focus ? <p className="mt-3 text-[15px] leading-relaxed">{trainingAthlete.focus}</p> : <p className="mt-3 text-sm text-white/50">Your coach hasn&apos;t written your focus yet.</p>}
-                  <button onClick={()=>{ if(trainingAthlete){ setDictAthleteId(trainingAthlete.id); setDictDestination("focus"); setDictOpen(true); } }} className="mt-4 min-h-[52px] w-full rounded-full bg-[#C9A86A] px-5 py-3 text-[15px] font-bold text-black">🎤 Dictate GRIT Focus</button>
-                  <p className="mt-2 text-center text-xs text-white/60">Say your focus out loud — it adds to your GRIT Focus.</p>
-                </div>
-              </div>
-              ) : (
-              <p className="mt-5 text-center text-xs text-white/50">Coach Checklist is hidden — tap COACH CHECKLIST at the top of this page to open it.</p>
-              )
-              )}
               </>
             )}
           </section>
@@ -1848,13 +1240,6 @@ export default function App(){
               {savedFlash && <p className="mt-3 text-sm text-[#D4B483] font-bold" role="status">Saved</p>}
               {result && <p className="mt-3 text-sm text-[#D4B483]">{result}</p>}
             </div>
-            <section className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
-              <h3 className="font-display font-bold leading-[1.1] text-[clamp(24px,7vw,32px)]">Motivation vs. Discipline <span className="text-[#C9A86A]">|</span> You vs. You</h3>
-              <p className="mt-1 text-[12px] font-bold tracking-widest text-white/60">EVERY SINGLE DAY</p>
-              <div className="mt-3 rounded-2xl border border-white/15 bg-[#2E4038]/90 px-4 py-4">
-                {dailyContent ? renderBecomeText(dailyContent) : <p className="text-[15px] leading-relaxed text-white/85">Your coach is laying out what you should be doing every single day — check back soon.</p>}
-              </div>
-            </section>
             <h3 className="font-display text-2xl mt-6">All Homework</h3>
             <div className="space-y-3 mt-3">
               {homeworkRecords.length===0 && <p className="text-sm text-white/70">No homework saved yet.</p>}
@@ -1864,8 +1249,9 @@ export default function App(){
           </section>
         ) : view==="athletes" ? (
           <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">YOUR GRIT PROFILE</p>
+            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">YOUR GRIT PROFILE • {athletes.length} ROSTER SPOTS</p>
             <h2 className="font-display text-[36px] leading-none mt-2">Your GRIT Profile</h2>
+            <p className="mt-3 font-display text-[19px] font-semibold leading-snug text-[#F2EFE9]">28 Athletes — GRIT Starting Nov 1, 2026</p>
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
               <label className="block text-xs font-bold tracking-widest text-[#C9A86A]" htmlFor="profile-name-search">YOUR NAME</label>
               <div className="relative mt-2">
@@ -1912,7 +1298,7 @@ export default function App(){
                     <span className="mt-3 text-[11px] font-bold tracking-[0.28em] text-[#F2EFE9]/80">YOUR GRIT PROFILE</span>
                   </div>
                   <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold text-center mt-4">YOUR GRIT PROFILE</p>
-                  
+                  {(selectedAthlete.program || selectedAthlete.startDate) ? <p className="text-xs text-[#D4B483] mt-2 font-semibold text-center">{selectedAthlete.program || ""}{selectedAthlete.program && selectedAthlete.startDate ? " • " : ""}{selectedAthlete.startDate ? `Starting ${selectedAthlete.startDate}` : ""}</p> : null}
                   <label className="block mt-3 text-xs font-bold tracking-widest text-[#C9A86A]">YOUR NAME</label>
                   <input value={selectedAthlete.name} onChange={e=>updateAthlete(selectedAthlete.id,{name:e.target.value})} className="mt-2 w-full min-h-[52px] bg-white/5 border border-white/15 rounded-xl px-3 py-3 font-display text-2xl outline-none focus:border-[#C9A86A]" />
                   <label className="block mt-4"><span className="text-sm font-semibold text-[#D4B483]">Your Sport</span><input value={selectedAthlete.sport} onChange={e=>updateAthlete(selectedAthlete.id,{sport:e.target.value})} className="mt-1 w-full min-h-[52px] bg-white/5 border border-white/15 rounded-xl px-3 py-3 text-[16px] outline-none focus:border-[#C9A86A]"/></label>
@@ -1942,6 +1328,7 @@ export default function App(){
                       {selectedAthlete.progress_doc_url?.trim() ? <a href={selectedAthlete.progress_doc_url} target="_blank" rel="noopener" className="inline-block mt-2 min-h-[40px] text-sm font-bold text-[#C9A86A] underline">Open Progress Notes Doc</a> : null}
                     </div>
                     <button disabled={busy} onClick={()=>syncProgressNotesFor(selectedAthlete)} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm disabled:opacity-50">Sync Progress Notes</button>
+                    {(()=>{ const n=calendarNotesForAthlete(selectedAthlete.id); if(!n) return null; return <div className="mt-3 rounded-xl bg-black/35 border border-white/10 px-4 py-3"><p className="text-xs font-bold tracking-widest text-[#C9A86A]">GRIT NOTES — FROM CALENDAR</p><p className="text-[15px] text-white/85 whitespace-pre-wrap mt-2 leading-relaxed">{n.notes}</p><p className="text-xs text-white/60 mt-2">{n.title} • {new Date(n.start).toLocaleDateString()}</p></div>; })()}
                   </div>
                   <div className="mt-6 border-t border-white/10 pt-4">
                     <h3 className="font-display text-xl">Published Workouts for This Athlete</h3>
@@ -2082,28 +1469,14 @@ export default function App(){
               <button onClick={()=>goTab("formats")} className="mt-4 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Formats | Payment →</button>
             </section>
           </div>
-        ) : view==="coachLock" ? (
-          <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">COACHES • LOCKED</p>
-            <h2 className="font-display text-[36px] leading-none mt-2">Coaches</h2>
-            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">{coachPinStored ? "This area is for coaches only. Enter your Coach PIN to open it." : "This area is for coaches only. Set a Coach PIN now — athletes will need it to get in, so keep it to yourself."}</p>
-            <div className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
-              <label className="block text-sm font-semibold">{coachPinStored ? "Coach PIN" : "Set a 4-digit Coach PIN"}<input value={coachPinInput} onChange={e=>setCoachPinInput(e.target.value.replace(/[^0-9]/g,"").slice(0,4))} onKeyDown={e=>{ if(e.key==="Enter") unlockCoaches(); }} inputMode="numeric" placeholder="••••" className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[20px] tracking-[0.4em] text-center" /></label>
-              {coachPinError && <p className="mt-2 text-sm font-bold text-red-300">{coachPinError}</p>}
-              <button onClick={unlockCoaches} className="mt-3 w-full min-h-[52px] rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">{coachPinStored ? "Unlock Coaches →" : "Set PIN + Unlock Coaches →"}</button>
-              <button onClick={()=>goTab("wall")} className="mt-2 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-sm font-semibold">Back to The GRIT</button>
-              {coachPinStored && <button onClick={resetCoachPin} className="mt-2 w-full min-h-[44px] text-xs text-white/50">Forgot PIN? Clear it and set a new one</button>}
-              <p className="mt-3 text-xs text-white/60">Same app for everyone — Coaches is just PIN-locked. It stays unlocked on this phone until you tap Lock Coaches.</p>
-            </div>
-          </section>
         ) : view==="formats" ? (
           <section className="pt-5">
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">FORMATS | PAYMENT</p>
             <h2 className="font-display text-[36px] leading-none mt-2">Formats | Payment</h2>
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed">Choose how you train. Tap a button below to pay — you leave the app for PayPal / Stripe checkout, then come back. No card details are ever typed into, stored by, or seen by the GRIT app.</p>
             <div className="space-y-3 mt-4">
-              {[{t:"GRIT Athlete — 1-on-1",d:"Individual training built around one athlete: acceleration, first-step quickness, changing direction, velocity, and explosive movement."},{t:"GRIT Team",d:"Whole teams. 6–8 weeks of physical and mental strength and resilience, built together."},{t:"GRIT on Turf",d:"One hour on the turf: acceleration, first-step quickness, changing direction, velocity, explosive movement."},{t:"GRIT Accountability",d:"For adults and parents. Real movement on limited time, with someone holding you to it."}].map(x=>(
-                <div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-4"><h3 className="font-display text-xl">{x.t}</h3><p className="text-[15px] text-white/80 mt-2">{x.d}</p></div>
+              {[{t:"1:1 Training",d:"One athlete. One plan. Full attention."},{t:"Small Group",d:"Train with your crew. Same standard."},{t:"Team Training",d:"Built together, session by session."}].map(x=>(
+                <div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-display text-xl">{x.t}</h3><span className="text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-[#C9A86A] text-black shrink-0">COMING SOON!</span></div><p className="text-[15px] text-white/80 mt-2">{x.d}</p><p className="text-xs text-white/60 mt-2">Details and scheduling — Coming Soon!</p></div>
               ))}
             </div>
             <div className="rounded-2xl border border-[#C9A86A]/50 bg-black/35 p-4 mt-3">
@@ -2115,25 +1488,15 @@ export default function App(){
               </div>
             </div>
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3"><h3 className="font-display text-xl flex items-center gap-2"><Sparkles size={18} className="text-[#C9A86A]"/> What stays the same</h3><p className="text-[15px] text-white/80 mt-2 leading-relaxed">Every format runs on the same wall: Dynamic Stretch, Core, Main Lift, Speed, Agility, Explode, mindset, homework, and the reminder.</p></div>
-            <a href="mailto:thepiviotproject@kbuiltsoftball.com?subject=Get%20Started%20with%20The%20GRIT" className="mt-4 block w-full min-h-[52px] rounded-full bg-[#C9A86A] px-5 py-3 text-center text-[15px] font-bold text-black active:scale-[0.98]">Get Started →</a>
-            <button onClick={()=>goTab("origin")} className="mt-3 w-full min-h-[48px] border border-white/25 rounded-full text-sm font-semibold">Back to Home</button>
+            <button onClick={()=>goTab("wall")} className="mt-4 w-full min-h-[48px] border border-white/25 rounded-full text-sm font-semibold">Back to The GRIT</button>
           </section>
         ) : (
           <section className="pt-5 md:grid md:grid-cols-2 md:gap-5 md:items-start lg:grid-cols-3">
             <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold md:col-span-2 lg:col-span-3">COACHES • DASHBOARD</p>
             <h2 className="font-display text-[36px] leading-none mt-2 md:col-span-2 lg:col-span-3">Coaches</h2>
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed md:col-span-2 lg:col-span-3">Dashboard, setup, and checks — all in one place.</p>
-            <button onClick={lockCoaches} className="mt-3 min-h-[44px] rounded-full border border-white/25 px-4 py-2 text-sm font-semibold md:col-span-2 lg:col-span-3">🔒 Lock Coaches</button>
             {lastSyncedAt && <p className="mt-3 text-sm text-[#D4B483]">Last synced: {lastSyncedAt}</p>}
             {result && <p className="mt-3 text-sm text-[#D4B483] bg-black/35 border border-white/10 rounded-xl px-3 py-2">{result}</p>}
-            <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-black/35 p-4">
-              <h3 className="font-display text-xl">Athlete of the Week</h3>
-              <p className="mt-1 text-sm text-white/75">Pick who shows on the origin homepage and the athlete homepage. Currently: <span className="font-bold text-[#C9A86A]">{aotwAthlete?.name || "—"}</span></p>
-              <select value={spotlightId} onChange={e=>{ setSpotlightId(e.target.value); setResult("Athlete of the Week updated."); }} className="mt-2 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-xl px-3 py-3 text-[16px]">
-                <option value="">Mackenzie Mercer (default)</option>
-                {athleteOptions()}
-              </select>
-            </div>
             <div className="mt-4">
               <h3 className="font-display text-xl">Dashboard Overview</h3>
               <div className="grid grid-cols-2 gap-2 mt-3 lg:grid-cols-3">
@@ -2166,36 +1529,23 @@ export default function App(){
               </div>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
-              <h3 className="font-display text-xl flex items-center gap-2"><CalendarDays size={20} className="text-[#C9A86A]"/> Google Calendar — Connect + Sync</h3>
-              <div className="mt-3 rounded-2xl border-2 border-[#C9A86A] bg-black/45 p-4">
-                <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">GOOGLE CALENDAR • CALENDAR ID SYNC — NO iCAL</p>
-                <p className="mt-2 text-[14px] leading-relaxed text-white/85">No iCal link here. This app syncs through the <strong>Apps Script + Calendar ID</strong> you already wrote, into <strong>Supabase</strong>.</p>
-                <label className="block text-sm font-semibold mt-3">Google Calendar ID<input value={calendarId} onChange={e=>setCalendarId(e.target.value)} placeholder="thepiviotproject@kbuiltsoftball.com" className="mt-1 w-full min-h-[52px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]" /></label>
-                <div className="mt-3 rounded-xl bg-[#2E4038]/90 border border-white/10 p-3 text-[13px] leading-relaxed text-white/80">
-                  <p className="font-bold text-[#C9A86A]">HOW IT SYNCs</p>
-                  <p className="mt-1">1. Script reads this Calendar ID.</p>
-                  <p>2. It keeps only events whose <strong>description contains “GRIT”</strong>.</p>
-                  <p>3. It matches the event to an athlete by <strong>athlete name in the description</strong>.</p>
-                  <p>4. It writes those sessions to Supabase (<strong>grit_calendar_events</strong>).</p>
-                  <p>5. This app reads Supabase — every phone sees the same next session.</p>
-                </div>
-                <p className="mt-2 text-xs leading-relaxed text-white/60">Supabase: {supabaseStatus} • Last checked: {calendarLastChecked || "Not checked yet"}. If sessions aren&apos;t showing, run the script in Apps Script and check that the event description has both “GRIT” and the athlete&apos;s exact name.</p>
-                {calendarSyncMsg && <p className="mt-2 text-sm text-[#D4B483]">{calendarSyncMsg}</p>}
-              </div>
+              <h3 className="font-display text-xl flex items-center gap-2"><CalendarDays size={20} className="text-[#C9A86A]"/> Google Calendar — Connect + Check</h3>
               <p className="text-sm mt-2">Calendar status: <strong className="text-[#C9A86A]">{calendarConnected ? "Connected" : "Not connected"}</strong></p>
-              <p className="text-sm text-white/80 mt-1">Calendar ID: {calendarId}</p>
+              <p className="text-sm text-white/80 mt-1">Account: thepiviotproject@kbuiltsoftball.com</p>
               <p className="text-sm text-white/80">Time zone: America/Detroit</p>
               <p className="text-xs text-white/60 mt-1">Last checked: {calendarLastChecked || "Not checked yet"}</p>
               <label className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-[#2E4038]/90 border border-white/10 px-3 py-3 text-sm font-semibold"><span>Sync GRIT Sessions to Calendar</span><button role="switch" aria-checked={calendarSyncOn} onClick={toggleCalendarSync} className={`min-h-[32px] min-w-[56px] rounded-full px-2 text-xs font-bold ${calendarSyncOn?"bg-[#C9A86A] text-black":"bg-white/15 text-white"}`}>{calendarSyncOn?"On":"Off"}</button></label>
               <div className="flex gap-2 mt-3"><button disabled={busy} onClick={checkCalendar} className="flex-1 min-h-[48px] border border-white/25 px-3 py-2.5 rounded-full text-sm font-semibold">Check Google Calendar Connection</button><button disabled={busy} onClick={syncCalendarSessions} className="flex-1 min-h-[48px] bg-[#C9A86A] text-black font-bold px-3 py-2.5 rounded-full text-sm disabled:opacity-50">Sync GRIT Sessions</button></div>
               <div className="mt-4 border-t border-white/10 pt-3">
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNC FROM GOOGLE CALENDAR — BACKEND SYNC</p>
-                <p className="text-sm text-white/75 mt-1">Apps Script runs on this Calendar ID and writes to Supabase — all phones read the same sessions. Manual add below is only a fallback.</p>
+                <p className="text-sm text-white/75 mt-1">Apps Script reads thepiviotproject@kbuiltsoftball.com, keeps events with GRIT in the description, and writes them to Supabase (grit_calendar_events). Every phone reads that table — a calendar edit shows up on all phones after the next script run + app refresh. No iCal link, no pasting.</p>
                 <p className="text-xs font-bold tracking-widest text-[#C9A86A] mt-4">ADD NEXT SESSION MANUALLY — SYNCED TO ALL PHONES</p>
                 <label className="block text-sm mt-2">Athlete<select value={nextSessionAthleteId} onChange={e=>setNextSessionAthleteId(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"><option value="">Select Athlete</option>{athleteOptions()}</select></label>
                 <div className="flex gap-2 mt-2"><label className="flex-1 text-sm">Date<input type="date" value={nextSessionDate} onChange={e=>setNextSessionDate(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label><label className="flex-1 text-sm">Time<input type="time" value={nextSessionTime} onChange={e=>setNextSessionTime(e.target.value)} className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label></div>
                 <label className="block text-sm mt-2">Title (optional)<input value={nextSessionTitle} onChange={e=>setNextSessionTitle(e.target.value)} placeholder="GRIT Session" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[15px]"/></label>
                 <button onClick={addManualNextSession} className="mt-2 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Save Next Session to Supabase</button>
+                <button disabled={busy} onClick={fetchSupabaseCalendar} className="mt-4 w-full min-h-[48px] border border-[#C9A86A]/60 px-4 py-2.5 rounded-full text-sm font-bold">Sync Google Calendar Now</button>
+                <p className="text-xs text-white/60 mt-2">Pulls the latest sessions + GRIT Notes from Supabase right now. Phones also pull automatically when the app opens and every 5 minutes while it stays open.</p>
                 {calendarEvents.length>0 && <div className="mt-3"><p className="text-xs font-bold tracking-widest text-[#C9A86A]">SYNCED EVENTS ({calendarEvents.length})</p><ul className="mt-2 space-y-2">{calendarEvents.slice(0,6).map((e:any)=>(<li key={e.id} className="flex justify-between gap-2 text-[13px] border-b border-white/10 pb-2 last:border-0"><span className="min-w-0"><span className="font-semibold">{e.title}</span><span className="block text-xs text-white/60">{new Date(e.start).toLocaleString()} • {e.source}</span></span><button onClick={async()=>{ setCalendarEvents((p:any[])=>p.filter((x:any)=>x.id!==e.id)); try{ await callApi("records.delete",{collection:"grit_next_sessions", id:e.id}); }catch{} }} className="text-xs text-white/60 shrink-0 px-2">Remove</button></li>))}</ul></div>}
               </div>
               {calendarSyncMsg && <p className="mt-2 text-sm text-[#D4B483]">{calendarSyncMsg}</p>}
@@ -2246,13 +1596,13 @@ export default function App(){
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">“Motivation vs. Discipline | You vs. You” — Daily List</h3>
-              <p className="text-sm text-white/75 mt-1">This is what shows on the Homework page, under the homework editor, in the box with that heading. Lay out what they should be doing every single day. Same formatting as the Become page: <span className="font-mono"># </span> big heading, <span className="font-mono">## </span> smaller heading, <span className="font-mono">- </span> bullet, <span className="font-mono">**bold**</span>.</p>
+              <p className="text-sm text-white/75 mt-1">This is what shows on the Training page, right under the next session, in the box with that heading. Lay out what they should be doing every single day. Same formatting as the Become page: <span className="font-mono"># </span> big heading, <span className="font-mono">## </span> smaller heading, <span className="font-mono">- </span> bullet, <span className="font-mono">**bold**</span>.</p>
               <div className="mt-3 flex gap-2">
                 <button onClick={()=>{ setDailyDraft(dailyContent); }} className="flex-1 min-h-[44px] rounded-full border border-white/25 px-3 py-2 text-sm font-semibold">Start Editing (loads current list)</button>
               </div>
               <textarea value={dailyDraft} onChange={e=>setDailyDraft(e.target.value)} rows={14} placeholder={"## Every single day\n- 10 minutes of footwork\n- 20 swings off the tee\n- …\n\n**No days off from the standard.**"} className="mt-3 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px] leading-relaxed font-mono" />
               <button onClick={saveDaily} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Daily List</button>
-              <p className="text-xs text-white/60 mt-2">Saved to Supabase (grit_daily) — every phone sees it on the Homework page.</p>
+              <p className="text-xs text-white/60 mt-2">Saved to Supabase (grit_daily) — every phone sees it on the Training page.</p>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">Edit “How do I become…” Page</h3>
@@ -2307,22 +1657,14 @@ export default function App(){
         )}
       </main>
 
-      <nav aria-label="Bottom navigation" className="fixed bottom-0 left-0 right-0 z-40 bg-[#0F1113]/95 border-t-2 border-[#C9A86A]/60 shadow-[0_-8px_30px_rgba(0,0,0,0.6)] backdrop-blur" style={{paddingBottom:"var(--safe-area-inset-bottom, 0px)"}}>
-        {view==="origin" ? (
-          <div className="mx-auto max-w-[430px] grid grid-cols-3 lg:px-8">
-            <button onClick={()=>goTab("origin")} className="min-h-[64px] flex flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-[#C9A86A]"><span className="text-[12px] font-bold">Home</span><span className="mt-0.5 h-1 w-5 rounded-full bg-[#C9A86A]"/></button>
-            <button onClick={()=>goTab("formats")} className="min-h-[64px] flex flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-white/65"><span className="text-[12px] font-bold">Programs</span></button>
-            <button onClick={()=>goTab("athletes")} className="min-h-[64px] flex flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 text-white/65"><span className="text-[12px] font-bold">Athlete Login</span></button>
-          </div>
-        ) : (
-        <div className="mx-auto max-w-[430px] grid grid-cols-4 lg:px-8">
+      <nav aria-label="Bottom navigation" className="fixed bottom-0 left-0 right-0 z-40 bg-[#0F1113] border-t border-[#C9A86A]/40" style={{paddingBottom:"var(--safe-area-inset-bottom, 0px)"}}>
+        <div className="mx-auto max-w-[430px] grid grid-cols-6 lg:px-8">
           {TABS.map(t=>{
             const active = view===t.id || (t.id==="pillars" && view==="pillars");
             const Icon = t.icon;
             return <button key={t.id} onClick={()=>goTab(t.id)} aria-current={active?"page":undefined} className={`min-h-[64px] flex flex-col items-center justify-center gap-0.5 px-0.5 py-1.5 active:bg-white/5 ${active?"text-[#C9A86A]":"text-white/65"}`}><Icon size={20}/><span className="text-[9px] font-bold leading-tight text-center break-words">{t.label}</span>{active && <span className="mt-0.5 h-1 w-5 rounded-full bg-[#C9A86A]"/>}</button>;
           })}
         </div>
-        )}
       </nav>
 
       <button onClick={()=>{setDictOpen(true);}} className="fixed right-4 z-50 flex min-h-[52px] items-center gap-2 rounded-full bg-[#C9A86A] text-[#0F1113] pl-3 pr-4 py-3 shadow-2xl font-bold text-sm hover:bg-[#D4B483] active:scale-[0.97]" style={{bottom:"calc(84px + var(--safe-area-inset-bottom, 0px))"}} aria-label="Open Voice Dictation">
@@ -2342,9 +1684,6 @@ export default function App(){
                 <option value="">Select Destination</option>
                 {SECTIONS.map(s=><option key={s} value={s}>{s}</option>)}
                 <option value="focus">Your GRIT Focus and Why</option>
-                <option value="checkin-grateful">Check-In — What are you grateful for?</option>
-                <option value="checkin-proud">Check-In — What are you proud of?</option>
-                <option value="checkin-gritness">Check-In — GRITNESS 1-5 (say a number)</option>
                 <option value="progress">Progress Notes</option>
                 <option value="questions">Questions / Progress Notes</option>
               </select>
