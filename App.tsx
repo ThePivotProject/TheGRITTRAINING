@@ -85,17 +85,18 @@ const placeholderAthletes = (): AthleteProfile[] => {
   return [...ROSTER_NAMES].sort((a,b)=>a.localeCompare(b)).map((name,i)=>({ id:`local-${i+1}`, name, sport:"", position:"", lookUp:"", ageGroup:"", motto:"", remember:"", homework:"", mindset:"", gratitude:"", nonNegotiables:"", disciplineDone:[], pin:"", focus:"", createdAt:new Date().toISOString(), startDate:"", program:"", trainingSections:emptySections(), trainingMinutes:{...DEFAULT_MINUTES}, trainingNotes:{}, progress_doc_url:"", progress_notes:"", progress_notes_last_synced:"" }));
 };
 
-type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become"|"programs"|"vault";
+type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become"|"programs"|"vault"|"family";
 const TABS: {id:View; label:string; icon:any}[] = [
   {id:"athletes", label:"Profile", icon: Users},
   {id:"training", label:"Training", icon: Dumbbell},
+  {id:"family", label:"For Parents", icon: CreditCard},
   {id:"homework", label:"Homework", icon: BookOpen},
   {id:"pillars", label:"Mindset & Impact", icon: Brain},
   {id:"programs", label:"Programs", icon: Trophy},
   {id:"coach", label:"Coaches", icon: ShieldCheck},
   {id:"vault", label:"Vault", icon: BookOpen},
 ];
-const ORIGIN_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, {id:"programs", label:"Programs", icon:Trophy}, {id:"athletes", label:"Athlete Login", icon:Users}];
+const ORIGIN_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, {id:"programs", label:"Programs", icon:Trophy}, {id:"family", label:"For Parents", icon:CreditCard}, {id:"athletes", label:"Athlete Login", icon:Users}];
 const ATHLETE_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, ...TABS];
 const SUPABASE_SQL = `-- GRIT Supabase setup — run the WHOLE file at once in Supabase > SQL Editor.
 -- Idempotent: safe to re-run. Athletes is created FIRST, before anything that references it.
@@ -1817,18 +1818,12 @@ export default function App(){
           </div>
         ) : view==="training" ? (
           <section className="pt-5">
-            <h2 className="font-display text-center font-bold leading-[1.15] break-words text-[clamp(24px,6.8vw,36px)]">WE COMPETE LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER LOST</span> AND TRAIN LIKE WE&rsquo;VE <span className="text-[#C9A86A]">NEVER WON</span></h2>
-            <div className="mt-4 flex justify-center"><button onClick={()=>setMeasureOpen(v=>!v)} className="min-h-[52px] rounded-full bg-[#C9A86A] px-6 py-3 text-[15px] font-bold text-black active:scale-[0.98]">📏 Measure: Jump / Swing / Sprint</button></div>
+            <h2 className="font-display font-bold leading-none text-[clamp(36px,11vw,56px)]">TRAINING</h2>
+            <p className="mt-2 text-[#C9A86A] text-xs tracking-[0.28em] font-bold">30 MINUTES • 4 BLOCKS • ONE STANDARD</p>
+            <div className="mt-4"><button onClick={()=>setMeasureOpen(v=>!v)} className="min-h-[52px] w-full rounded-full border border-[#C9A86A] bg-black/40 px-6 py-3 text-[15px] font-bold text-[#C9A86A] active:scale-[0.98]">Measure: Jump / Swing / Sprint →</button></div>
             {measureOpen && trainingAthlete && (<MeasureTool athleteName={trainingAthlete.name} onSave={saveMeasurement} onClose={()=>setMeasureOpen(false)} />)}
             {measureOpen && !trainingAthlete && (<p className="mt-3 rounded-xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">Pick an athlete first, then measure.</p>)}
             {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return null; if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
-            <section className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/45 px-5 py-5">
-              <h3 className="font-display font-bold leading-[1.1] text-[clamp(24px,7vw,32px)]">Motivation vs. Discipline <span className="text-[#C9A86A]">|</span> You vs. You</h3>
-              <p className="mt-1 text-[12px] font-bold tracking-widest text-white/60">EVERY SINGLE DAY</p>
-              <div className="mt-3 rounded-2xl border border-white/15 bg-[#2E4038]/90 px-4 py-4">
-                {dailyContent ? renderBecomeText(dailyContent) : <p className="text-[15px] leading-relaxed text-white/85">Your coach is laying out what you should be doing every single day — check back soon.</p>}
-              </div>
-            </section>
             {!loggedInAthleteId ? (
               <div>
                 <button onClick={()=>goTab("athletes")} className="mt-5 w-full min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px]">Unlock Your Profile</button>
@@ -2105,33 +2100,14 @@ export default function App(){
             </div>
             {savedFlash && <p className="mt-3 text-sm text-[#D4B483] font-bold" role="status">Saved</p>}
             {result && <p className="mt-3 text-sm text-[#D4B483]">{result}</p>}
-            <div className="grid grid-cols-3 gap-2 mt-4">
-              {[{i:<Zap size={20}/>,t:"Show Up",d:"Every session counts."},{i:<ShieldCheck size={20}/>,t:"Do The Work",d:"No shortcuts."},{i:<Medal size={20}/>,t:"Rise Together",d:"Built different, together."}].map(x=>(<div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-3"><div className="text-[#C9A86A]">{x.i}</div><h3 className="font-display font-semibold mt-2 leading-tight text-[15px]">{x.t}</h3><p className="text-[13px] text-white/75 mt-1">{x.d}</p></div>))}
-            </div>
           </section>
 <div className="mt-8 border-t-2 border-[#C9A86A]/40 pt-6">
               <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">IMPACT • THE WEEKLY CHALLENGE • LEADERBOARD • GRIT CARDS</p>
               <h2 className="font-display text-[36px] leading-none mt-2">Impact</h2>
 
           <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">THE WEEKLY CHALLENGE • LEADERBOARD • GRIT CARDS</p>
-            <h2 className="font-display text-[36px] leading-none mt-2">Impact</h2>
             <p className="text-white/85 mt-3 text-[15px] leading-relaxed">One challenge a week. Points for challenges, workouts, and GRIT Cards received. One GRIT Card per athlete per week — to show how one other athlete made them better.</p>
-            <section className="mt-4 rounded-[22px] border border-white/15 bg-black/35 p-4">
-              <div className="flex items-end justify-between gap-2"><h2 className="font-display text-[28px] leading-none">This Month on <span className="text-[#C9A86A]">Impact</span></h2><span className="text-xs text-white/70 shrink-0">{week}</span></div>
-              <div className="mt-4 rounded-2xl border border-white/10 bg-[#2E4038]/90 p-4">
-                <p className="text-[11px] tracking-widest text-[#C9A86A] font-bold">THE WEEKLY CHALLENGE • {week.toUpperCase()}</p>
-                {currentChallenge ? <><h3 className="font-display text-xl mt-1 leading-tight">{currentChallenge.title}</h3><p className="text-[15px] text-white/85 mt-1 leading-relaxed">{currentChallenge.description}</p>
-                <div className="mt-3 flex items-center gap-2 text-xs"><Timer size={14} className="text-[#C9A86A]"/><span className="font-bold">{daysLeft===null ? "This week" : daysLeft>=0 ? `${daysLeft} day${daysLeft===1?"":"s"} left` : "Due — still counts"}</span><span className="text-white/70">• {currentChallenge.points} pts • {challengeDoneCount} complete</span></div>
-                <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-white/15"><div className="h-full rounded-full bg-[#C9A86A] transition-all" style={{width:`${challengeProgress}%`}} /></div><p className="mt-1 text-xs text-white/70">{challengeProgress}% of the team in</p></> : <p className="text-[15px] text-white/80 mt-1">No challenge set for this week yet. Coach sets ONE challenge per week on Impact.</p>}
-              </div>
-              <p className="text-[15px] text-white/85 mt-4 leading-relaxed">30 minutes. 4 blocks. One GRIT Card to one other athlete every week.</p>
-            </section>
-            <div className="flex flex-wrap gap-1.5 mt-4">
-              <span className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-black/40 border border-white/15 px-3 text-xs font-bold"><Flame size={14} className="text-[#C9A86A]"/> Workout streak: {workouts.length} total</span>
-              <span className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-black/40 border border-white/15 px-3 text-xs font-bold"><Target size={14} className="text-[#C9A86A]"/> Challenge streak: {completions.length} done</span>
-              <span className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full bg-black/40 border border-white/15 px-3 text-xs font-bold">{cards.length} GRIT Cards sent</span>
-            </div>
+            
             <div className="rounded-[22px] border border-[#C9A86A]/40 bg-black/35 p-4 mt-4">
               <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold">THE WEEKLY CHALLENGE • {week.toUpperCase()}</p>
               {currentChallenge ? <><h3 className="font-display text-[28px] mt-2 leading-tight">{currentChallenge.title}</h3><p className="text-white/85 mt-2 leading-relaxed text-[15px]">{currentChallenge.description}</p>
@@ -2250,6 +2226,50 @@ export default function App(){
               </div>
             </div>
             <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3"><h3 className="font-display text-xl flex items-center gap-2"><Sparkles size={18} className="text-[#C9A86A]"/> What stays the same</h3><p className="text-[15px] text-white/80 mt-2 leading-relaxed">Every format runs on the same wall: Dynamic Stretch, Core, Main Lift, Speed, Agility, Explode, mindset, homework, and the reminder.</p></div>
+            <button onClick={()=>goTab("wall")} className="mt-4 w-full min-h-[48px] border border-white/25 rounded-full text-sm font-semibold">Back to The GRIT</button>
+          </section>
+        ) : view==="family" ? (
+          <section className="pt-5">
+            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">PARENTS & FAMILY • ONE PAGE</p>
+            <h2 className="font-display text-[36px] leading-none mt-2">For Parents</h2>
+            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">Pay for GRIT, see {unlockedAthlete ? `${unlockedAthlete.name}&rsquo;s ` : "your athlete's "}next session, catch the latest updates, and read their GRIT Progress Notes — all in one place.</p>
+            {!loggedInAthleteId && (
+              <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-black/35 p-4">
+                <p className="text-[15px] font-bold">Payment works right now — no login needed.</p>
+                <p className="text-sm text-white/75 mt-1">To see your athlete&apos;s next session and Progress Notes, unlock their profile first.</p>
+                <button onClick={()=>goTab("athletes")} className="mt-3 w-full min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px]">Unlock Athlete Profile →</button>
+              </div>
+            )}
+            <div className="mt-5 space-y-4">
+              <div className="rounded-[22px] border-2 border-[#C9A86A] bg-black/45 p-4">
+                <div className="flex items-center gap-3"><CreditCard size={22} className="text-[#C9A86A] shrink-0"/><div><h3 className="font-display text-xl">Pay for GRIT</h3><p className="text-sm text-white/80">{payNote}</p></div></div>
+                <div className="mt-3 space-y-2">
+                  {paypalLink ? <a href={paypalLink} target="_blank" rel="noreferrer" className="block min-h-[52px] rounded-full bg-[#C9A86A] px-4 py-3 text-center text-[15px] font-bold text-black active:scale-[0.98]">Pay with PayPal / Card →</a> : <p className="rounded-xl bg-black/40 px-3 py-2.5 text-sm text-white/70">PayPal link not set yet — your coach adds it in Coaches → Payment Links.</p>}
+                  {stripeLink ? <a href={stripeLink} target="_blank" rel="noreferrer" className="block min-h-[52px] rounded-full border border-white/30 px-4 py-3 text-center text-[15px] font-bold active:bg-white/10">Pay with Card (Stripe) →</a> : null}
+                  <p className="text-xs text-white/60">You pay on PayPal / Stripe&apos;s secure page. The GRIT app never sees or stores your card. Please include the athlete&apos;s name in the payment note.</p>
+                </div>
+              </div>
+              <div className="rounded-[22px] border border-white/15 bg-black/35 p-4">
+                <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold">NEXT GRIT SESSION</p>
+                {(()=>{ const ns = nextSessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return <p className="text-[15px] text-white/80 mt-2">Unlock your athlete&apos;s profile above to see their next session here.</p>; if(!ns) return <p className="text-[15px] text-white/80 mt-2">No next GRIT session scheduled yet for {unlockedAthlete?.name} — check back soon, or ask your coach.</p>; const d = new Date(ns.start); return <><h3 className="font-display text-xl mt-2 leading-tight">{ns.title}</h3><p className="text-[15px] text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel}</p></>; })()}
+                <button onClick={()=>goTab("training")} className="mt-3 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-2.5 text-[14px] font-bold">Open Training →</button>
+              </div>
+              <div className="rounded-[22px] border border-white/15 bg-black/35 p-4">
+                <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold">UPDATES</p>
+                <h3 className="font-display text-xl mt-2">{unlockedAthlete ? `Latest for ${unlockedAthlete.name}` : "Latest on The GRIT"}</h3>
+                <div className="mt-3 space-y-2">
+                  {(()=>{ const items = unlockedAthlete ? recentActivity.filter(x=>x.text.toLowerCase().includes(unlockedAthlete.name.toLowerCase())) : recentActivity; if(!items.length) return <p className="text-sm text-white/70">No updates yet — check back after the next session.</p>; return items.slice(0,6).map(x=>(<div key={x.id} className="rounded-xl border border-white/10 bg-black/30 px-3 py-2.5"><p className="text-[14px] leading-snug">{x.text}</p><p className="text-xs text-white/55 mt-0.5">{x.time}</p></div>)); })()}
+                </div>
+              </div>
+              <div className="rounded-[22px] border border-white/15 bg-black/35 p-4">
+                <p className="text-[11px] tracking-[0.28em] text-[#C9A86A] font-bold">GRIT PROGRESS NOTES</p>
+                {!loggedInAthleteId ? <p className="text-[15px] text-white/80 mt-2">Unlock your athlete&apos;s profile above to read their Progress Notes here.</p> : !unlockedAthlete?.progress_notes?.trim() ? <p className="text-[15px] text-white/80 mt-2">No Progress Notes yet for {unlockedAthlete?.name}. Your coach adds them after sessions — they&apos;ll show here when they&apos;re ready.</p> : <>
+                  <p className="mt-2 text-[15px] leading-relaxed whitespace-pre-wrap">{unlockedAthlete.progress_notes}</p>
+                  {unlockedAthlete.progress_notes_last_synced && <p className="text-xs text-white/60 mt-2">Last synced: {new Date(unlockedAthlete.progress_notes_last_synced).toLocaleString()}</p>}
+                  {unlockedAthlete.progress_doc_url ? <a href={unlockedAthlete.progress_doc_url} target="_blank" rel="noreferrer" className="mt-3 block min-h-[48px] rounded-full border border-white/25 px-4 py-2.5 text-center text-[14px] font-bold">Open Full Progress Doc →</a> : null}
+                </>}
+              </div>
+            </div>
             <button onClick={()=>goTab("wall")} className="mt-4 w-full min-h-[48px] border border-white/25 rounded-full text-sm font-semibold">Back to The GRIT</button>
           </section>
         ) : (
