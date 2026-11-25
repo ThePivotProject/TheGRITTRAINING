@@ -85,16 +85,16 @@ const placeholderAthletes = (): AthleteProfile[] => {
   return [...ROSTER_NAMES].sort((a,b)=>a.localeCompare(b)).map((name,i)=>({ id:`local-${i+1}`, name, sport:"", position:"", lookUp:"", ageGroup:"", motto:"", remember:"", homework:"", mindset:"", gratitude:"", nonNegotiables:"", disciplineDone:[], pin:"", focus:"", createdAt:new Date().toISOString(), startDate:"", program:"", trainingSections:emptySections(), trainingMinutes:{...DEFAULT_MINUTES}, trainingNotes:{}, progress_doc_url:"", progress_notes:"", progress_notes_last_synced:"" }));
 };
 
-type View = "wall"|"training"|"athletes"|"pillars"|"formats"|"coach"|"homework"|"impact"|"become"|"programs"|"vault"|"family";
+type View = "wall"|"training"|"athletes"|"pillars"|"coach"|"homework"|"impact"|"become"|"programs"|"vault"|"family";
+// GRIT Format bottom nav: HOME, PROGRAMS, ATHLETES, TRAINING, HOMEWORK, VAULT, plus For Parents.
+// Coaches is NOT in the bottom nav — header Coaches button only. Mindset & Impact is reached from in-page links.
 const TABS: {id:View; label:string; icon:any}[] = [
-  {id:"athletes", label:"Profile", icon: Users},
-  {id:"training", label:"Training", icon: Dumbbell},
-  {id:"family", label:"For Parents", icon: CreditCard},
-  {id:"homework", label:"Homework", icon: BookOpen},
-  {id:"pillars", label:"Mindset & Impact", icon: Brain},
   {id:"programs", label:"Programs", icon: Trophy},
-  {id:"coach", label:"Coaches", icon: ShieldCheck},
+  {id:"athletes", label:"Athletes", icon: Users},
+  {id:"training", label:"Training", icon: Dumbbell},
+  {id:"homework", label:"Homework", icon: BookOpen},
   {id:"vault", label:"Vault", icon: BookOpen},
+  {id:"family", label:"For Parents", icon: CreditCard},
 ];
 const ORIGIN_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, {id:"programs", label:"Programs", icon:Trophy}, {id:"family", label:"For Parents", icon:CreditCard}, {id:"athletes", label:"Athlete Login", icon:Users}];
 const ATHLETE_NAV: {id:View; label:string; icon:any}[] = [{id:"wall", label:"Home", icon:Home}, ...TABS];
@@ -195,425 +195,6 @@ const COACH_FUNNY = [
   "Funny fact: Your brain runs on about 20 watts — a dim light bulb. Use it bright.",
 ];
 
-// ---- Camera Measure Tool: vertical jump, broad jump, swing speed, sprint ----
-type MeasureTest = "vertical" | "broad" | "swing" | "sprint" | "firststep";
-type Pt = { x: number; y: number; t: number };
-function MeasureTool({ athleteName, onSave, onClose }: { athleteName: string; onSave: (text: string) => void; onClose: () => void }) {
-  const [test, setTest] = useState<MeasureTest>("vertical");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [fps, setFps] = useState(240);
-  const [curTime, setCurTime] = useState(0);
-  const [tapFor, setTapFor] = useState<string | null>(null);
-  const [calA, setCalA] = useState<Pt | null>(null);
-  const [calB, setCalB] = useState<Pt | null>(null);
-  const [ptA, setPtA] = useState<Pt | null>(null);
-  const [ptB, setPtB] = useState<Pt | null>(null);
-  const [takeoffT, setTakeoffT] = useState<number | null>(null);
-  const [landingT, setLandingT] = useState<number | null>(null);
-  const [startT, setStartT] = useState<number | null>(null);
-  const [finishT, setFinishT] = useState<number | null>(null);
-  const [knownLen, setKnownLen] = useState(33);
-  const [sprintYards, setSprintYards] = useState(20);
-  const [camActive, setCamActive] = useState(false);
-  const [camRecording, setCamRecording] = useState(false);
-  const [camError, setCamError] = useState("");
-  const [autoBusy, setAutoBusy] = useState(false);
-  const [autoStatus, setAutoStatus] = useState("");
-  const [autoResult, setAutoResult] = useState("");
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const fileRef = useRef<HTMLInputElement | null>(null);
-  const fileRef2 = useRef<HTMLInputElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
-  const camPreviewRef = useRef<HTMLVideoElement | null>(null);
-  function setClip(url: string) {
-    if (videoUrl) URL.revokeObjectURL(videoUrl);
-    setVideoUrl(url);
-    setCalA(null); setCalB(null); setPtA(null); setPtB(null);
-    setTakeoffT(null); setLandingT(null); setStartT(null); setFinishT(null);
-    setTapFor(null); setCurTime(0); setAutoStatus(""); setAutoResult("");
-  }
-  function loadFile(f: File | undefined) { if (!f) return; setClip(URL.createObjectURL(f)); }
-  async function startCamera() {
-    setCamError("");
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      streamRef.current = stream;
-      setCamActive(true);
-      setTimeout(() => { if (camPreviewRef.current) camPreviewRef.current.srcObject = stream; }, 0);
-    } catch (e: any) {
-      setCamError("Camera blocked — allow camera access for this site in your browser (look for the camera icon in the address bar), then try again.");
-    }
-  }
-  function stopCamera() {
-    try { recorderRef.current?.stop(); } catch (e) {}
-    recorderRef.current = null;
-    streamRef.current?.getTracks().forEach((t) => t.stop());
-    streamRef.current = null;
-    setCamActive(false); setCamRecording(false);
-  }
-  function startRec() {
-    const stream = streamRef.current; if (!stream) return;
-    chunksRef.current = [];
-    let rec: MediaRecorder;
-    try { rec = new MediaRecorder(stream); } catch (e: any) { setCamError("This browser can't record video in-page — record the clip in QuickTime / Photo Booth and use Choose a clip instead."); return; }
-    recorderRef.current = rec;
-    rec.ondataavailable = (ev) => { if (ev.data && ev.data.size) chunksRef.current.push(ev.data); };
-    rec.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: rec.mimeType || "video/mp4" });
-      if (blob.size) setClip(URL.createObjectURL(blob));
-      stopCamera();
-    };
-    rec.start();
-    setCamRecording(true);
-  }
-  function stopRec() {
-    if (recorderRef.current && recorderRef.current.state !== "inactive") recorderRef.current.stop();
-    else stopCamera();
-  }
-  function step(d: number) {
-    const v = videoRef.current; if (!v) return;
-    v.pause();
-    const nt = Math.max(0, v.currentTime + d * (1 / fps));
-    v.currentTime = nt; setCurTime(nt);
-  }
-  function handleTap(e: any) {
-    if (!tapFor) return;
-    const v = videoRef.current; if (!v) return;
-    v.pause();
-    const r = e.currentTarget.getBoundingClientRect();
-    const pt: Pt = { x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height, t: v.currentTime };
-    if (tapFor === "calA") setCalA(pt);
-    else if (tapFor === "calB") setCalB(pt);
-    else if (tapFor === "ptA") setPtA(pt);
-    else if (tapFor === "ptB") setPtB(pt);
-    setTapFor(null); setCurTime(v.currentTime);
-  }
-  function dist(a: Pt | null, b: Pt | null) { if (!a || !b) return null; return Math.hypot(a.x - b.x, a.y - b.y); }
-
-  // ---- Auto-Analyze: pose tracking on-device, nothing uploads ----
-  // Loads MediaPipe Pose from CDN once, then steps through the clip frame by frame.
-  // Vertical = ankle flight time. First step = hip starts moving -> first foot plant.
-  // Swing = wrist speed through the zone x bat-length lever -> mph estimate.
-  async function loadPoseLib(): Promise<any> {
-    const w: any = window as any;
-    if (w.Pose) return w.Pose;
-    const loadScript = (src: string) => new Promise<void>((resolve, reject) => {
-      const s = document.createElement("script"); s.src = src; s.async = true;
-      s.onload = () => resolve(); s.onerror = () => reject(new Error("pose lib failed"));
-      document.head.appendChild(s);
-    });
-    await loadScript("https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/pose.js");
-    if (!w.Pose) throw new Error("Pose library did not load. Check internet, then try again.");
-    return w.Pose;
-  }
-  async function analyzeAuto() {
-    const v = videoRef.current;
-    if (!v || !videoUrl) { setAutoStatus("Record or pick a clip first."); return; }
-    setAutoBusy(true); setAutoStatus("Loading pose tracker…"); setAutoResult("");
-    try {
-      const Pose = await loadPoseLib();
-      const pose = new Pose({ locateFile: (f: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose@0.5/${f}` });
-      pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d", { willReadFrequently: true });
-      if (!ctx) throw new Error("Canvas unavailable");
-      type Frame = { t: number; ankleY: number | null; hipX: number | null; hipY: number | null; wristX: number | null; wristY: number | null; wristSpeed: number };
-      const frames: Frame[] = [];
-      let last: any = null;
-      const pending = new Promise<void>((resolve) => {
-        pose.onResults((res: any) => { last = res; resolve(); });
-      });
-      // We resolve per-frame by awaiting a fresh onResults each send
-      const getPose = (img: any) => new Promise<any>((resolve) => {
-        pose.onResults((res: any) => resolve(res));
-        pose.send({ image: img }).catch(() => resolve(null));
-      });
-      await pending.catch(()=>{});
-      const dur = v.duration || 0;
-      if (!dur || !isFinite(dur)) throw new Error("Clip has no duration yet — let it load, then try again.");
-      const step = 1 / 60;
-      const wasPaused = v.paused;
-      v.pause();
-      const seekTo = (time: number) => new Promise<void>((resolve) => {
-        const onSeek = () => { v.removeEventListener("seeked", onSeek); resolve(); };
-        v.addEventListener("seeked", onSeek);
-        v.currentTime = Math.min(Math.max(0, time), Math.max(0, dur - 0.01));
-        setTimeout(() => { v.removeEventListener("seeked", onSeek); resolve(); }, 800);
-      });
-      canvas.width = 480; canvas.height = 270;
-      let prevWrist: { x: number; y: number; t: number } | null = null;
-      for (let tt = 0; tt < dur; tt += step) {
-        await seekTo(tt);
-        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-        const res: any = await getPose(canvas);
-        const lm = res?.poseLandmarks;
-        let ankleY: number | null = null, hipX: number | null = null, hipY: number | null = null, wristX: number | null = null, wristY: number | null = null, wristSpeed = 0;
-        if (lm && lm.length > 28) {
-          const lAnkle = lm[29], rAnkle = lm[30], lHip = lm[23], rHip = lm[24], lWrist = lm[15], rWrist = lm[16];
-          ankleY = ((lAnkle?.y ?? 1) + (rAnkle?.y ?? 1)) / 2;
-          hipX = ((lHip?.x ?? 0) + (rHip?.x ?? 0)) / 2;
-          hipY = ((lHip?.y ?? 0) + (rHip?.y ?? 0)) / 2;
-          // use the faster-moving wrist (lead hand through the zone)
-          const w = (lWrist && rWrist) ? (Math.abs((lWrist.x - (prevWrist?.x ?? lWrist.x))) > Math.abs((rWrist.x - (prevWrist?.x ?? rWrist.x))) ? lWrist : rWrist) : (lWrist || rWrist);
-          if (w) { wristX = w.x; wristY = w.y; }
-          if (prevWrist && wristX !== null && wristY !== null) {
-            const d = Math.hypot(wristX - prevWrist.x, wristY - prevWrist.y);
-            const dt = Math.max(0.001, tt - prevWrist.t);
-            wristSpeed = d / dt;
-          }
-          if (wristX !== null && wristY !== null) prevWrist = { x: wristX, y: wristY, t: tt };
-        }
-        frames.push({ t: tt, ankleY, hipX, hipY, wristX, wristY, wristSpeed });
-        if (frames.length % 30 === 0) setAutoStatus(`Scanning… ${Math.round((tt / dur) * 100)}%`);
-      }
-      try { pose.close(); } catch (e) {}
-      if (!wasPaused) { try { await v.play(); } catch (e) {} }
-      // ---- interpret ----
-      const valid = frames.filter(f => f.ankleY !== null);
-      if (valid.length < 10) throw new Error("Could not find a person in this clip. Re-record with the full body in frame, side view, good light, camera still.");
-      if (test === "vertical") {
-        const base = valid.slice(0, Math.min(15, valid.length)).map(f => f.ankleY as number).sort((a,b)=>a-b);
-        const baseY = base[Math.floor(base.length/2)];
-        // takeoff = first sustained drop (feet rise = y drops in image coords)
-        let takeoff: number | null = null, landing: number | null = null;
-        for (let i = 1; i < valid.length; i++) {
-          const drop = baseY - (valid[i].ankleY as number);
-          if (takeoff === null && drop > 0.03 && (valid[i].ankleY as number) < (valid[i-1].ankleY as number)) takeoff = valid[i].t;
-          else if (takeoff !== null && (valid[i].ankleY as number) >= baseY - 0.01) { landing = valid[i].t; break; }
-        }
-        if (takeoff === null || landing === null || landing <= takeoff) throw new Error("Could not find a clean jump. Stand still a beat, jump once, land and hold — one rep per clip.");
-        const flight = landing - takeoff;
-        const inches = 48.27 * flight * flight;
-        setTakeoffT(takeoff); setLandingT(landing);
-        const line = `Vertical Jump: ${inches.toFixed(1)} in  (flight ${flight.toFixed(3)}s)`;
-        setAutoResult(line); setAutoStatus("Done — auto-detected. Check the marks below, then save.");
-        return;
-      }
-      if (test === "firststep") {
-        const hipFrames = frames.filter(f => f.hipX !== null);
-        const baseX = hipFrames.slice(0, Math.min(15, hipFrames.length)).map(f => f.hipX as number).sort((a,b)=>a-b)[Math.floor(Math.min(15, hipFrames.length)/2)];
-        let start: number | null = null, plant: number | null = null;
-        for (let i = 1; i < hipFrames.length; i++) {
-          const moved = Math.abs((hipFrames[i].hipX as number) - baseX);
-          if (start === null && moved > 0.015) start = hipFrames[i].t;
-          else if (start !== null) {
-            // first foot plant = ankle dips back down after lifting
-            const a = frames[i]?.ankleY, b = frames[i-1]?.ankleY;
-            if (a !== null && b !== null && a > b + 0.01 && hipFrames[i].t - start > 0.08) { plant = hipFrames[i].t; break; }
-          }
-        }
-        if (start === null || plant === null) throw new Error("Could not find a clean first step. Stand still a beat in a ready stance, then explode — one rep per clip.");
-        const firstStep = plant - start;
-        setStartT(start); setFinishT(plant);
-        const line = `First-Step Quickness: ${firstStep.toFixed(3)}s  (first movement → first foot plant)`;
-        setAutoResult(line); setAutoStatus("Done — auto-detected. Check the marks below, then save.");
-        return;
-      }
-      if (test === "swing") {
-        // peak wrist speed through the zone; barrel ≈ wrist speed x lever (bat length + arm)
-        let peak = 0, peakT = 0;
-        frames.forEach(f => { if (f.wristSpeed > peak) { peak = f.wristSpeed; peakT = f.t; } });
-        if (peak <= 0) throw new Error("Could not track the swing. Re-record in slow-mo, side view, bat fully visible.");
-        // wristSpeed is in normalized-frame-units/sec. Calibrate: frame width ≈ 6 ft at typical distance.
-        // Barrel speed ≈ wrist speed (ft/s) x ~1.9 lever, then to mph.
-        const wristFps = peak * 6;
-        const barrelFps = wristFps * 1.9;
-        const mph = barrelFps * 0.6818;
-        const line = `Swing Speed (est.): ${mph.toFixed(1)} mph  (peak wrist speed at ${peakT.toFixed(2)}s)`;
-        setAutoResult(line); setAutoStatus("Done — auto-detected. This is an estimate, within ~3–5 mph of a bat sensor.");
-        return;
-      }
-      setAutoStatus("Auto-Analyze supports Vertical, First Step, and Swing. Broad Jump and Sprint still use manual marks.");
-    } catch (e: any) {
-      setAutoStatus(e?.message || "Auto-Analyze could not read this clip. Try the manual marks below.");
-    }
-    setAutoBusy(false);
-  }
-
-  function result(): { line: string; save: string } | null {
-    if (test === "vertical") {
-      if (takeoffT === null || landingT === null) return null;
-      const t = landingT - takeoffT;
-      if (t <= 0) return null;
-      const inches = 48.27 * t * t;
-      const ft = Math.floor(inches / 12);
-      const rem = inches - ft * 12;
-      return { line: `${inches.toFixed(1)} in  (${ft} ft ${rem.toFixed(1)} in)  •  flight time ${t.toFixed(3)}s`, save: `Vertical Jump: ${inches.toFixed(1)} in` };
-    }
-    if (test === "broad") {
-      const d = dist(ptA, ptB); const c = dist(calA, calB);
-      if (d === null || c === null || c === 0 || !knownLen) return null;
-      const inches = (d / c) * knownLen;
-      return { line: `${inches.toFixed(1)} in  (${(inches / 12).toFixed(2)} ft)`, save: `Broad Jump: ${inches.toFixed(1)} in` };
-    }
-    if (test === "swing") {
-      const d = dist(ptA, ptB); const c = dist(calA, calB);
-      if (d === null || c === null || c === 0 || !knownLen || !ptA || !ptB) return null;
-      const t = Math.abs(ptB.t - ptA.t);
-      if (t <= 0) return null;
-      const inches = (d / c) * knownLen;
-      const mph = (inches / 12 / t) * 0.6818;
-      return { line: `${mph.toFixed(1)} mph  •  barrel moved ${inches.toFixed(1)} in over ${t.toFixed(3)}s`, save: `Swing Speed: ${mph.toFixed(1)} mph` };
-    }
-    if (test === "firststep") {
-      if (startT === null || finishT === null) return null;
-      const t = finishT - startT;
-      if (t <= 0) return null;
-      return { line: `${t.toFixed(3)}s first step  •  first movement → first foot plant`, save: `First-Step Quickness: ${t.toFixed(3)}s` };
-    }
-    if (test === "sprint") {
-      if (startT === null || finishT === null) return null;
-      const t = finishT - startT;
-      if (t <= 0) return null;
-      const feet = sprintYards * 3;
-      const mph = (feet / t) * 0.6818;
-      return { line: `${t.toFixed(2)}s for ${sprintYards} yards  •  ${mph.toFixed(1)} mph`, save: `Sprint (${sprintYards} yd): ${t.toFixed(2)}s — ${mph.toFixed(1)} mph` };
-    }
-    return null;
-  }
-  const res = result();
-  const dateStr = new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" });
-  const marks: { pt: Pt; label: string; color: string }[] = [];
-  if (calA) marks.push({ pt: calA, label: "1", color: "#C9A86A" });
-  if (calB) marks.push({ pt: calB, label: "2", color: "#C9A86A" });
-  if (ptA) marks.push({ pt: ptA, label: "A", color: "#7BC47F" });
-  if (ptB) marks.push({ pt: ptB, label: "B", color: "#7BC47F" });
-  const instructions: Record<MeasureTest, string> = {
-    vertical: "Film from the SIDE. Athlete jumps once. Pause, step frames, and mark the exact frame the toes leave the ground (Takeoff) and the first frame the toes touch again (Landing).",
-    broad: "Film from the SIDE with a tape measure on the ground in frame. Tap the two ends of a known stretch of tape, enter that length, then tap the takeoff heel and the landing heel.",
-    swing: "Record in SLOW-MO (240fps) from the SIDE. Tap the bat knob, then the barrel tip, and enter the bat length. Then tap the barrel in one frame, step a few frames, and tap the barrel again.",
-    firststep: "Stand in a ready stance, side view, full body in frame. Hold still a beat, then explode. The system times first movement to first foot plant.",
-    sprint: "Film from the SIDE. Enter the cone-to-cone distance. Mark the frame the athlete crosses the first cone and the frame they cross the second.",
-  };
-  const tapBtn = (key: string, label: string, done: boolean) => (
-    <button key={key} onClick={() => setTapFor(key)} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${tapFor === key ? "bg-[#C9A86A] text-black border-[#C9A86A]" : done ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25 text-white/85"}`}>{done ? "✓ " : ""}{label}</button>
-  );
-  return (
-    <div className="mt-4 rounded-[26px] border-2 border-[#C9A86A] bg-black/55 px-4 py-5">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <h3 className="font-display text-2xl font-bold leading-tight">📏 Measure — {athleteName}</h3>
-          <p className="mt-1 text-xs text-white/65">Record in slow-mo for swings. Everything is measured on this device — nothing uploads.</p>
-        </div>
-        <button onClick={onClose} className="shrink-0 rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold">Close</button>
-      </div>
-      <div className="mt-4 flex gap-2">
-        {(["vertical", "firststep", "broad", "swing", "sprint"] as MeasureTest[]).map((t) => (
-          <button key={t} onClick={() => { setTest(t); setTapFor(null); }} className={`min-h-[44px] flex-1 rounded-full px-2 py-2 text-[12px] font-bold ${test === t ? "bg-[#C9A86A] text-black" : "border border-white/25 text-white/85"}`}>{t === "vertical" ? "Vertical" : t === "firststep" ? "First Step" : t === "broad" ? "Broad Jump" : t === "swing" ? "Swing Speed" : "Sprint"}</button>
-        ))}
-      </div>
-      <p className="mt-3 text-[13px] leading-relaxed text-white/80">{instructions[test]}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <button onClick={() => fileRef.current?.click()} className="min-h-[48px] flex-1 rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">🎥 Record a clip</button>
-        <button onClick={() => fileRef2.current?.click()} className="min-h-[48px] flex-1 rounded-full border border-white/30 px-4 py-2 text-[14px] font-bold">📁 Choose a clip</button>
-      </div>
-      <div className="mt-2">
-        {!camActive && <button onClick={startCamera} className="min-h-[48px] w-full rounded-full border border-[#C9A86A]/70 px-4 py-2 text-[14px] font-bold text-[#C9A86A]">📷 Use this device's camera (MacBook webcam)</button>}
-        {camError && <p className="mt-2 rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-center text-sm text-white/80">{camError}</p>}
-        {camActive && (
-          <div className="mt-2">
-            <video ref={camPreviewRef} autoPlay muted playsInline className="block w-full rounded-xl border border-[#C9A86A]/50 bg-black" />
-            <div className="mt-2 flex gap-2">
-              {!camRecording
-                ? <button onClick={startRec} className="min-h-[48px] flex-1 rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">● Start recording</button>
-                : <button onClick={stopRec} className="min-h-[48px] flex-1 rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">■ Stop — use this clip</button>}
-              <button onClick={stopCamera} className="min-h-[48px] rounded-full border border-white/30 px-4 py-2 text-[14px] font-bold">Cancel camera</button>
-            </div>
-            <p className="mt-2 text-center text-xs text-white/60">Prop the MacBook up with a side view of the athlete. Webcam clips are 30fps — great for jumps and sprints. For swing speed, still use an iPhone slow-mo clip.</p>
-          </div>
-        )}
-      </div>
-      <input ref={fileRef} type="file" accept="video/*" capture="environment" className="hidden" onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ""; }} />
-      <input ref={fileRef2} type="file" accept="video/*" className="hidden" onChange={(e) => { loadFile(e.target.files?.[0]); e.target.value = ""; }} />
-      {videoUrl && (test === "vertical" || test === "firststep" || test === "swing") && (
-        <div className="mt-4 rounded-2xl border-2 border-[#C9A86A] bg-[#2E4038]/70 px-4 py-4">
-          <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">AUTO-ANALYZE — CAMERA DOES IT</p>
-          <p className="mt-1 text-[13px] text-white/80">Record one rep, hold still a beat before you go, full body in frame, side view. Tap below and the system finds the rep for you.</p>
-          <button disabled={autoBusy} onClick={analyzeAuto} className="mt-3 min-h-[52px] w-full rounded-full bg-[#C9A86A] px-4 py-2 text-[15px] font-bold text-black disabled:opacity-50">{autoBusy ? "Analyzing… keep this tab open" : "✨ Auto-Analyze This Clip"}</button>
-          {autoStatus && <p className="mt-2 text-center text-sm text-white/80">{autoStatus}</p>}
-          {autoResult && (
-            <>
-              <p className="mt-2 text-center font-display text-2xl font-bold leading-tight">{autoResult}</p>
-              <button onClick={() => { if (test === "vertical" && takeoffT !== null && landingT !== null) onSave(`📏 Vertical Jump: ${(48.27 * (landingT - takeoffT) * (landingT - takeoffT)).toFixed(1)} in (${new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })})`); else if (test === "firststep" && startT !== null && finishT !== null) onSave(`📏 First-Step Quickness: ${(finishT - startT).toFixed(3)}s (${new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })})`); else onSave(`📏 ${autoResult} (${new Date().toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })})`); }} className="mt-3 min-h-[48px] w-full rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">Save to {athleteName}'s profile</button>
-            </>
-          )}
-          <p className="mt-2 text-center text-[11px] text-white/55">Vertical is most accurate. First step is timing-accurate. Swing is an estimate, ~3–5 mph of a bat sensor. Manual marks below still work as backup.</p>
-        </div>
-      )}
-      {videoUrl ? (
-        <>
-          <div className="relative mt-4 overflow-hidden rounded-xl border border-white/20 bg-black" onClick={handleTap}>
-            <video ref={videoRef} src={videoUrl} controls playsInline preload="metadata" className="block w-full" onTimeUpdate={(e) => setCurTime((e.target as HTMLVideoElement).currentTime)} onSeeked={(e) => setCurTime((e.target as HTMLVideoElement).currentTime)} />
-            {marks.map((m, i) => (
-              <span key={i} className="pointer-events-none absolute z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[11px] font-bold text-black" style={{ left: `${m.pt.x * 100}%`, top: `${m.pt.y * 100}%`, background: m.color }}>{m.label}</span>
-            ))}
-            {tapFor && <p className="pointer-events-none absolute bottom-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-black/80 px-3 py-1 text-[12px] font-bold text-[#C9A86A]">Tap the video to place this mark</p>}
-          </div>
-          <div className="mt-3 flex items-center gap-2">
-            <button onClick={() => step(-1)} className="min-h-[44px] flex-1 rounded-full border border-white/25 px-3 py-2 text-[13px] font-bold">◀ 1 frame</button>
-            <p className="min-w-[92px] text-center text-sm font-bold">{curTime.toFixed(3)}s</p>
-            <button onClick={() => step(1)} className="min-h-[44px] flex-1 rounded-full border border-white/25 px-3 py-2 text-[13px] font-bold">1 frame ▶</button>
-            <label className="flex items-center gap-1 text-xs font-bold text-white/70">fps
-              <select value={fps} onChange={(e) => setFps(Number(e.target.value))} className="min-h-[44px] rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[14px] text-white">
-                <option value={30}>30</option><option value={60}>60</option><option value={120}>120</option><option value={240}>240</option>
-              </select>
-            </label>
-          </div>
-          {test === "vertical" && (
-            <div className="mt-3 flex gap-2">
-              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setTakeoffT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${takeoffT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Takeoff {takeoffT !== null ? `(${takeoffT.toFixed(3)}s)` : ""}</button>
-              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setLandingT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${landingT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Landing {landingT !== null ? `(${landingT.toFixed(3)}s)` : ""}</button>
-            </div>
-          )}
-          {(test === "sprint" || test === "firststep") && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              {test === "sprint" && (
-              <label className="flex items-center gap-2 text-sm font-bold">Distance (yards)
-                <input type="number" value={sprintYards} onChange={(e) => setSprintYards(Number(e.target.value))} className="min-h-[44px] w-20 rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[15px]" />
-              </label>)}
-              {test === "firststep" && (<p className="w-full text-xs text-white/65">First Step uses auto-detect or the Mark Start / Mark Finish buttons — no distance needed.</p>)}
-              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setStartT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${startT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Start {startT !== null ? `(${startT.toFixed(3)}s)` : ""}</button>
-              <button onClick={() => { const v = videoRef.current; if (v) { v.pause(); setFinishT(v.currentTime); setCurTime(v.currentTime); } }} className={`min-h-[48px] flex-1 rounded-full border px-3 py-2 text-[13px] font-bold ${finishT !== null ? "border-[#7BC47F] text-[#7BC47F]" : "border-white/25"}`}>Mark Finish {finishT !== null ? `(${finishT.toFixed(3)}s)` : ""}</button>
-            </div>
-          )}
-          {(test === "broad" || test === "swing") && (
-            <div className="mt-3 space-y-2">
-              <label className="flex items-center gap-2 text-sm font-bold">{test === "broad" ? "Known distance between gold marks (inches)" : "Bat length (inches)"}
-                <input type="number" value={knownLen} onChange={(e) => setKnownLen(Number(e.target.value))} className="min-h-[44px] w-20 rounded-lg bg-[#2E4038] border border-white/15 px-2 py-1 text-[15px]" />
-              </label>
-              <div className="flex gap-2">
-                {tapBtn("calA", test === "broad" ? "Tap: Tape Start ①" : "Tap: Bat Knob ①", !!calA)}
-                {tapBtn("calB", test === "broad" ? "Tap: Tape End ②" : "Tap: Barrel Tip ②", !!calB)}
-              </div>
-              <div className="flex gap-2">
-                {tapBtn("ptA", test === "broad" ? "Tap: Takeoff Heel A" : "Tap: Barrel — Frame A", !!ptA)}
-                {tapBtn("ptB", test === "broad" ? "Tap: Landing Heel B" : "Tap: Barrel — Frame B", !!ptB)}
-              </div>
-              <p className="text-xs text-white/60">For swings: tap Barrel A, step 2–4 frames, then tap Barrel B. The app uses the time between those two taps.</p>
-            </div>
-          )}
-          <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/70 px-4 py-4 text-center">
-            {res ? (
-              <>
-                <p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">RESULT</p>
-                <p className="mt-1 font-display text-2xl font-bold leading-tight">{res.line}</p>
-                <button onClick={() => onSave(`📏 ${res.save} (${dateStr})`)} className="mt-3 min-h-[48px] w-full rounded-full bg-[#C9A86A] px-4 py-2 text-[14px] font-bold text-black">Save to {athleteName}'s profile</button>
-                <p className="mt-2 text-[11px] text-white/55">Vertical is the most accurate. Swing speed is an estimate — within a few mph of a bat sensor.</p>
-              </>
-            ) : (
-              <p className="text-sm text-white/70">Mark the frames / points above and the number shows up here.</p>
-            )}
-          </div>
-        </>
-      ) : (
-        <p className="mt-4 rounded-xl border border-white/15 bg-black/30 px-4 py-3 text-center text-sm text-white/70">Record a clip or pick one from your library to start measuring.</p>
-      )}
-    </div>
-  );
-}
-
 // ---- Training Vault: every exercise, searchable ----
 const VAULT: { pillar: string; items: { name: string; detail: string }[] }[] = [
   { pillar: "Dynamic Stretch", items: [
@@ -699,7 +280,6 @@ export default function App(){
   const [loading,setLoading]=useState(true);
   const [apiNote,setApiNote]=useState("");
   const [dictOpen,setDictOpen]=useState(false);
-  const [measureOpen,setMeasureOpen]=useState(false);
   const [checkGrateful,setCheckGrateful]=useState("");
   const [checkProud,setCheckProud]=useState("");
   const [gritness,setGritness]=useState<number|null>(null);
@@ -1368,7 +948,7 @@ export default function App(){
     setBusy(false);
   }
 
-  async function saveMeasurement(text: string){
+  async function saveNoteToProfile(text: string){
     if(!trainingAthlete) return;
     const join = (prev: string) => prev && prev.trim() ? `${prev.trim()} ${text}` : text;
     const updated: AthleteProfile = { ...trainingAthlete, progress_notes: join(trainingAthlete.progress_notes||"") };
@@ -1524,7 +1104,7 @@ export default function App(){
       if(dailyRecordId) await callApi("records.replace",{collection:"grit_daily", id:dailyRecordId, value:{ content, updatedAt:new Date().toISOString() }});
       else { const created = await callApi("records.create",{collection:"grit_daily", value:{ content, updatedAt:new Date().toISOString() }}); if(created?.id) setDailyRecordId(created.id); }
       setDailyContent(content);
-      setResult("“Motivation vs. Discipline | You vs. You” daily list saved — it now shows on the Training page.");
+      setResult("“Motivation vs. Discipline | You vs. You” daily list saved — it now shows on the How Do I Become page.");
       flashSaved();
     }catch(e:any){ setResult(e.message||"Could not save that page."); }
   }
@@ -1778,25 +1358,7 @@ export default function App(){
                     </div>
                   ))}
                 </section>
-                <section className="mt-6">
-                  <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">PROGRAMS</p>
-                  <h2 className="font-display text-[30px] leading-none mt-2">Four ways to train with The GRIT.</h2>
-                  <div className="mt-4 space-y-3">
-                    {[
-                      {name:"GRIT ATHLETE", format:"Individual 1-on-1 training", desc:"Personal coaching built around the athlete: strength, speed, mindset, and accountability, one on one.", subject:"GRIT Athlete - Get Started"},
-                      {name:"GRIT TEAM", format:"Whole-team program • 6–8 weeks", desc:"Entire teams — baseball, softball, any sport — get a 6–8 week program building physical and mental strength and resilience, together.", subject:"GRIT Team - Get Started"},
-                      {name:"GRIT ON TURF", format:"1-hour sessions", desc:"Focused on acceleration, first-step quickness, mastering the art of changing direction, velocity, and explosive movement.", subject:"GRIT on Turf - Get Started"},
-                      {name:"GRIT ACCOUNTABILITY", format:"For adults and parents", desc:"Movement that fits real life — training built for limited time frames, with the accountability to actually stick to it.", subject:"GRIT Accountability - Get Started"},
-                    ].map(pr=>(
-                      <div key={pr.name} className="rounded-[26px] border border-white/15 bg-black/35 px-5 py-5">
-                        <p className="text-[11px] font-bold tracking-[0.28em] text-[#C9A86A]">{pr.format.toUpperCase()}</p>
-                        <h3 className="font-display text-[26px] leading-tight mt-2">{pr.name}</h3>
-                        <p className="text-[15px] text-white/85 mt-2 leading-relaxed">{pr.desc}</p>
-                        <a href={`mailto:thepiviotproject@kbuiltsoftball.com?subject=${encodeURIComponent(pr.subject)}`} className="mt-4 flex min-h-[48px] items-center justify-center rounded-full bg-[#C9A86A] px-4 py-3 text-[15px] font-bold text-black active:scale-[0.98]">Get Started →</a>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+                
               </>
             )}
 
@@ -1820,9 +1382,7 @@ export default function App(){
           <section className="pt-5">
             <h2 className="font-display font-bold leading-none text-[clamp(36px,11vw,56px)]">TRAINING</h2>
             <p className="mt-2 text-[#C9A86A] text-xs tracking-[0.28em] font-bold">30 MINUTES • 4 BLOCKS • ONE STANDARD</p>
-            <div className="mt-4"><button onClick={()=>setMeasureOpen(v=>!v)} className="min-h-[52px] w-full rounded-full border border-[#C9A86A] bg-black/40 px-6 py-3 text-[15px] font-bold text-[#C9A86A] active:scale-[0.98]">Measure: Jump / Swing / Sprint →</button></div>
-            {measureOpen && trainingAthlete && (<MeasureTool athleteName={trainingAthlete.name} onSave={saveMeasurement} onClose={()=>setMeasureOpen(false)} />)}
-            {measureOpen && !trainingAthlete && (<p className="mt-3 rounded-xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">Pick an athlete first, then measure.</p>)}
+            <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">Measuring lives in the separate GRIT Measure app — ask your coach for your latest numbers.</p>
             {(()=>{ const ns=nextSessionForAthlete(loggedInAthleteId); if(!loggedInAthleteId) return null; if(!ns) return <p className="mt-4 rounded-2xl border border-white/15 bg-black/35 px-4 py-3 text-center text-sm text-white/75">No next GRIT session yet — ask your coach to add it in Coaches → Google Calendar.</p>; const d=new Date(ns.start); return <div className="mt-4 rounded-2xl border border-[#C9A86A]/50 bg-[#2E4038]/90 px-4 py-3 text-center"><p className="text-[11px] font-bold tracking-widest text-[#C9A86A]">NEXT GRIT SESSION</p><p className="font-display text-xl font-bold leading-tight mt-1">{ns.title}</p><p className="text-sm text-white/85 mt-1">{isNaN(d.getTime())?"":d.toLocaleString([], { weekday:"long", month:"long", day:"numeric", hour:"numeric", minute:"2-digit" })}</p>{ns.desc ? <p className="text-sm text-white/70 mt-1">{ns.desc}</p> : null}<p className="text-xs text-white/60 mt-1">{ns.sourceLabel} • thepiviotproject@kbuiltsoftball.com</p></div>; })()}
             {!loggedInAthleteId ? (
               <div>
@@ -1879,7 +1439,7 @@ export default function App(){
                     <p className="mt-1 text-[12px] text-white/65">Finish the 4 pillars, then finish this. It counts as part of the 30 minutes.</p>
                   </div>
                 )}
-                <button onClick={()=>{ if(!trainingAthlete){ setResult("Pick an athlete first."); return; } saveMeasurement(`GRIT Check-In — Grateful: ${checkGrateful||"—"} | Proud: ${checkProud||"—"} | GRITNESS: ${gritness ?? "—"}`); }} className="mt-2 w-full min-h-[48px] rounded-full border border-white/25 px-5 py-3 text-[14px] font-bold">Save Check-In to Profile</button>
+                <button onClick={()=>{ if(!trainingAthlete){ setResult("Pick an athlete first."); return; } saveNoteToProfile(`GRIT Check-In — Grateful: ${checkGrateful||"—"} | Proud: ${checkProud||"—"} | GRITNESS: ${gritness ?? "—"}`); }} className="mt-2 w-full min-h-[48px] rounded-full border border-white/25 px-5 py-3 text-[14px] font-bold">Save Check-In to Profile</button>
                 <p className="mt-2 text-center text-[11px] text-white/55">Generate fills the 4 blocks below. Review them, then Publish. Variants rotate so circuits don't repeat.</p>
               </div>
               <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-4">
@@ -2181,7 +1741,7 @@ export default function App(){
                 )}
                 {renderBecomeVideos(becomeVideos)}
               </div>
-              <button onClick={()=>goTab("formats")} className="mt-4 w-full min-h-[48px] rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Formats | Payment →</button>
+              
             </section>
           </div>
         ) : view==="programs" ? (
@@ -2206,27 +1766,6 @@ export default function App(){
             </div>
             <p className="mt-5 text-center text-[15px] leading-relaxed text-white/85">Not sure which program fits? Reach out — we&apos;ll point you the right way.</p>
             <a href="mailto:thepiviotproject@kbuiltsoftball.com?subject=Which%20GRIT%20program%20fits%20me%3F" className="mt-3 flex min-h-[48px] items-center justify-center rounded-full border border-white/25 px-4 py-3 text-[15px] font-semibold">Email The GRIT →</a>
-          </section>
-        ) : view==="formats" ? (
-          <section className="pt-5">
-            <p className="text-[#C9A86A] text-xs tracking-[0.28em] font-bold">FORMATS | PAYMENT</p>
-            <h2 className="font-display text-[36px] leading-none mt-2">Formats | Payment</h2>
-            <p className="text-white/85 mt-3 text-[15px] leading-relaxed">Choose how you train. Tap a button below to pay — you leave the app for PayPal / Stripe checkout, then come back. No card details are ever typed into, stored by, or seen by the GRIT app.</p>
-            <div className="space-y-3 mt-4">
-              {[{t:"1:1 Training",d:"One athlete. One plan. Full attention."},{t:"Small Group",d:"Train with your crew. Same standard."},{t:"Team Training",d:"Built together, session by session."}].map(x=>(
-                <div key={x.t} className="rounded-2xl border border-white/15 bg-black/35 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-display text-xl">{x.t}</h3><span className="text-[11px] font-bold px-2.5 py-1.5 rounded-full bg-[#C9A86A] text-black shrink-0">COMING SOON!</span></div><p className="text-[15px] text-white/80 mt-2">{x.d}</p><p className="text-xs text-white/60 mt-2">Details and scheduling — Coming Soon!</p></div>
-              ))}
-            </div>
-            <div className="rounded-2xl border border-[#C9A86A]/50 bg-black/35 p-4 mt-3">
-              <div className="flex items-center gap-3"><CreditCard size={22} className="text-[#C9A86A] shrink-0"/><div><h3 className="font-display text-xl">Pay for GRIT</h3><p className="text-sm text-white/80">{payNote}</p></div></div>
-              <div className="mt-3 space-y-2">
-                {paypalLink ? <a href={paypalLink} target="_blank" rel="noreferrer" className="block min-h-[48px] rounded-full bg-[#C9A86A] px-4 py-3 text-center text-[15px] font-bold text-black active:scale-[0.98]">Pay with PayPal / Card →</a> : <p className="rounded-xl bg-black/40 px-3 py-2.5 text-sm text-white/70">PayPal link not set yet — your coach adds it in Coaches → Payment Links.</p>}
-                {stripeLink ? <a href={stripeLink} target="_blank" rel="noreferrer" className="block min-h-[48px] rounded-full border border-white/30 px-4 py-3 text-center text-[15px] font-bold active:bg-white/10">Pay with Card (Stripe) →</a> : null}
-                {!paypalLink && !stripeLink ? <p className="text-xs text-white/60">Until a link is set, no payment button shows here — nothing can be charged by mistake.</p> : <p className="text-xs text-white/60">You pay on PayPal / Stripe's secure page. The GRIT app never sees or stores your card.</p>}
-              </div>
-            </div>
-            <div className="rounded-2xl border border-white/15 bg-black/35 p-4 mt-3"><h3 className="font-display text-xl flex items-center gap-2"><Sparkles size={18} className="text-[#C9A86A]"/> What stays the same</h3><p className="text-[15px] text-white/80 mt-2 leading-relaxed">Every format runs on the same wall: Dynamic Stretch, Core, Main Lift, Speed, Agility, Explode, mindset, homework, and the reminder.</p></div>
-            <button onClick={()=>goTab("wall")} className="mt-4 w-full min-h-[48px] border border-white/25 rounded-full text-sm font-semibold">Back to The GRIT</button>
           </section>
         ) : view==="family" ? (
           <section className="pt-5">
@@ -2373,15 +1912,15 @@ export default function App(){
               <div className="flex flex-col gap-2 mt-3"><button disabled={busy} onClick={saveSite} className="min-h-[52px] bg-[#C9A86A] text-black font-bold px-5 py-3 rounded-full text-[15px] disabled:opacity-50">Save Site</button><button disabled={busy} onClick={publishSite} className="min-h-[52px] border border-[#C9A86A] px-5 py-3 rounded-full text-[15px] font-bold disabled:opacity-50">Publish Site</button><button onClick={checkEverything} className="min-h-[48px] border border-white/25 px-5 py-3 rounded-full text-sm font-semibold">Check Everything</button></div>
               {checkResults && <ul className="mt-3 space-y-2">{checkResults.map(c=>(<li key={c.label} className="text-sm"><span className="flex items-center justify-between gap-2"><span>{c.label}</span><span className={`font-bold ${c.ok?"text-[#C9A86A]":"text-white"}`}>{c.ok?"● Green":"● Red"} <span className="font-normal text-white/60">— {c.detail}</span></span></span><span className="mt-0.5 block text-xs text-white/60">Last synced: {c.synced}</span></li>))}</ul>}
               <button onClick={()=>setDictOpen(true)} className="mt-4 w-full min-h-[48px] inline-flex items-center justify-center gap-2 bg-[#2E4038] border border-[#C9A86A]/50 px-4 py-2.5 rounded-full text-sm font-bold">Open Dictation <ChevronRight size={16}/></button>
-              <div className="mt-3 flex flex-col gap-2"><button onClick={()=>goTab("training")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Training Program</button><button onClick={()=>goTab("athletes")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">GRIT Athletes</button><button onClick={()=>goTab("pillars")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Impact</button><button onClick={()=>goTab("formats")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Formats | Payment</button></div>
+              <div className="mt-3 flex flex-col gap-2"><button onClick={()=>goTab("training")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Training Program</button><button onClick={()=>goTab("athletes")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">GRIT Athletes</button><button onClick={()=>goTab("pillars")} className="min-h-[48px] border border-white/20 px-3 py-2 rounded-full text-sm font-semibold">Impact</button></div>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">Payment Links</h3>
-              <p className="text-sm text-white/75 mt-1">Paste your PayPal Payment Link and/or Stripe Payment Link. They show as buttons on Formats | Payment for every athlete. Change them here any time — no redeploy needed. The links live in Supabase (grit_settings).</p>
+              <p className="text-sm text-white/75 mt-1">Paste your PayPal Payment Link and/or Stripe Payment Link. They show as buttons on the For Parents page. Change them here any time — no redeploy needed. The links live in Supabase (grit_settings).</p>
               <label className="block text-sm mt-3">PayPal Payment Link<input value={paypalLink} onChange={e=>setPaypalLink(e.target.value)} placeholder="https://www.paypal.com/ncp/payment/…" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
               <label className="block text-sm mt-2">Stripe Payment Link (card)<input value={stripeLink} onChange={e=>setStripeLink(e.target.value)} placeholder="https://buy.stripe.com/…" className="mt-1 w-full min-h-[48px] bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
               <label className="block text-sm mt-2">Payment note shown to families<textarea value={payNote} onChange={e=>setPayNote(e.target.value)} rows={2} className="mt-1 w-full bg-[#2E4038] border border-white/15 rounded-lg px-3 py-2.5 text-[14px]"/></label>
-              <button onClick={async()=>{ await persistSettings({ paypalLink, stripeLink, payNote }); setResult("Payment links saved — they now show on Formats | Payment."); flashSaved(); }} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Payment Links</button>
+              <button onClick={async()=>{ await persistSettings({ paypalLink, stripeLink, payNote }); setResult("Payment links saved — they now show on the For Parents page."); flashSaved(); }} className="mt-3 w-full min-h-[48px] bg-[#C9A86A] text-black font-bold px-4 py-2.5 rounded-full text-sm">Save Payment Links</button>
               <p className="text-xs text-white/60 mt-2">How to get the links: PayPal → Send & Request → Payment Links → Create (set amount or let them enter it). Stripe Dashboard → Payment Links → Create (set amount, card + Apple/Google Pay on). Both are free to set up — you only pay a fee per payment. See PAYMENTS-README.md in the zip.</p>
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
@@ -2393,7 +1932,7 @@ export default function App(){
             </div>
             <div className="rounded-[22px] border border-white/15 bg-black/35 p-4 mt-3">
               <h3 className="font-display text-xl">“Motivation vs. Discipline | You vs. You” — Daily List</h3>
-              <p className="text-sm text-white/75 mt-1">This is what shows on the Training page, right under the next session, in the box with that heading. Lay out what they should be doing every single day. Same formatting as the Become page: <span className="font-mono"># </span> big heading, <span className="font-mono">## </span> smaller heading, <span className="font-mono">- </span> bullet, <span className="font-mono">**bold**</span>.</p>
+              <p className="text-sm text-white/75 mt-1">This is what shows on the How Do I Become page, in the box with that heading. Lay out what they should be doing every single day. Same formatting as the Become page: <span className="font-mono"># </span> big heading, <span className="font-mono">## </span> smaller heading, <span className="font-mono">- </span> bullet, <span className="font-mono">**bold**</span>.</p>
               <div className="mt-3 flex gap-2">
                 <button onClick={()=>{ setDailyDraft(dailyContent); }} className="flex-1 min-h-[44px] rounded-full border border-white/25 px-3 py-2 text-sm font-semibold">Start Editing (loads current list)</button>
               </div>
@@ -2494,7 +2033,7 @@ export default function App(){
         </div>
       )}
       <footer className="relative z-10 mx-auto max-w-[430px] px-4 pb-6 pt-2 text-center text-xs text-white/65 lg:px-8">
-        <button onClick={()=>goTab("formats")} className="min-h-[44px] px-3 font-bold text-[#C9A86A]">Formats | Payment</button>
+        
         <p className="mt-1">The Pivot Project LLC — Expect Nothing Appreciate Everything</p>
         <p className="mt-2">Use the Share button in the header to share the GRIT icon.</p>
         {(view==="wall" || view==="coach") && <TinyAddToHomeLink />}
